@@ -4,7 +4,7 @@
 <div class="login-wrap">
     <section class="login-hero">
         <img src="{{ asset('images/joplc_logo.png') }}" alt="Jamuna Oil" class="brand-logo brand-logo-lg mb-4">
-        <h1>Jamuna Oil PLC<br>IT Service Desk</h1>
+        <h1>Jamuna Oil PLC.<br>IT Service Desk</h1>
         <p>Report an IT problem or request a service, follow it to resolution, and confirm when it is fixed.</p>
         <ul class="list-unstyled mt-3">
             <li>✓ Track every request from submission to closure</li>
@@ -28,7 +28,7 @@
                 <button class="btn btn-primary btn-lg w-100">Sign in</button>
             </form>
         </div>
-        <div class="login-foot">Developed by MIS &amp; IT Department, JOPLC.</div>
+        <div class="login-foot">Developed by MIS &amp; IT Department of JOPLC.</div>
     </section>
 </div>
 @endsection

@@ -25,7 +25,7 @@
     <div class="offcanvas-body d-flex flex-column p-3">
         <a href="{{ route('dashboard') }}" class="brand">
             <img src="{{ asset('images/joplc_logo.png') }}" alt="JOPLC" class="brand-logo">
-            <span class="brand-name">JOPLC<small>IT Service Desk</small></span>
+            <span class="brand-name">JOPLC.<small>IT Service Desk</small></span>
         </a>
 
         <ul class="nav flex-column gap-1">
@@ -82,8 +82,10 @@
 <div class="with-sidebar">
     <header class="topbar">
         <button class="btn-icon d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar" aria-label="Menu"><x-icon name="menu"/></button>
+        @unless(request()->routeIs('tickets.create'))
         <h1 class="page-title">@yield('title', 'IT Service Desk')</h1>
-        <div class="company d-none d-sm-block">Jamuna Oil PLC</div>
+        @endunless
+        <div class="company d-none d-sm-block">Jamuna Oil PLC.</div>
         <div class="ms-auto d-flex align-items-center gap-2">
             <button class="btn-icon" id="themeToggle" type="button" title="Light / dark" aria-label="Toggle theme"><x-icon name="moon"/></button>
             <a class="btn-icon" href="{{ route('notifications.index') }}" title="Notifications"><x-icon name="bell"/>@if($unread)<span class="dot">{{ $unread }}</span>@endif</a>
@@ -105,7 +107,7 @@
         @endif
         @yield('content')
     </main>
-    <footer class="app-footer">Developed by MIS &amp; IT Department, JOPLC.</footer>
+    <footer class="app-footer">Developed by MIS &amp; IT Department of JOPLC.</footer>
 </div>
 @else
     @if($errors->any())
