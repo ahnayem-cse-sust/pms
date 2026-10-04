@@ -82,9 +82,7 @@
 <div class="with-sidebar">
     <header class="topbar">
         <button class="btn-icon d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar" aria-label="Menu"><x-icon name="menu"/></button>
-        @unless(request()->routeIs('tickets.create'))
         <h1 class="page-title">@yield('title', 'IT Service Desk')</h1>
-        @endunless
         <div class="company d-none d-sm-block">Jamuna Oil PLC.</div>
         <div class="ms-auto d-flex align-items-center gap-2">
             <button class="btn-icon" id="themeToggle" type="button" title="Light / dark" aria-label="Toggle theme"><x-icon name="moon"/></button>

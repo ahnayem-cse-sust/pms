@@ -192,3 +192,17 @@ h1,h2,h3,h4,h5,h6{ font-weight:650; letter-spacing:-.01em; }
 .topbar .top-user .text-muted{ color:rgba(255,255,255,.72)!important; }
 .topbar .btn-outline-danger{ --bs-btn-color:#fecaca; --bs-btn-border-color:rgba(254,202,202,.65); --bs-btn-hover-bg:#ef4444; --bs-btn-hover-border-color:#ef4444; --bs-btn-hover-color:#fff; --bs-btn-active-bg:#dc2626; --bs-btn-active-border-color:#dc2626; --bs-btn-active-color:#fff; }
 [data-bs-theme=dark] .topbar{ background:linear-gradient(90deg,#0a0e1d,#151b38 60%,#1c2447); }
+
+/* Sidebar uses the same indigo as the top bar */
+#sidebar{ background:linear-gradient(180deg,#1e1b4b,#312e81 60%,#3730a3); border-right:0; --sb-text:#e8ebff; --sb-section:#c7cdf5; --sb-brand:#ffffff; }
+[data-bs-theme=dark] #sidebar{ background:linear-gradient(180deg,#0a0e1d,#151b38 60%,#1c2447); }
+#sidebar .brand{ color:#fff; }
+#sidebar .brand-name small{ color:#c7cdf5; }
+#sidebar .nav-section{ color:#c7cdf5; }
+#sidebar .nav-link{ color:#e8ebff; }
+#sidebar .nav-link:hover{ background:rgba(255,255,255,.14); color:#fff; }
+#sidebar .nav-link.active{ background:#fff; color:#312e81; box-shadow:0 4px 12px rgba(0,0,0,.25); }
+#sidebar .nav-link.active:hover{ background:#eef2ff; color:#b45309; }
+#sidebar .offcanvas-title{ color:#fff; }
+#sidebar .btn-close{ filter:invert(1) grayscale(100%) brightness(200%); }
+#sidebar .brand-logo{ background:#fff; padding:4px; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,.3); }
