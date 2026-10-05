@@ -51,6 +51,8 @@
                 <li class="nav-section">Administration</li>
                 @can('user.manage')
                     <li><a class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}" href="{{ route('admin.users.index') }}"><x-icon name="users"/> Users</a></li>
+                @endcan
+                @can('settings.manage')
                     <li><a class="nav-link {{ request()->routeIs('admin.settings*') ? 'active' : '' }}" href="{{ route('admin.settings') }}"><x-icon name="sliders"/> System Settings</a></li>
                 @endcan
                 @can('lookup.manage')
@@ -87,13 +89,14 @@
         <div class="ms-auto d-flex align-items-center gap-2">
             <button class="btn-icon" id="themeToggle" type="button" title="Light / dark" aria-label="Toggle theme"><x-icon name="moon"/></button>
             <a class="btn-icon" href="{{ route('notifications.index') }}" title="Notifications"><x-icon name="bell"/>@if($unread)<span class="dot">{{ $unread }}</span>@endif</a>
-            <div class="top-user d-none d-md-flex">
+            <a href="{{ route('profile.password') }}" class="top-user d-none d-md-flex text-decoration-none" title="My account – change password">
                 <x-avatar :name="auth()->user()->name" class="avatar-lg"/>
                 <div class="lh-sm">
                     <div class="fw-semibold">{{ auth()->user()->name }}</div>
-                    <div class="small text-muted">{{ auth()->user()->role?->name }}</div>
+                    <div class="small text-muted">{{ auth()->user()->role_names }}</div>
                 </div>
-            </div>
+            </a>
+            <a class="btn-icon" href="{{ route('profile.password') }}" title="Change password" aria-label="Change password"><x-icon name="key"/></a>
             <form method="POST" action="{{ route('logout') }}" class="m-0">@csrf
                 <button class="btn btn-outline-danger btn-sm d-inline-flex align-items-center gap-1" title="Sign out"><x-icon name="logout" :size="16"/> <span class="d-none d-sm-inline">Sign out</span></button>
             </form>

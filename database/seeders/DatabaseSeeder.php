@@ -16,14 +16,14 @@ class DatabaseSeeder extends Seeder
         $it = Department::firstOrCreate(['code' => 'IT'], ['name' => 'Information Technology']);
 
         // First administrator. Change the password immediately after first login.
-        User::updateOrCreate(['email' => 'admin@joplc.local'], [
+        $admin = User::updateOrCreate(['email' => 'admin@joplc.local'], [
             'name' => 'System Administrator',
             'password' => env('ITSM_ADMIN_PASSWORD', 'ChangeMe@12345'),
             'employee_id' => 'E0001',
-            'role_id' => Role::where('slug', 'admin')->value('id'),
             'department_id' => $it->id,
             'is_active' => true,
         ]);
+        $admin->roles()->syncWithoutDetaching([Role::where('slug', 'admin')->value('id')]);
 
         if (! app()->isProduction()) {
             $this->call(DemoSeeder::class);

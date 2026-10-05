@@ -50,7 +50,7 @@ class TicketService
                 'requester_name' => $user->name,
                 'requester_employee_id' => $user->employee_id,
                 'requester_designation' => $user->designation?->name,
-                'requester_phone' => $d['phone'] ?? $user->phone,
+                'requester_phone' => $d['phone'] ?? $user->whatsapp,
                 'requester_email' => $user->email,
                 'location_id' => $d['location_id'] ?? $user->location_id,
                 'category_id' => $d['category_id'],
@@ -112,7 +112,7 @@ class TicketService
                 return $isRequester || $isHead;
             case 'ticket.reopen':
                 if ($u->hasPermission('ticket.assign')) {
-                    return true; // IT Officer: anytime
+                    return true; // IT Admin: anytime
                 }
                 $window = (int) SystemSetting::get('ticket.reopen_window_days', 7);
                 $inWindow = $t->closed_at === null || $t->closed_at->gte(now()->subDays($window));

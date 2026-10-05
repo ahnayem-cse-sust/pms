@@ -19,7 +19,7 @@
             <td>{{ $u->name }}@if($u->is_department_head) <span class="badge text-bg-info">Head</span>@endif</td>
             <td>{{ $u->employee_id }}</td>
             <td>{{ $u->email }}</td>
-            <td>{{ $u->role?->name }}</td>
+            <td>@foreach($u->roles as $ro)<span class="pill pill-primary me-1 mb-1">{{ $ro->name }}</span>@endforeach</td>
             <td>{{ $u->department?->name }}</td>
             <td>{{ $u->last_login_at?->format('d M Y H:i') }}</td>
             <td>

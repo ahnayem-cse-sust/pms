@@ -40,7 +40,7 @@
                         </select>
                     @endif
                 </div>
-                <div class="col-md-4"><label class="form-label">Contact number</label><input name="phone" value="{{ old('phone', $u->phone) }}" class="form-control"></div>
+                <div class="col-md-4"><label class="form-label">Contact / WhatsApp number</label><input name="phone" value="{{ old('phone', $u->whatsapp) }}" class="form-control"></div>
                 <div class="col-md-4">
                     <label class="form-label">Location / office</label>
                     <select name="location_id" class="form-select"><option value="">—</option>

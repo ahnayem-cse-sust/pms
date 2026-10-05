@@ -21,7 +21,7 @@
             <div class="col-md-4"><b>Requester:</b> {{ $ticket->requester_name }} @if($ticket->requester_employee_id)({{ $ticket->requester_employee_id }})@endif</div>
             <div class="col-md-4"><b>Department:</b> {{ $ticket->department->name }}</div>
             <div class="col-md-4"><b>Designation:</b> {{ $ticket->requester_designation ?? '—' }}</div>
-            <div class="col-md-4"><b>Contact:</b> {{ $ticket->requester_phone ?? '—' }}</div>
+            <div class="col-md-4"><b>Contact / WhatsApp:</b> {{ $ticket->requester_phone ?? '—' }}</div>
             <div class="col-md-4"><b>Email:</b> {{ $ticket->requester_email ?? '—' }}</div>
             <div class="col-md-4"><b>Location:</b> {{ $ticket->location->name ?? '—' }}</div>
             <div class="col-md-4"><b>Category:</b> {{ $ticket->category->name }}@if($ticket->subcategory) / {{ $ticket->subcategory->name }}@endif</div>

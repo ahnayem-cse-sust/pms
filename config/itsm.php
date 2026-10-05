@@ -7,11 +7,11 @@
 return [
     'roles' => [
         'admin'      => 'System Administrator',
-        'it_officer' => 'IT Officer / IT Manager',
+        'it_officer' => 'IT Admin',
         'it_member'  => 'IT Team Member',
         'dept_user'  => 'Department User',
         'dept_head'  => 'Department Head',
-        'management' => 'Management / Viewer',
+        'management' => 'Management',
     ],
 
     'permissions' => [
@@ -26,7 +26,7 @@ return [
             'ticket.assign', 'ticket.edit', 'ticket.work', 'ticket.comment.public',
             'ticket.note.internal', 'ticket.close', 'ticket.reopen', 'ticket.escalate',
             'ticket.cancel', 'attachment.upload', 'attachment.download.internal',
-            'dashboard.officer', 'report.view', 'lookup.manage', 'audit.view',
+            'dashboard.officer', 'report.view', 'lookup.manage', 'user.manage',
         ],
         'it_member' => [
             'ticket.create', 'ticket.view.own', 'ticket.view.assigned', 'ticket.work',

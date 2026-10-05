@@ -9,7 +9,7 @@ use Illuminate\Console\Command;
 class SlaCheck extends Command
 {
     protected $signature = 'itsm:sla-check';
-    protected $description = 'Update SLA status (on_track / warning at 75% / breached) and alert the IT Officer';
+    protected $description = 'Update SLA status (on_track / warning at 75% / breached) and alert the IT Admin';
 
     public function handle(TicketService $svc): int
     {

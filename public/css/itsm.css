@@ -206,3 +206,29 @@ h1,h2,h3,h4,h5,h6{ font-weight:650; letter-spacing:-.01em; }
 #sidebar .offcanvas-title{ color:#fff; }
 #sidebar .btn-close{ filter:invert(1) grayscale(100%) brightness(200%); }
 #sidebar .brand-logo{ background:#fff; padding:4px; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,.3); }
+
+/* Brand colour #4843a5 for top bar (sidebar kept identical) */
+.topbar{ background:#4843a5; box-shadow:0 2px 10px rgba(72,67,165,.3); }
+#sidebar{ background:#4843a5; }
+#sidebar .nav-link.active{ color:#4843a5; }
+
+/* Sidebar background #0d076b (top bar stays #4843a5) */
+#sidebar{ background:#0d076b; }
+#sidebar .nav-link.active{ color:#0d076b; }
+
+/* Sidebar: blackish */
+#sidebar, [data-bs-theme=dark] #sidebar{ background:#14161c; }
+#sidebar .nav-link.active{ color:#14161c; }
+#sidebar .nav-section, #sidebar .brand-name small{ color:#aab0c0; }
+
+/* ---- Sidebar background fix ----
+   Bootstrap's .offcanvas-lg forces `background-color: transparent !important` from 992px up,
+   which made every earlier sidebar colour invisible (the white page showed through). */
+#sidebar,
+[data-bs-theme=dark] #sidebar{
+  --bs-offcanvas-bg:#060331;
+  background:#060331 !important;
+  background-color:#060331 !important;
+  color:#e8ebff;
+}
+#sidebar .nav-link.active{ color:#060331; }

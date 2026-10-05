@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TicketController;
 use Illuminate\Support\Facades\Route;
@@ -19,6 +20,10 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+
+    // Own account
+    Route::get('/profile/password', [ProfileController::class, 'editPassword'])->name('profile.password');
+    Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->middleware('throttle:10,1')->name('profile.password.update');
 
     // Tickets
     Route::get('/tickets', [TicketController::class, 'index'])->name('tickets.index');
@@ -48,6 +53,8 @@ Route::middleware('auth')->group(function () {
     Route::prefix('admin')->name('admin.')->group(function () {
         Route::middleware('can:user.manage')->group(function () {
             Route::resource('users', UserController::class)->except(['show', 'destroy']);
+        });
+        Route::middleware('can:settings.manage')->group(function () {
             Route::get('settings', [SettingController::class, 'index'])->name('settings');
             Route::put('settings', [SettingController::class, 'update'])->name('settings.update');
         });

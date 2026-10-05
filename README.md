@@ -17,25 +17,33 @@ Production seeding creates the lookups, six roles and one administrator (`admin@
 | Email | Role |
 |---|---|
 | admin@joplc.local | System Administrator |
-| officer@joplc.local | IT Officer |
+| officer@joplc.local | IT Admin |
 | member1…5@joplc.local | IT Team Members |
 | accounts.user@ / sales.user@joplc.local | Department Users |
 | accounts.head@joplc.local | Department Head (Accounts) |
-| mgmt@joplc.local | Management / Viewer |
+| mgmt@joplc.local | Management |
 
 Scheduler (SLA checks every 5 min, auto-close hourly): add to cron  
 `* * * * * cd /path/to/app && php artisan schedule:run >> /dev/null 2>&1`
 
+Audit log, Login history and System Settings are restricted to the System Administrator role. IT Admin can create and edit users, but System Administrator accounts and the System Administrator role are hidden from them. User records hold a WhatsApp number (not a phone number); all user fields are mandatory when creating a user.
+
+Upgrading an existing install: run `php artisan migrate` (renames the user phone column to `whatsapp` and refreshes role names/permissions), then `php artisan optimize:clear`.
+
+## Multiple roles
+
+A user can hold more than one role (e.g. IT Admin + IT Team Member, or Department Head + Department User). Tick the roles on the user form; permissions are combined. After upgrading an existing install run `php artisan migrate` – existing users keep their current role.
+
 ## UI
 
 Blade + Bootstrap 5 with a custom design layer (`public/css/itsm.css`): left sidebar, sticky top bar with global ticket search, light/dark theme toggle (remembered per browser), soft status pills, avatars, stat cards and toast messages.
-Vue 3 (loaded from `public/vendor`, no build step) powers two screens: the **New Request** form (dependent sub-categories, SLA hints on priorities, drag-and-drop attachments) and the IT Officer's **drag-and-drop assignment board** on the dashboard (drop a ticket on an IT member, or press Auto for the member with the fewest open tickets).
+Vue 3 (loaded from `public/vendor`, no build step) powers two screens: the **New Request** form (dependent sub-categories, SLA hints on priorities, drag-and-drop attachments) and the IT Admin's **drag-and-drop assignment board** on the dashboard (drop a ticket on an IT member, or press Auto for the member with the fewest open tickets).
 
 ## What is in Phase 1
 
 - Login with lockout, login history, session timeout, role + permission authorization, audit log
 - Request submission (type, category/sub-category, priority, attachments, preferred date), ticket numbers `IT-YYYY-000001`
-- IT Officer: unassigned queue, assign / reassign / auto-assign (fewest open tickets), priority/category/due-date changes, escalate, close, reopen
+- IT Admin: unassigned queue, assign / reassign / auto-assign (fewest open tickets), priority/category/due-date changes, escalate, close, reopen
 - IT Member: own queue, work, wait-for-user, hold, resolve with resolution text
 - Department: track own requests, comment, upload, confirm & close or reopen; Department Head sees the whole department
 - Public conversation and IT-only internal notes (filtered server-side), private attachment storage with extension/size checks

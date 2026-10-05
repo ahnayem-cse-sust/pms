@@ -28,15 +28,17 @@ class DemoSeeder extends Seeder
         $desig = Designation::first()->id;
 
         $mk = function (string $email, string $name, string $empId, string $roleSlug, ?int $dept, bool $head = false) use ($pw, $role, $loc, $desig) {
-            User::updateOrCreate(['email' => $email], [
+            $u = User::updateOrCreate(['email' => $email], [
                 'name' => $name, 'password' => $pw, 'employee_id' => $empId,
-                'role_id' => $role($roleSlug), 'department_id' => $dept,
+                'department_id' => $dept,
                 'designation_id' => $desig, 'location_id' => $loc->id,
                 'is_department_head' => $head, 'is_active' => true,
             ]);
+            // $roleSlug may be one slug or an array of slugs (a user can hold several roles)
+            $u->roles()->syncWithoutDetaching(array_map($role, (array) $roleSlug));
         };
 
-        $mk('officer@joplc.local', 'IT Officer', 'E1001', 'it_officer', $it->id);
+        $mk('officer@joplc.local', 'IT Admin', 'E1001', 'it_officer', $it->id);
         foreach (range(1, 5) as $i) {
             $mk("member{$i}@joplc.local", "IT Member {$i}", 'E110' . $i, 'it_member', $it->id);
         }
@@ -45,6 +47,6 @@ class DemoSeeder extends Seeder
         $mk('accounts.user@joplc.local', 'Md. Rahim', 'E2001', 'dept_user', $acc);
         $mk('accounts.head@joplc.local', 'Accounts Head', 'E2002', 'dept_head', $acc, true);
         $mk('sales.user@joplc.local', 'Sales User', 'E3001', 'dept_user', $sal);
-        $mk('mgmt@joplc.local', 'Management Viewer', 'E9001', 'management', null);
+        $mk('mgmt@joplc.local', 'Management', 'E9001', 'management', null);
     }
 }
