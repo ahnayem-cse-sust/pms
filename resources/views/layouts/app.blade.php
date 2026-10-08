@@ -42,10 +42,15 @@
             <li><a class="nav-link {{ request()->routeIs('notifications.*') ? 'active' : '' }}" href="{{ route('notifications.index') }}">
                 <x-icon name="bell"/> Notifications @if($unread)<span class="badge bg-danger count">{{ $unread }}</span>@endif</a></li>
 
-            @can('report.view')
+            @canany(['report.view', 'attendance.view'])
                 <li class="nav-section">Management</li>
-                <li><a class="nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}" href="{{ route('reports.index') }}"><x-icon name="chart"/> Reports</a></li>
-            @endcan
+                @can('attendance.view')
+                    <li><a class="nav-link {{ request()->routeIs('attendance.*') ? 'active' : '' }}" href="{{ route('attendance.index') }}"><x-icon name="clock"/> IT Attendance</a></li>
+                @endcan
+                @can('report.view')
+                    <li><a class="nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}" href="{{ route('reports.index') }}"><x-icon name="chart"/> Reports</a></li>
+                @endcan
+            @endcanany
 
             @canany(['user.manage', 'lookup.manage', 'audit.view'])
                 <li class="nav-section">Administration</li>

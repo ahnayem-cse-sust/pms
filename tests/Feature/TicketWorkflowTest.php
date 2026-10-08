@@ -152,4 +152,38 @@ class TicketWorkflowTest extends TestCase
         $this->actingAs($head)->post(route('tickets.store'), $payload + ['requester_id' => $this->u('acct_user@joplc.com')->id])->assertRedirect();
         $this->actingAs($head)->post(route('tickets.store'), $payload + ['requester_id' => $this->u('sales_user@joplc.com')->id])->assertForbidden();
     }
+
+    public function test_attendance_uses_first_and_last_office_login_only(): void
+    {
+        $emp = $this->u('it_emp@joplc.com');
+        $day = today();
+        $log = fn (string $time, string $ip, bool $ok = true) => \App\Models\LoginHistory::create([
+            'user_id' => $emp->id, 'email_tried' => $emp->email, 'successful' => $ok, 'ip_address' => $ip,
+            'created_at' => $day->copy()->setTimeFromTimeString($time),
+        ]);
+        $log('07:45:00', '10.0.0.5');           // not an office IP -> ignored
+        $log('09:00:00', '103.16.73.139');      // entry
+        $log('13:10:00', '103.4.67.236');
+        $log('17:30:00', '103.16.73.141');      // exit
+        $log('19:55:00', '8.8.8.8');            // ignored
+        $log('18:00:00', '103.16.73.138', false); // failed login -> ignored
+
+        $this->actingAs($this->u('sharif99452@gmail.com'))->get(route('attendance.index'))
+            ->assertOk()
+            ->assertSee('IT Employee')
+            ->assertSee('09:00 AM')
+            ->assertSee('05:30 PM')
+            ->assertSee('8h 30m')
+            ->assertDontSee('07:45 AM')
+            ->assertDontSee('07:55 PM');
+    }
+
+    public function test_attendance_is_for_management_only(): void
+    {
+        $this->actingAs($this->u('it_admin@joplc.com'))->get(route('attendance.index'))->assertForbidden();
+        $this->actingAs($this->u('it_emp@joplc.com'))->get(route('attendance.index'))->assertForbidden();
+        $this->actingAs($this->u('acct_user@joplc.com'))->get(route('attendance.index'))->assertForbidden();
+        $this->actingAs($this->u('sharif99452@gmail.com'))->get(route('attendance.index'))->assertOk();
+        $this->actingAs($this->u('nayem.jocl@gmail.com'))->get(route('attendance.index'))->assertOk();
+    }
 }

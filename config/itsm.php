@@ -9,6 +9,18 @@ return [
     // Hard ceiling for a single attachment (KB). 5120 KB = 5 MB. The upload.max_kb setting can only go lower.
     'max_upload_kb' => 5120,
 
+    // IT attendance page (Management): entry = first login of the day, exit = last login of the day,
+    // counting only successful logins from the office IP addresses below.
+    'attendance' => [
+        'roles' => ['it_member'],                    // role slugs treated as "IT employees"
+        'office_ips' => array_values(array_filter(array_map('trim', explode(',', env(
+            'ITSM_OFFICE_IPS',
+            '103.16.73.139,103.16.73.137,103.16.73.138,103.16.73.140,103.16.73.141,103.4.67.236'
+        ))))),
+        'weekend_days' => [5, 6],                    // Carbon day numbers: 5 = Friday, 6 = Saturday
+        'max_days' => 62,                            // longest date range the page will show
+    ],
+
     'timezone' => env('ITSM_TIMEZONE', 'Asia/Dhaka'),
 
     'roles' => [
@@ -24,7 +36,7 @@ return [
         'admin' => [
             'ticket.create', 'ticket.create.behalf', 'ticket.view.own', 'ticket.view.all', 'ticket.comment.public',
             'ticket.note.internal', 'attachment.upload', 'attachment.download.internal',
-            'dashboard.officer', 'report.view', 'user.manage', 'lookup.manage',
+            'dashboard.officer', 'report.view', 'attendance.view', 'user.manage', 'lookup.manage',
             'settings.manage', 'audit.view',
         ],
         'it_officer' => [
@@ -49,7 +61,7 @@ return [
             'dashboard.department', 'report.view',
         ],
         'management' => [
-            'ticket.view.all', 'dashboard.officer', 'report.view',
+            'ticket.view.all', 'dashboard.officer', 'report.view', 'attendance.view',
         ],
     ],
 ];

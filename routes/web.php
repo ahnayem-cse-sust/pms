@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AuditController;
 use App\Http\Controllers\Admin\LookupController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
@@ -42,6 +43,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.readAll');
     Route::get('/notifications/{id}', [NotificationController::class, 'read'])->name('notifications.read');
+
+    // IT employee attendance (Management)
+    Route::get('/attendance', [AttendanceController::class, 'index'])->middleware('can:attendance.view')->name('attendance.index');
 
     // Reports
     Route::middleware('can:report.view')->group(function () {

@@ -73,6 +73,7 @@ Legend: ● = yes, ◐ = limited (see note), blank = no.
 | dashboard.officer (team workload) | | ● | | | | ● |
 | dashboard.member | | | ● | | | |
 | dashboard.department | | | | ● | ● | |
+| attendance.view (IT attendance page) | ● | | | | | ● |
 | report.view | ● | ● | | | ◐ | ● |
 | user.manage (create/edit users) | ● | ◐ | | | | |
 | lookup.manage (categories, priorities, statuses) | ● | ◐ | | | | |
