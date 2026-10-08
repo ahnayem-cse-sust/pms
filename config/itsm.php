@@ -5,6 +5,12 @@
  * after seeding, the database copy is authoritative (editable later by an admin screen).
  */
 return [
+    // System time zone: GMT+6 (Bangladesh Standard Time, no daylight saving). Overrides APP_TIMEZONE.
+    // Hard ceiling for a single attachment (KB). 5120 KB = 5 MB. The upload.max_kb setting can only go lower.
+    'max_upload_kb' => 5120,
+
+    'timezone' => env('ITSM_TIMEZONE', 'Asia/Dhaka'),
+
     'roles' => [
         'admin'      => 'System Administrator',
         'it_officer' => 'IT Admin',
@@ -16,20 +22,20 @@ return [
 
     'permissions' => [
         'admin' => [
-            'ticket.create', 'ticket.view.own', 'ticket.view.all', 'ticket.comment.public',
+            'ticket.create', 'ticket.create.behalf', 'ticket.view.own', 'ticket.view.all', 'ticket.comment.public',
             'ticket.note.internal', 'attachment.upload', 'attachment.download.internal',
             'dashboard.officer', 'report.view', 'user.manage', 'lookup.manage',
             'settings.manage', 'audit.view',
         ],
         'it_officer' => [
-            'ticket.create', 'ticket.view.own', 'ticket.view.all', 'ticket.acknowledge',
+            'ticket.create', 'ticket.create.behalf', 'ticket.view.own', 'ticket.view.all', 'ticket.acknowledge',
             'ticket.assign', 'ticket.edit', 'ticket.work', 'ticket.comment.public',
             'ticket.note.internal', 'ticket.close', 'ticket.reopen', 'ticket.escalate',
             'ticket.cancel', 'attachment.upload', 'attachment.download.internal',
             'dashboard.officer', 'report.view', 'lookup.manage', 'user.manage',
         ],
         'it_member' => [
-            'ticket.create', 'ticket.view.own', 'ticket.view.assigned', 'ticket.work',
+            'ticket.create', 'ticket.create.behalf', 'ticket.view.own', 'ticket.view.assigned', 'ticket.work',
             'ticket.comment.public', 'ticket.note.internal', 'attachment.upload',
             'attachment.download.internal', 'dashboard.member',
         ],
@@ -38,7 +44,7 @@ return [
             'ticket.reopen', 'ticket.cancel', 'attachment.upload', 'dashboard.department',
         ],
         'dept_head' => [
-            'ticket.create', 'ticket.view.own', 'ticket.view.department', 'ticket.comment.public',
+            'ticket.create', 'ticket.create.behalf.dept', 'ticket.view.own', 'ticket.view.department', 'ticket.comment.public',
             'ticket.confirm', 'ticket.reopen', 'ticket.cancel', 'attachment.upload',
             'dashboard.department', 'report.view',
         ],

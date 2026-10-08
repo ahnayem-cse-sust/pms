@@ -27,6 +27,7 @@ class Ticket extends Model
 
     public function type() { return $this->belongsTo(TicketType::class, 'ticket_type_id'); }
     public function requester() { return $this->belongsTo(User::class, 'requester_id'); }
+    public function creator() { return $this->belongsTo(User::class, 'created_by'); }
     public function department() { return $this->belongsTo(Department::class); }
     public function location() { return $this->belongsTo(Location::class); }
     public function category() { return $this->belongsTo(TicketCategory::class, 'category_id'); }
@@ -47,7 +48,8 @@ class Ticket extends Model
             return $q;
         }
         return $q->where(function ($w) use ($u) {
-            $w->where('requester_id', $u->id);
+            // the requester, and whoever filed it on their behalf
+            $w->where('requester_id', $u->id)->orWhere('created_by', $u->id);
             if ($u->hasPermission('ticket.view.department') && $u->department_id) {
                 $w->orWhere('department_id', $u->department_id);
             }

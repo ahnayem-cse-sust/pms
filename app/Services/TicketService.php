@@ -28,9 +28,16 @@ class TicketService
 
     // ------------------------------------------------------------------ create
 
-    public function create(User $user, array $d, array $files = []): Ticket
+    /**
+     * @param User      $requester  the person the request is for
+     * @param User|null $actor      who is submitting it (differs from $requester when filed on someone's behalf)
+     */
+    public function create(User $requester, array $d, array $files = [], ?User $actor = null): Ticket
     {
-        return DB::transaction(function () use ($user, $d, $files) {
+        $actor ??= $requester;
+        $behalf = $actor->id !== $requester->id;
+
+        return DB::transaction(function () use ($requester, $actor, $behalf, $d, $files) {
             $year = now()->year;
             DB::table('ticket_sequences')->insertOrIgnore(['year' => $year, 'last_number' => 0]);
             $seq = DB::table('ticket_sequences')->where('year', $year)->lockForUpdate()->first();
@@ -45,14 +52,14 @@ class TicketService
             $ticket = Ticket::create([
                 'ticket_no' => $ticketNo,
                 'ticket_type_id' => $d['ticket_type_id'],
-                'requester_id' => $user->id,
-                'department_id' => $user->department_id ?? $d['department_id'],
-                'requester_name' => $user->name,
-                'requester_employee_id' => $user->employee_id,
-                'requester_designation' => $user->designation?->name,
-                'requester_phone' => $d['phone'] ?? $user->whatsapp,
-                'requester_email' => $user->email,
-                'location_id' => $d['location_id'] ?? $user->location_id,
+                'requester_id' => $requester->id,
+                'department_id' => $requester->department_id ?? $d['department_id'],
+                'requester_name' => $requester->name,
+                'requester_employee_id' => $requester->employee_id,
+                'requester_designation' => $requester->designation?->name,
+                'requester_phone' => $d['phone'] ?? $requester->whatsapp,
+                'requester_email' => $requester->email,
+                'location_id' => $d['location_id'] ?? $requester->location_id,
                 'category_id' => $d['category_id'],
                 'subcategory_id' => $d['subcategory_id'] ?? null,
                 'priority_id' => $priority->id,
@@ -63,18 +70,28 @@ class TicketService
                 'sla_response_due_at' => $priority->response_minutes ? $now->copy()->addMinutes($priority->response_minutes) : null,
                 'sla_resolution_due_at' => $priority->resolution_minutes ? $now->copy()->addMinutes($priority->resolution_minutes) : null,
                 'sla_status' => 'on_track',
-                'created_by' => $user->id,
+                'created_by' => $actor->id,
             ]);
 
             foreach ($files as $file) {
-                $this->attachments->store($ticket, $user, $file);
+                $this->attachments->store($ticket, $actor, $file);
             }
 
-            $this->log($ticket, $user, 'created', null, null, $ticketNo, $ticket->subject);
+            if ($behalf) {
+                $this->log($ticket, $actor, 'created_on_behalf', null, null, $requester->name, $ticket->subject);
+            } else {
+                $this->log($ticket, $actor, 'created', null, null, $ticketNo, $ticket->subject);
+            }
 
             $flag = in_array($priority->name, ['Critical', 'High'], true) ? "[{$priority->name}] " : '';
-            $this->notify($this->officers(), $ticket, "{$flag}New request {$ticketNo}: {$ticket->subject}", $user);
-            $this->notify([$user], $ticket, "Your request {$ticketNo} was submitted.");
+            $suffix = $behalf ? " (for {$requester->name}, filed by {$actor->name})" : '';
+            $this->notify($this->officers(), $ticket, "{$flag}New request {$ticketNo}: {$ticket->subject}{$suffix}", $actor);
+            $this->notify([$requester], $ticket, $behalf
+                ? "{$actor->name} submitted request {$ticketNo} on your behalf."
+                : "Your request {$ticketNo} was submitted.");
+            if ($behalf) {
+                $this->notify([$actor], $ticket, "Request {$ticketNo} was submitted for {$requester->name}.");
+            }
 
             return $ticket;
         });

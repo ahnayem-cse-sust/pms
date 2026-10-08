@@ -9,6 +9,11 @@ class ItsmLookupSeeder extends Seeder
 {
     public function run(): void
     {
+        // Already seeded (e.g. `php artisan db:seed` on an existing database): nothing to do.
+        if (DB::table('ticket_statuses')->exists()) {
+            return;
+        }
+
         $now = now();
 
         // ---- Statuses ----
@@ -122,7 +127,7 @@ class ItsmLookupSeeder extends Seeder
 
         // ---- Settings ----
         foreach ([
-            ['upload.max_kb',          '10240',                                         'upload'],
+            ['upload.max_kb',          '5120',                                          'upload'],
             ['upload.allowed_ext',     'jpg,jpeg,png,pdf,doc,docx,xls,xlsx,txt,log,zip', 'upload'],
             ['ticket.auto_close_days', '3',                                             'workflow'],
             ['ticket.reopen_window_days', '7',                                          'workflow'],

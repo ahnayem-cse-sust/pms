@@ -232,3 +232,13 @@ h1,h2,h3,h4,h5,h6{ font-weight:650; letter-spacing:-.01em; }
   color:#e8ebff;
 }
 #sidebar .nav-link.active{ color:#060331; }
+
+/* Searchable select (combobox) */
+.combo{ position:relative; }
+.combo-list{ position:absolute; z-index:40; left:0; right:0; max-height:280px; overflow:auto; margin:.3rem 0 0; padding:.3rem; list-style:none; background:var(--card); border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow); }
+.combo-list li{ padding:.45rem .65rem; border-radius:8px; cursor:pointer; }
+.combo-list li small{ display:block; color:var(--muted); font-size:.76rem; }
+.combo-list li.active,.combo-list li:hover{ background:var(--primary-soft); }
+.combo-list li.empty{ color:var(--muted); cursor:default; }
+.combo-list li.empty:hover{ background:transparent; }
+.combo .chev{ position:absolute; right:.8rem; top:2.35rem; pointer-events:none; color:var(--muted); font-size:.7rem; }

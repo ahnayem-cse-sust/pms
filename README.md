@@ -12,16 +12,19 @@ php artisan migrate --seed
 php artisan serve
 ```
 
-Production seeding creates the lookups, six roles and one administrator (`admin@joplc.local`, password from `ITSM_ADMIN_PASSWORD`; change it after first login). In any non-production environment it also creates demo users, all with password `ChangeMe@12345`:
+`php artisan migrate --seed` creates the lookups, the six roles, a few departments and **only** these seven accounts:
 
-| Email | Role |
-|---|---|
-| admin@joplc.local | System Administrator |
-| officer@joplc.local | IT Admin |
-| member1…5@joplc.local | IT Team Members |
-| accounts.user@ / sales.user@joplc.local | Department Users |
-| accounts.head@joplc.local | Department Head (Accounts) |
-| mgmt@joplc.local | Management |
+| Role | Email | Password |
+|---|---|---|
+| Department User | acct_user@joplc.com | 123456 |
+| Department User | sales_user@joplc.com | 123456 |
+| Department Head | acct_head@joplc.com | 123456 |
+| IT Admin | it_admin@joplc.com | 123456 |
+| IT Team Member | it_emp@joplc.com | 123456 |
+| Management | sharif99452@gmail.com | 123456 |
+| System Administrator | nayem.jocl@gmail.com | 12345678 |
+
+These passwords are weak: change them after the first login (key icon in the top bar). To (re)create just the accounts on an existing database: `php artisan db:seed --class=UserSeeder` (resets those seven passwords and roles). Accounts created by earlier versions of the seeder are not removed automatically; delete them, or run `php artisan migrate:fresh --seed` on a database with no data you need.
 
 Scheduler (SLA checks every 5 min, auto-close hourly): add to cron  
 `* * * * * cd /path/to/app && php artisan schedule:run >> /dev/null 2>&1`
@@ -30,6 +33,18 @@ Audit log, Login history and System Settings are restricted to the System Admini
 
 Upgrading an existing install: run `php artisan migrate` (renames the user phone column to `whatsapp` and refreshes role names/permissions), then `php artisan optimize:clear`.
 
+## Attachments
+
+Maximum **5 MB per file** (ceiling `max_upload_kb` in `config/itsm.php`; the `upload.max_kb` setting can only lower it). PHP must allow it too: set `upload_max_filesize` and `post_max_size` in php.ini to at least 5 MB per file you expect in one submission (for example 40M), then restart the web server.
+
+## Time zone
+
+The system time zone is **GMT+6 (Asia/Dhaka)**, set in `config/itsm.php` (`ITSM_TIMEZONE`) and applied automatically, so ticket times, SLA due times, reports and scheduled jobs all use it. Timestamps already stored before this setting was applied were written in the old zone and will look 6 hours earlier if the old zone was UTC.
+
+## Requests on behalf of others
+
+System Administrator, IT Admin and IT Team Member can file a request for any user (e.g. when a problem is reported by phone); a Department Head can file for users in their own department. Pick the person under **Request for** on the New Request form. The ticket belongs to that person (they see it and are notified), and shows who filed it. Permissions: `ticket.create.behalf` and `ticket.create.behalf.dept` in `config/itsm.php`. After upgrading run `php artisan migrate` and `php artisan optimize:clear`.
+
 ## Multiple roles
 
 A user can hold more than one role (e.g. IT Admin + IT Team Member, or Department Head + Department User). Tick the roles on the user form; permissions are combined. After upgrading an existing install run `php artisan migrate` – existing users keep their current role.
@@ -37,7 +52,7 @@ A user can hold more than one role (e.g. IT Admin + IT Team Member, or Departmen
 ## UI
 
 Blade + Bootstrap 5 with a custom design layer (`public/css/itsm.css`): left sidebar, sticky top bar with global ticket search, light/dark theme toggle (remembered per browser), soft status pills, avatars, stat cards and toast messages.
-Vue 3 (loaded from `public/vendor`, no build step) powers two screens: the **New Request** form (dependent sub-categories, SLA hints on priorities, drag-and-drop attachments) and the IT Admin's **drag-and-drop assignment board** on the dashboard (drop a ticket on an IT member, or press Auto for the member with the fewest open tickets).
+Vue 3 (loaded from `public/vendor`, no build step) powers two screens: the **New Request** form (dependent sub-categories, SLA hints on priorities, drag-and-drop attachments, searchable "Request for" picker) and the IT Admin's **drag-and-drop assignment board** on the dashboard (drop a ticket on an IT member, or press Auto for the member with the fewest open tickets).
 
 ## What is in Phase 1
 

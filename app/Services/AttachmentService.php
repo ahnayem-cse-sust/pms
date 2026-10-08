@@ -15,12 +15,18 @@ class AttachmentService
     /** Extensions that are never accepted, even if an admin adds them to the whitelist. */
     protected array $blocked = ['php', 'phtml', 'exe', 'bat', 'cmd', 'com', 'js', 'vbs', 'ps1', 'sh', 'msi', 'dll', 'jar', 'html', 'htm', 'svg'];
 
+    /** Effective per-file limit in KB: the admin setting, never above the 5 MB ceiling. */
+    public static function maxKb(): int
+    {
+        return min((int) SystemSetting::get('upload.max_kb', 5120), (int) config('itsm.max_upload_kb', 5120));
+    }
+
     public function store(Ticket $ticket, User $user, UploadedFile $file, bool $internal = false, ?int $commentId = null): TicketAttachment
     {
         $allowed = array_filter(array_map('trim', explode(',', strtolower(
             SystemSetting::get('upload.allowed_ext', 'jpg,jpeg,png,pdf,doc,docx,xls,xlsx,txt,log,zip')
         ))));
-        $maxKb = (int) SystemSetting::get('upload.max_kb', 10240);
+        $maxKb = self::maxKb();
         $ext = strtolower($file->getClientOriginalExtension());
 
         if (! $file->isValid()) {
@@ -30,7 +36,7 @@ class AttachmentService
             $this->fail("File type .{$ext} is not allowed.");
         }
         if (($file->getSize() / 1024) > $maxKb) {
-            $this->fail($file->getClientOriginalName() . " exceeds the {$maxKb} KB limit.");
+            $this->fail($file->getClientOriginalName() . " is larger than the " . round($maxKb / 1024, 1) . " MB limit.");
         }
 
         $size = $file->getSize();

@@ -10,7 +10,10 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        // Force the system time zone (GMT+6) for Carbon, now(), the scheduler and every displayed date/time
+        $tz = config('itsm.timezone', 'Asia/Dhaka');
+        config(['app.timezone' => $tz]);
+        date_default_timezone_set($tz);
     }
 
     public function boot(): void

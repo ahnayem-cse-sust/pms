@@ -52,6 +52,7 @@ Legend: ● = yes, ◐ = limited (see note), blank = no.
 | Permission | Admin | IT Admin | IT Member | Dept User | Dept Head | Mgmt |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|
 | ticket.create | ● | ● | ● | ● | ● | |
+| ticket.create.behalf (file a request for another person) | ● | ● | ● | | ◐ | |
 | ticket.view.own | ● | ● | ● | ● | ● | |
 | ticket.view.department | | | | | ● | |
 | ticket.view.assigned | | | ● | | | |
@@ -81,6 +82,7 @@ Legend: ● = yes, ◐ = limited (see note), blank = no.
 Notes on ◐:
 - **IT Member** can change priority/category only if the Officer enables it; `ticket.work` applies only to tickets where `assigned_to` = self.
 - **IT Admin user.manage**: can create and edit users and assign any role except System Administrator. System Administrator accounts and that role are hidden from them, and the server rejects attempts to edit such an account or grant the role.
+- **Dept Head ticket.create.behalf**: may file requests only for users of their own department. Admin, IT Admin and IT Team Member may file for any user (System Administrator accounts are hidden from non-admins).
 - **Dept User / Dept Head** `confirm`, `reopen`, `cancel` apply only to their own (Head: own department's) tickets and only from the valid states above.
 - **Dept Head report.view** is limited to own department.
 - **IT Admin lookup.manage** is limited to categories/sub-categories; priorities and SLA values stay Admin-only.

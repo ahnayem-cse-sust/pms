@@ -18,6 +18,9 @@
 <div class="col-lg-8">
     <div class="card mb-3"><div class="card-body">
         <div class="row small mb-3">
+            @if($ticket->created_by !== $ticket->requester_id)
+            <div class="col-12 mb-2"><span class="pill pill-warning">Filed on behalf of the requester by {{ $ticket->creator->name ?? 'IT' }}</span></div>
+            @endif
             <div class="col-md-4"><b>Requester:</b> {{ $ticket->requester_name }} @if($ticket->requester_employee_id)({{ $ticket->requester_employee_id }})@endif</div>
             <div class="col-md-4"><b>Department:</b> {{ $ticket->department->name }}</div>
             <div class="col-md-4"><b>Designation:</b> {{ $ticket->requester_designation ?? '—' }}</div>
@@ -171,6 +174,7 @@
                         <b>{{ $h->user->name ?? 'System' }}</b>
                         @switch($h->action)
                             @case('created') created the request @break
+                            @case('created_on_behalf') created the request on behalf of <b>{{ $h->new_value }}</b> @break
                             @case('status_changed') changed status: {{ $h->old_value }} → <b>{{ $h->new_value }}</b> @break
                             @case('assigned') assigned to <b>{{ $h->new_value }}</b> @break
                             @case('reassigned') reassigned {{ $h->old_value }} → <b>{{ $h->new_value }}</b> @break

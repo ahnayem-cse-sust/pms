@@ -69,13 +69,42 @@ class TicketController extends Controller
             'priorities' => TicketPriority::where('is_active', true)->orderBy('level')->get(),
             'locations' => Location::where('is_active', true)->orderBy('name')->get(),
             'departments' => Department::where('is_active', true)->orderBy('name')->get(),
+            'requesters' => $this->eligibleRequesters(auth()->user()),
         ]);
+    }
+
+    /** People the current user may file a request for (empty = may only file for themselves). */
+    protected function eligibleRequesters(User $actor)
+    {
+        $q = User::active()->with(['department', 'designation'])->where('id', '!=', $actor->id)->orderBy('name');
+
+        if ($actor->hasPermission('ticket.create.behalf')) {
+            // IT staff and administrators: anyone (System Administrator accounts stay hidden from non-admins)
+            if (! $actor->isRole('admin')) {
+                $q->whereDoesntHave('roles', fn ($x) => $x->where('slug', 'admin'));
+            }
+            return $q->get();
+        }
+        if ($actor->hasPermission('ticket.create.behalf.dept') && $actor->department_id) {
+            // Department heads: their own department only
+            return $q->where('department_id', $actor->department_id)
+                ->whereDoesntHave('roles', fn ($x) => $x->where('slug', 'admin'))->get();
+        }
+        return collect();
     }
 
     public function store(Request $r)
     {
-        $u = auth()->user();
+        $actor = auth()->user();
+        $requester = $actor;
+
+        if ($r->filled('requester_id') && (int) $r->requester_id !== $actor->id) {
+            $requester = $this->eligibleRequesters($actor)->firstWhere('id', (int) $r->requester_id);
+            abort_if(! $requester, 403, 'You are not allowed to submit a request for that person.');
+        }
+
         $d = $r->validate([
+            'requester_id' => 'nullable|integer|exists:users,id',
             'ticket_type_id' => 'required|exists:ticket_types,id',
             'category_id' => 'required|exists:ticket_categories,id',
             'subcategory_id' => 'nullable|exists:ticket_subcategories,id',
@@ -85,12 +114,15 @@ class TicketController extends Controller
             'preferred_completion_date' => 'nullable|date|after_or_equal:today',
             'phone' => 'nullable|string|max:30',
             'location_id' => 'nullable|exists:locations,id',
-            'department_id' => $u->department_id ? 'nullable' : 'required|exists:departments,id',
-            'attachments.*' => 'file',
-        ]);
+            'department_id' => $requester->department_id ? 'nullable' : 'required|exists:departments,id',
+            'attachments.*' => $this->fileRule(),
+        ], $this->fileMessages());
 
-        $ticket = $this->svc->create($u, $d, $r->file('attachments', []));
-        return redirect()->route('tickets.show', $ticket)->with('ok', "Request {$ticket->ticket_no} submitted.");
+        $ticket = $this->svc->create($requester, $d, $r->file('attachments', []), $actor);
+        $msg = $requester->id === $actor->id
+            ? "Request {$ticket->ticket_no} submitted."
+            : "Request {$ticket->ticket_no} submitted for {$requester->name}.";
+        return redirect()->route('tickets.show', $ticket)->with('ok', $msg);
     }
 
     public function show(Ticket $ticket)
@@ -99,7 +131,7 @@ class TicketController extends Controller
         abort_unless(Ticket::visibleTo($u)->whereKey($ticket->id)->exists(), 403);
 
         $ticket->load(['department', 'location', 'category', 'subcategory', 'priority', 'status', 'assignee', 'requester', 'type',
-            'comments', 'history', 'assignments', 'attachments']);
+            'comments', 'history', 'assignments', 'attachments', 'creator']);
 
         $seeInternal = $u->hasPermission('ticket.note.internal');
         $notes = $seeInternal ? $ticket->notes : collect();
@@ -170,7 +202,7 @@ class TicketController extends Controller
     {
         $this->authorize('ticket.comment.public');
         $this->authorizeView($ticket);
-        $r->validate(['body' => 'required|string|max:5000', 'attachments.*' => 'file']);
+        $r->validate(['body' => 'required|string|max:5000', 'attachments.*' => $this->fileRule()], $this->fileMessages());
         $this->svc->addComment($ticket, auth()->user(), $r->body, $r->file('attachments', []));
         return back()->with('ok', 'Comment added.');
     }
@@ -179,7 +211,7 @@ class TicketController extends Controller
     {
         $this->authorize('ticket.note.internal');
         $this->authorizeView($ticket);
-        $r->validate(['body' => 'required|string|max:5000', 'attachments.*' => 'file']);
+        $r->validate(['body' => 'required|string|max:5000', 'attachments.*' => $this->fileRule()], $this->fileMessages());
         $this->svc->addNote($ticket, auth()->user(), $r->body, $r->file('attachments', []));
         return back()->with('ok', 'Internal note added.');
     }
@@ -188,7 +220,7 @@ class TicketController extends Controller
     {
         $this->authorize('attachment.upload');
         $this->authorizeView($ticket);
-        $r->validate(['attachments' => 'required', 'attachments.*' => 'file']);
+        $r->validate(['attachments' => 'required', 'attachments.*' => $this->fileRule()], $this->fileMessages());
         $internal = $r->boolean('internal') && auth()->user()->hasPermission('ticket.note.internal');
         foreach ($r->file('attachments') as $f) {
             app(\App\Services\AttachmentService::class)->store($ticket, auth()->user(), $f, $internal);
@@ -206,6 +238,21 @@ class TicketController extends Controller
         abort_unless(Storage::disk('local')->exists($attachment->stored_path), 404);
         \App\Models\AuditLog::record('attachment.download', $attachment);
         return Storage::disk('local')->download($attachment->stored_path, $attachment->original_name);
+    }
+
+    protected function fileRule(): array
+    {
+        return ['file', 'max:' . \App\Services\AttachmentService::maxKb()];
+    }
+
+    protected function fileMessages(): array
+    {
+        $mb = rtrim(rtrim(number_format(\App\Services\AttachmentService::maxKb() / 1024, 1), '0'), '.');
+        return [
+            'attachments.*.max' => "Each attachment must be {$mb} MB or smaller.",
+            'attachments.*.file' => 'One of the attachments could not be uploaded (it may be larger than the server allows).',
+            'attachments.*.uploaded' => 'One of the attachments could not be uploaded (it may be larger than the server allows).',
+        ];
     }
 
     protected function authorizeView(Ticket $ticket): void

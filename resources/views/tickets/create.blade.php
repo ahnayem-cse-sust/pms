@@ -3,7 +3,16 @@
 @section('content')
 @php
     $u = auth()->user();
+    $person = fn ($p) => [
+        'id' => $p->id, 'name' => $p->name, 'emp' => $p->employee_id, 'desig' => $p->designation?->name,
+        'dept' => $p->department?->name, 'deptId' => $p->department_id, 'email' => $p->email,
+        'phone' => $p->whatsapp, 'locId' => $p->location_id,
+    ];
+    $u->loadMissing(['department', 'designation']);
     $cfg = [
+        'me' => $person($u),
+        'users' => $requesters->map($person)->values(),
+        'maxKb' => \App\Services\AttachmentService::maxKb(),
         'categories' => $categories->map(fn ($c) => [
             'id' => $c->id, 'name' => $c->name,
             'subs' => $c->subcategories->map(fn ($s) => ['id' => $s->id, 'name' => $s->name])->values(),
@@ -12,6 +21,8 @@
             'id' => $p->id, 'name' => $p->name, 'resp' => $p->response_minutes, 'reso' => $p->resolution_minutes,
         ])->values(),
         'old' => [
+            'requester' => (string) old('requester_id'),
+            'phone' => old('phone'), 'location' => (string) old('location_id'), 'department' => (string) old('department_id'),
             'category' => (string) old('category_id'), 'sub' => (string) old('subcategory_id'),
             'priority' => (string) old('priority_id', optional($priorities->firstWhere('name', 'Medium'))->id),
             'subject' => old('subject', ''), 'description' => old('description', ''),
@@ -23,31 +34,55 @@
 <form id="ticketForm" method="POST" action="{{ route('tickets.store') }}" enctype="multipart/form-data" v-cloak v-on:submit="submitting = true">
     @csrf
     <div class="card mb-3">
-        <div class="card-header">Requester</div>
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Requester</span>
+            <span v-if="behalf" class="pill pill-warning">Filing on behalf of another person</span>
+        </div>
         <div class="card-body">
+            @if($requesters->isNotEmpty())
+            <div class="row g-3 mb-3 pb-3 border-bottom">
+                <div class="col-md-7">
+                    <label class="form-label">Request for</label>
+                    <div class="combo">
+                        <input type="hidden" name="requester_id" :value="requesterId">
+                        <input class="form-control" role="combobox" :aria-expanded="open ? 'true' : 'false'" autocomplete="off"
+                               placeholder="Search by name, employee ID or department…"
+                               v-model="search"
+                               v-on:focus="onFocus($event)" v-on:input="typing = true; open = true; hi = 0"
+                               v-on:keydown.down.prevent="move(1)" v-on:keydown.up.prevent="move(-1)"
+                               v-on:keydown.enter.prevent="pickHighlighted" v-on:keydown.esc="closeList" v-on:blur="closeList">
+                        <span class="chev">▼</span>
+                        <ul class="combo-list" v-show="open">
+                            <li v-for="(o, i) in options" :key="'o' + o.id" :class="{ active: i === hi }"
+                                v-on:mousedown.prevent="pick(o)" v-on:mouseenter="hi = i">
+                                [[ o.label ]]<small v-if="o.sub">[[ o.sub ]]</small>
+                            </li>
+                            <li v-if="!options.length" class="empty">No matching person</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            @endif
+
             <div class="row g-3">
-                <div class="col-md-4"><label class="form-label">Name</label><input class="form-control" value="{{ $u->name }}" disabled></div>
-                <div class="col-md-2"><label class="form-label">Employee ID</label><input class="form-control" value="{{ $u->employee_id }}" disabled></div>
-                <div class="col-md-3"><label class="form-label">Designation</label><input class="form-control" value="{{ $u->designation?->name }}" disabled></div>
+                <div class="col-md-4"><label class="form-label">Name</label><input class="form-control" :value="who.name" disabled></div>
+                <div class="col-md-2"><label class="form-label">Employee ID</label><input class="form-control" :value="who.emp" disabled></div>
+                <div class="col-md-3"><label class="form-label">Designation</label><input class="form-control" :value="who.desig" disabled></div>
                 <div class="col-md-3">
                     <label class="form-label">Department</label>
-                    @if($u->department_id)
-                        <input class="form-control" value="{{ $u->department->name }}" disabled>
-                    @else
-                        <select name="department_id" class="form-select" required>
-                            <option value="">Select…</option>
-                            @foreach($departments as $d)<option value="{{ $d->id }}" @selected(old('department_id') == $d->id)>{{ $d->name }}</option>@endforeach
-                        </select>
-                    @endif
-                </div>
-                <div class="col-md-4"><label class="form-label">Contact / WhatsApp number</label><input name="phone" value="{{ old('phone', $u->whatsapp) }}" class="form-control"></div>
-                <div class="col-md-4">
-                    <label class="form-label">Location / office</label>
-                    <select name="location_id" class="form-select"><option value="">—</option>
-                        @foreach($locations as $l)<option value="{{ $l->id }}" @selected(old('location_id', $u->location_id) == $l->id)>{{ $l->name }}</option>@endforeach
+                    <input v-if="who.deptId" class="form-control" :value="who.dept" disabled>
+                    <select v-else name="department_id" class="form-select" v-model="departmentId" required>
+                        <option value="">Select…</option>
+                        @foreach($departments as $d)<option value="{{ $d->id }}">{{ $d->name }}</option>@endforeach
                     </select>
                 </div>
-                <div class="col-md-4"><label class="form-label">Preferred completion date</label><input type="date" name="preferred_completion_date" value="{{ old('preferred_completion_date') }}" class="form-control"></div>
+                <div class="col-md-6"><label class="form-label">Contact / WhatsApp number</label><input name="phone" v-model="phone" class="form-control"></div>
+                <div class="col-md-6">
+                    <label class="form-label">Location / office</label>
+                    <select name="location_id" class="form-select" v-model="location"><option value="">—</option>
+                        @foreach($locations as $l)<option value="{{ $l->id }}">{{ $l->name }}</option>@endforeach
+                    </select>
+                </div>
             </div>
         </div>
     </div>
@@ -84,7 +119,6 @@
                             <input type="radio" class="btn-check" name="priority_id" :id="'p' + p.id" :value="String(p.id)" v-model="priority" required>
                             <label class="prio-card" :for="'p' + p.id">
                                 <b>[[ p.name ]]</b>
-                                <small v-if="p.resp">Response ~[[ fmt(p.resp) ]] · fix ~[[ fmt(p.reso) ]]</small>
                             </label>
                         </div>
                     </div>
@@ -96,7 +130,7 @@
                 </div>
                 <div class="col-12">
                     <label class="form-label d-flex justify-content-between">Detailed description * <span class="text-muted fw-normal">[[ description.length ]] characters</span></label>
-                    <textarea name="description" v-model="description" rows="6" class="form-control" placeholder="What happened, what you expected, any error message, since when…" required></textarea>
+                    <textarea name="description" v-model="description" rows="6" class="form-control" placeholder="What happened, what was expected, any error message, since when…" required></textarea>
                 </div>
 
                 <div class="col-12">
@@ -108,6 +142,8 @@
                         Drop screenshots, error messages or documents here, or <b>click to browse</b>
                     </div>
                     <input type="file" name="attachments[]" ref="file" multiple class="d-none" v-on:change="onPick">
+                    <div class="form-text">Maximum [[ maxMb ]] MB per file.</div>
+                    <div v-if="fileError" class="text-danger small mt-1">[[ fileError ]]</div>
                     <div>
                         <span v-for="(f, i) in files" :key="f.name + f.size" class="file-chip">
                             [[ f.name ]] <small>([[ Math.max(1, Math.round(f.size / 1024)) ]] KB)</small>
@@ -134,25 +170,75 @@ const CFG = @json($cfg);
 Vue.createApp({
     delimiters: ['[[', ']]'],
     data() {
+        var o = CFG.old;
+        var start = o.requester ? (CFG.users.find(function (p) { return String(p.id) === o.requester; }) || CFG.me) : CFG.me;
         return {
+            me: CFG.me, users: CFG.users, requesterId: o.requester,
+            search: '', typing: false, open: false, hi: 0,
+            phone: o.phone !== null && o.phone !== '' ? o.phone : (start.phone || ''),
+            location: o.location !== '' ? o.location : (start.locId ? String(start.locId) : ''),
+            departmentId: o.department,
             categories: CFG.categories, priorities: CFG.priorities,
-            category: CFG.old.category, sub: CFG.old.sub, priority: CFG.old.priority,
-            subject: CFG.old.subject, description: CFG.old.description,
-            files: [], dragOver: false, submitting: false
+            category: o.category, sub: o.sub, priority: o.priority,
+            subject: o.subject, description: o.description,
+            files: [], fileError: '', maxKb: CFG.maxKb, dragOver: false, submitting: false
         };
     },
+    created() { this.search = this.selectedLabel; },
     computed: {
+        maxMb() { return Math.round(this.maxKb / 1024 * 10) / 10; },
+        who() {
+            var id = this.requesterId;
+            return id ? (this.users.find(function (p) { return String(p.id) === id; }) || this.me) : this.me;
+        },
+        behalf() { return !!this.requesterId && this.who !== this.me; },
+        allOptions() {
+            var list = [{ id: '', label: 'Myself – ' + this.me.name, sub: '', hay: 'myself ' + this.me.name.toLowerCase() }];
+            this.users.forEach(function (p) {
+                list.push({
+                    id: String(p.id), label: p.name + (p.emp ? ' (' + p.emp + ')' : ''),
+                    sub: [p.desig, p.dept].filter(Boolean).join(' · '),
+                    hay: [p.name, p.emp, p.dept, p.desig, p.email].join(' ').toLowerCase()
+                });
+            });
+            return list;
+        },
+        selectedLabel() {
+            var id = this.requesterId;
+            var o = this.allOptions.find(function (x) { return x.id === id; });
+            return o ? o.label : '';
+        },
+        options() {
+            var t = this.typing ? this.search.trim().toLowerCase() : '';
+            if (!t) return this.allOptions;
+            return this.allOptions.filter(function (o) { return o.hay.indexOf(t) !== -1; });
+        },
         subs() {
             var c = this.categories.find(function (x) { return String(x.id) === this.category; }, this);
             return c ? c.subs : [];
         }
     },
     watch: {
+        // switching person refreshes the contact number and office from that person's record
+        requesterId() {
+            this.phone = this.who.phone || '';
+            this.location = this.who.locId ? String(this.who.locId) : '';
+            this.departmentId = '';
+        },
         category() {
             if (!this.subs.some(function (s) { return String(s.id) === this.sub; }, this)) this.sub = '';
         }
     },
     methods: {
+        onFocus(e) { this.typing = false; this.open = true; this.hi = 0; if (e && e.target) e.target.select(); },
+        closeList() { this.open = false; this.typing = false; this.search = this.selectedLabel; },
+        move(d) {
+            if (!this.open) { this.open = true; return; }
+            var n = this.options.length; if (!n) return;
+            this.hi = (this.hi + d + n) % n;
+        },
+        pickHighlighted() { if (this.options[this.hi]) this.pick(this.options[this.hi]); },
+        pick(o) { this.requesterId = o.id; this.search = o.label; this.typing = false; this.open = false; },
         fmt(m) {
             if (!m) return '';
             if (m < 60) return m + ' min';
@@ -166,16 +252,20 @@ Vue.createApp({
             this.files = list;
         },
         add(picked) {
-            var seen = {}; var merged = [];
+            var self = this, seen = {}, merged = [], tooBig = [];
             this.files.concat(picked).forEach(function (f) {
+                if (f.size > self.maxKb * 1024) { tooBig.push(f.name); return; }
                 var k = f.name + ':' + f.size;
                 if (!seen[k]) { seen[k] = 1; merged.push(f); }
             });
+            this.fileError = tooBig.length
+                ? 'Not added (over ' + this.maxMb + ' MB): ' + tooBig.join(', ')
+                : '';
             this.sync(merged);
         },
         onPick(e) { this.add(Array.prototype.slice.call(e.target.files)); },
         onDrop(e) { this.dragOver = false; this.add(Array.prototype.slice.call(e.dataTransfer.files)); },
-        remove(i) { var l = this.files.slice(); l.splice(i, 1); this.sync(l); }
+        remove(i) { var l = this.files.slice(); l.splice(i, 1); this.fileError = ''; this.sync(l); }
     }
 }).mount('#ticketForm');
 </script>
