@@ -15,5 +15,5 @@
     <div><button class="btn btn-primary">Save settings</button></div>
 </form>
 <p class="text-muted small mt-2">upload.max_kb is in kilobytes; upload.allowed_ext is a comma-separated list; the other values are days or minutes as named.
-Session timeout is applied from <code>SESSION_LIFETIME</code> in <code>.env</code> (see README).</p>
+Users are signed out automatically after 15 minutes of inactivity (<code>ITSM_INACTIVITY_MINUTES</code> in <code>.env</code>).</p>
 @endsection

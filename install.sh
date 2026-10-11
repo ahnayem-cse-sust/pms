@@ -9,6 +9,9 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 composer create-project laravel/laravel "$TARGET"
 cd "$TARGET"
 
+# PDF export of the attendance report
+composer require barryvdh/laravel-dompdf
+
 # Overlay our code (overwrites a few Laravel defaults on purpose: User model,
 # Controller base, AppServiceProvider, DatabaseSeeder, routes, bootstrap/app.php)
 for d in app bootstrap config database public resources routes tests; do

@@ -14,6 +14,9 @@ class AppServiceProvider extends ServiceProvider
         $tz = config('itsm.timezone', 'Asia/Dhaka');
         config(['app.timezone' => $tz]);
         date_default_timezone_set($tz);
+
+        // Idle sessions expire after the inactivity limit (the InactivityTimeout middleware enforces it too)
+        config(['session.lifetime' => max(1, (int) config('itsm.inactivity_minutes', 15))]);
     }
 
     public function boot(): void

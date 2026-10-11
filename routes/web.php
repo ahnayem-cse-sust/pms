@@ -44,8 +44,13 @@ Route::middleware('auth')->group(function () {
     Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.readAll');
     Route::get('/notifications/{id}', [NotificationController::class, 'read'])->name('notifications.read');
 
-    // IT employee attendance (Management)
+    // Keep-alive ping sent by the page while the user is active (see layout script)
+    Route::post('/session/keepalive', fn () => response()->noContent())->name('session.keepalive');
+
+    // Attendance: all IT employees (Management) / own record (IT employees)
     Route::get('/attendance', [AttendanceController::class, 'index'])->middleware('can:attendance.view')->name('attendance.index');
+    Route::get('/attendance/pdf', [AttendanceController::class, 'pdf'])->middleware('can:attendance.view')->name('attendance.pdf');
+    Route::get('/my-attendance', [AttendanceController::class, 'mine'])->middleware('can:attendance.own')->name('attendance.mine');
 
     // Reports
     Route::middleware('can:report.view')->group(function () {

@@ -33,9 +33,13 @@ Audit log, Login history and System Settings are restricted to the System Admini
 
 Upgrading an existing install: run `php artisan migrate` (renames the user phone column to `whatsapp` and refreshes role names/permissions), then `php artisan optimize:clear`.
 
+## Automatic sign-out
+
+A user is signed out after **15 minutes of inactivity** (`inactivity_minutes` in `config/itsm.php`, or `ITSM_INACTIVITY_MINUTES` in `.env`). It is enforced on the server (every request) and in the browser: a warning appears one minute before, activity in any open tab keeps the session alive, and the page returns to the login screen with a notice.
+
 ## IT attendance (Management)
 
-**IT Attendance** in the sidebar (Management and System Administrator) lists each IT employee per day with entry time (first sign-in of the day), exit time (last sign-in of the day), total time and status (Present / Absent / Weekend / Not in yet). Only successful sign-ins from the office IP addresses count; the list is in `config/itsm.php` (`attendance.office_ips`, or `ITSM_OFFICE_IPS` in `.env`, comma-separated). Weekend days are Friday and Saturday (`attendance.weekend_days`). "IT employees" are users with the IT Team Member role (`attendance.roles`).
+**IT Attendance** in the sidebar (Management and System Administrator) lists each IT employee per day with entry time (first sign-in of the day), exit time (last sign-in of the day), total time and status (Present / Absent / Weekend / Not in yet). Only successful sign-ins from the office IP addresses count; the list is in `config/itsm.php` (`attendance.office_ips`, or `ITSM_OFFICE_IPS` in `.env`, comma-separated). Weekend days are Friday and Saturday (`attendance.weekend_days`). "IT employees" are users with the IT Team Member role (`attendance.roles`). Results are paginated (15 per page). The From/To dates must be in order and at most **6 months** apart (`attendance.max_months`). Management and System Administrator can download the current view as a **PDF** (same date range as the page; needs `composer require barryvdh/laravel-dompdf`, which `install.sh` does for new installs). Enable the PHP **GD** extension (`extension=gd` in php.ini, then restart the web server) to get the logo in the PDF; without GD the PDF is still produced, just without the logo. IT Team Members get **My Attendance** in their menu, showing only their own record (no PDF).
 The IP comes from the login history, so if the app runs behind a reverse proxy or load balancer configure Laravel's trusted proxies; otherwise every sign-in is recorded with the proxy's address and nothing will match. After upgrading run `php artisan migrate` and `php artisan optimize:clear`.
 
 ## Attachments

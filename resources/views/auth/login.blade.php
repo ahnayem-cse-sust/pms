@@ -16,6 +16,9 @@
         <div style="width:100%;max-width:380px">
             <h3 class="mb-1">Welcome back</h3>
             <p class="text-muted mb-4">Sign in with your company email.</p>
+            @if(request('timeout') && ! $errors->any())
+                <div class="alert alert-warning">You were signed out after {{ (int) config('itsm.inactivity_minutes', 15) }} minutes of inactivity. Please sign in again.</div>
+            @endif
             <form method="POST" action="{{ route('login') }}">@csrf
                 <div class="mb-3">
                     <label class="form-label">Email</label>

@@ -174,6 +174,10 @@ class TicketWorkflowTest extends TestCase
             ->assertSee('09:00 AM')
             ->assertSee('05:30 PM')
             ->assertSee('8h 30m')
+            ->assertDontSee('Average time in office')
+            ->assertSee('Search attendance')
+            ->assertSee('Download PDF')
+            ->assertSee('15 per page')
             ->assertDontSee('07:45 AM')
             ->assertDontSee('07:55 PM');
     }
@@ -185,5 +189,70 @@ class TicketWorkflowTest extends TestCase
         $this->actingAs($this->u('acct_user@joplc.com'))->get(route('attendance.index'))->assertForbidden();
         $this->actingAs($this->u('sharif99452@gmail.com'))->get(route('attendance.index'))->assertOk();
         $this->actingAs($this->u('nayem.jocl@gmail.com'))->get(route('attendance.index'))->assertOk();
+    }
+
+    public function test_it_employee_sees_only_own_attendance_and_not_the_management_page(): void
+    {
+        $emp = $this->u('it_emp@joplc.com');
+        $other = $this->extraMember();
+        foreach ([$emp, $other] as $u) {
+            \App\Models\LoginHistory::create(['user_id' => $u->id, 'email_tried' => $u->email, 'successful' => true,
+                'ip_address' => '103.16.73.139', 'created_at' => today()->setTime(9, 5)]);
+        }
+
+        $this->actingAs($emp)->get(route('attendance.mine'))->assertOk()
+            ->assertSee('IT Employee')->assertDontSee('Extra IT Employee')->assertDontSee('Download PDF')->assertSee('15 per page');
+        $this->actingAs($emp)->get(route('attendance.index'))->assertForbidden();
+        $this->actingAs($emp)->get(route('attendance.pdf'))->assertForbidden();
+        $this->actingAs($this->u('sharif99452@gmail.com'))->get(route('attendance.mine'))->assertForbidden();
+    }
+
+    public function test_attendance_is_paginated_15_per_page(): void
+    {
+        $emp = $this->u('it_emp@joplc.com');
+        $emp->forceFill(['created_at' => today()->subDays(60)])->save();
+        $url = route('attendance.index', ['from' => today()->subDays(19)->format('Y-m-d'), 'to' => today()->format('Y-m-d')]);
+
+        $this->actingAs($this->u('sharif99452@gmail.com'))->get($url)->assertOk()->assertSee('page=2')->assertSee('of 20 records');
+    }
+
+    public function test_pdf_download_has_no_one_month_limit_but_range_is_capped_at_six_months(): void
+    {
+        $mgmt = $this->u('sharif99452@gmail.com');
+
+        // 40 days: fine (the old one-month limit is gone)
+        $this->actingAs($mgmt)
+            ->get(route('attendance.pdf', ['from' => today()->subDays(40)->format('Y-m-d'), 'to' => today()->format('Y-m-d')]))
+            ->assertOk()->assertHeader('content-type', 'application/pdf');
+
+        // 7 months: rejected on the page and on the PDF
+        $tooLong = ['from' => today()->subMonths(7)->format('Y-m-d'), 'to' => today()->format('Y-m-d')];
+        $this->actingAs($mgmt)->from(route('attendance.index'))->get(route('attendance.pdf', $tooLong))
+            ->assertRedirect(route('attendance.index'))->assertSessionHasErrors('to');
+        $this->actingAs($mgmt)->from(route('attendance.index'))->get(route('attendance.index', $tooLong))
+            ->assertSessionHasErrors('to');
+
+        // exactly 6 months is allowed
+        $this->actingAs($mgmt)->get(route('attendance.index', ['from' => today()->subMonthsNoOverflow(6)->format('Y-m-d'), 'to' => today()->format('Y-m-d')]))
+            ->assertOk();
+    }
+
+    public function test_from_date_cannot_be_after_to_date(): void
+    {
+        $this->actingAs($this->u('sharif99452@gmail.com'))->from(route('attendance.index'))
+            ->get(route('attendance.index', ['from' => today()->format('Y-m-d'), 'to' => today()->subDays(3)->format('Y-m-d')]))
+            ->assertRedirect(route('attendance.index'))->assertSessionHasErrors('from');
+    }
+
+    public function test_user_is_signed_out_after_15_minutes_of_inactivity(): void
+    {
+        $u = $this->u('acct_user@joplc.com');
+
+        $this->actingAs($u)->withSession(['last_activity_at' => now()->subMinutes(14)->timestamp])
+            ->get(route('dashboard'))->assertOk();
+
+        $this->actingAs($u)->withSession(['last_activity_at' => now()->subMinutes(16)->timestamp])
+            ->get(route('dashboard'))->assertRedirect(route('login'));
+        $this->assertGuest();
     }
 }

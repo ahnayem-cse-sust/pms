@@ -242,3 +242,15 @@ h1,h2,h3,h4,h5,h6{ font-weight:650; letter-spacing:-.01em; }
 .combo-list li.empty{ color:var(--muted); cursor:default; }
 .combo-list li.empty:hover{ background:transparent; }
 .combo .chev{ position:absolute; right:.8rem; top:2.35rem; pointer-events:none; color:var(--muted); font-size:.7rem; }
+
+/* Attendance search panel */
+.filter-card{ padding:0; overflow:hidden; }
+.filter-head{ display:flex; align-items:center; flex-wrap:wrap; gap:.6rem; padding:.85rem 1.2rem; font-weight:650; border-bottom:1px solid var(--border); background:linear-gradient(90deg,var(--primary-soft),transparent 80%); color:var(--primary); }
+.filter-head span{ color:var(--text); }
+.filter-body{ padding:1.2rem; }
+.filter-actions{ display:flex; flex-wrap:wrap; align-items:center; gap:.6rem; padding:.9rem 1.2rem; border-top:1px solid var(--border); background:color-mix(in srgb,var(--card) 65%,var(--bg)); }
+.range-chips{ display:flex; flex-wrap:wrap; gap:.4rem; }
+.range-chip{ border:1px solid var(--border); background:var(--card); color:var(--text); border-radius:999px; padding:.22rem .8rem; font-size:.8rem; font-weight:550; text-decoration:none; }
+.range-chip:hover{ border-color:var(--primary); color:var(--primary); }
+.range-chip.active{ background:var(--primary); border-color:var(--primary); color:#fff; }
+.filter-card .form-label{ text-transform:uppercase; letter-spacing:.05em; font-size:.7rem; font-weight:700; }

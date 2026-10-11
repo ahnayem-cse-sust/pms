@@ -131,7 +131,6 @@ class ItsmLookupSeeder extends Seeder
             ['upload.allowed_ext',     'jpg,jpeg,png,pdf,doc,docx,xls,xlsx,txt,log,zip', 'upload'],
             ['ticket.auto_close_days', '3',                                             'workflow'],
             ['ticket.reopen_window_days', '7',                                          'workflow'],
-            ['security.session_minutes', '30',                                          'security'],
             ['security.max_failed_logins', '5',                                         'security'],
             ['security.lockout_minutes', '15',                                          'security'],
         ] as [$key, $value, $group]) {

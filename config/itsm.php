@@ -18,8 +18,11 @@ return [
             '103.16.73.139,103.16.73.137,103.16.73.138,103.16.73.140,103.16.73.141,103.4.67.236'
         ))))),
         'weekend_days' => [5, 6],                    // Carbon day numbers: 5 = Friday, 6 = Saturday
-        'max_days' => 62,                            // longest date range the page will show
+        'max_months' => 6,                           // longest date range (From..To) allowed on the page and PDF
     ],
+
+    // Automatic sign-out after this many minutes without activity (override with ITSM_INACTIVITY_MINUTES).
+    'inactivity_minutes' => (int) env('ITSM_INACTIVITY_MINUTES', 15),
 
     'timezone' => env('ITSM_TIMEZONE', 'Asia/Dhaka'),
 
@@ -49,7 +52,7 @@ return [
         'it_member' => [
             'ticket.create', 'ticket.create.behalf', 'ticket.view.own', 'ticket.view.assigned', 'ticket.work',
             'ticket.comment.public', 'ticket.note.internal', 'attachment.upload',
-            'attachment.download.internal', 'dashboard.member',
+            'attachment.download.internal', 'dashboard.member', 'attendance.own',
         ],
         'dept_user' => [
             'ticket.create', 'ticket.view.own', 'ticket.comment.public', 'ticket.confirm',

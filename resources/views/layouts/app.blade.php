@@ -39,13 +39,16 @@
             @can('ticket.assign')
                 <li><a class="nav-link {{ request()->has('unassigned') ? 'active' : '' }}" href="{{ route('tickets.index', ['unassigned' => 1]) }}"><x-icon name="inbox"/> Unassigned Queue</a></li>
             @endcan
+            @can('attendance.own')
+                <li><a class="nav-link {{ request()->routeIs('attendance.mine') ? 'active' : '' }}" href="{{ route('attendance.mine') }}"><x-icon name="clock"/> My Attendance</a></li>
+            @endcan
             <li><a class="nav-link {{ request()->routeIs('notifications.*') ? 'active' : '' }}" href="{{ route('notifications.index') }}">
                 <x-icon name="bell"/> Notifications @if($unread)<span class="badge bg-danger count">{{ $unread }}</span>@endif</a></li>
 
             @canany(['report.view', 'attendance.view'])
                 <li class="nav-section">Management</li>
                 @can('attendance.view')
-                    <li><a class="nav-link {{ request()->routeIs('attendance.*') ? 'active' : '' }}" href="{{ route('attendance.index') }}"><x-icon name="clock"/> IT Attendance</a></li>
+                    <li><a class="nav-link {{ request()->routeIs('attendance.index', 'attendance.pdf') ? 'active' : '' }}" href="{{ route('attendance.index') }}"><x-icon name="clock"/> IT Attendance</a></li>
                 @endcan
                 @can('report.view')
                     <li><a class="nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}" href="{{ route('reports.index') }}"><x-icon name="chart"/> Reports</a></li>
@@ -149,6 +152,50 @@ window.toast = function (msg, type) {
     @endif
 })();
 </script>
+@auth
+<script>
+// Automatic sign-out after {{ (int) config('itsm.inactivity_minutes', 15) }} minutes without activity (any open tab counts).
+(function () {
+    var LIMIT = {{ (int) config('itsm.inactivity_minutes', 15) }} * 60000, WARN = 60000, PING = 240000, KEY = 'itsm-last-activity';
+    var loginUrl = @json(route('login') . '?timeout=1'), logoutUrl = @json(route('logout')), pingUrl = @json(route('session.keepalive'));
+    var csrf = document.querySelector('meta[name=csrf-token]').content;
+    var start = Date.now(), lastPing = start, lastSeen = 0, warned = false, done = false;
+
+    function stamp() { try { localStorage.setItem(KEY, String(Date.now())); } catch (e) {} }
+    function lastActivity() {
+        try { return parseInt(localStorage.getItem(KEY) || '0', 10) || start; } catch (e) { return start; }
+    }
+    function activity() {
+        var now = Date.now();
+        if (now - lastSeen < 5000) return;          // throttle
+        lastSeen = now; warned = false; stamp();
+        if (now - lastPing > PING) {                // tell the server the user is still here
+            lastPing = now;
+            fetch(pingUrl, { method: 'POST', credentials: 'same-origin',
+                headers: { 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest' } }).catch(function () {});
+        }
+    }
+    function signOut() {
+        if (done) return; done = true;
+        fetch(logoutUrl, { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF-TOKEN': csrf } })
+            .catch(function () {})
+            .then(function () { window.location.href = loginUrl; });
+    }
+    stamp();
+    ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'].forEach(function (ev) {
+        window.addEventListener(ev, activity, { passive: true });
+    });
+    setInterval(function () {
+        var idle = Date.now() - lastActivity();
+        if (idle >= LIMIT) signOut();
+        else if (idle >= LIMIT - WARN && !warned) {
+            warned = true;
+            window.toast('You will be signed out in 1 minute because of inactivity. Move the mouse or press a key to stay signed in.', 'warning');
+        }
+    }, 5000);
+})();
+</script>
+@endauth
 @stack('scripts')
 </body>
 </html>
