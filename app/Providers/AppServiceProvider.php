@@ -15,8 +15,9 @@ class AppServiceProvider extends ServiceProvider
         config(['app.timezone' => $tz]);
         date_default_timezone_set($tz);
 
-        // Idle sessions expire after the inactivity limit (the InactivityTimeout middleware enforces it too)
-        config(['session.lifetime' => max(1, (int) config('itsm.inactivity_minutes', 15))]);
+        // Session lifetime is long on purpose (a 15-minute one expires the login page and causes 419 on sign-in);
+        // idle sign-out after 15 minutes is enforced by the InactivityTimeout middleware, the browser timer and the sweep.
+        config(['session.lifetime' => (int) config('itsm.session_lifetime_minutes', 480)]);
     }
 
     public function boot(): void

@@ -53,7 +53,7 @@
             <td>{{ $row->date->format('D, d M Y') }}</td>
             <td>{{ $row->entry ? $row->entry->format('h:i A') : '—' }}</td>
             <td>{{ $row->exit ? $row->exit->format('h:i A') : '—' }}</td>
-            <td>{{ $row->seconds !== null ? $fmt($row->seconds) : '—' }}@if($row->logins === 1) (single login)@endif</td>
+            <td>{{ $row->seconds !== null ? $fmt($row->seconds) : '—' }}</td>
             <td class="st-{{ str_replace(' ', '', $row->status) }}">{{ $row->status }}</td>
         </tr>
     @empty

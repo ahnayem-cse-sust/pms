@@ -32,6 +32,8 @@ class User extends Authenticatable
             'is_active' => 'boolean',
             'is_department_head' => 'boolean',
             'locked_until' => 'datetime',
+            'last_activity_at' => 'datetime',
+            'session_open' => 'boolean',
             'last_login_at' => 'datetime',
             'password_changed_at' => 'datetime',
         ];

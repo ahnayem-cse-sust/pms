@@ -12,8 +12,9 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Office entry/exit derived from login history:
- *   entry = first successful login of the day, exit = last successful login of the day,
- *   counting only logins from the configured office IP addresses.
+ *   entry = first successful login of the day, exit = last logout of the day (manual, or the
+ *   last activity when the 15-minute inactivity timeout ended the session),
+ *   counting only events from the configured office IP addresses.
  *
  * index()  – Management: all IT employees (+ PDF export)
  * mine()   – IT employees: their own record
@@ -102,13 +103,13 @@ class AttendanceController extends Controller
     {
         $cfg = config('itsm.attendance');
 
-        // Successful logins from office IPs only, grouped by employee and calendar day (GMT+6)
-        $logins = LoginHistory::where('successful', true)
+        // Office-IP events only (successful logins and logouts), grouped by employee and calendar day (GMT+6)
+        $events = LoginHistory::where('successful', true)
             ->whereIn('user_id', $employees->pluck('id'))
             ->whereIn('ip_address', $cfg['office_ips'])
             ->whereBetween('created_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
             ->orderBy('created_at')
-            ->get(['user_id', 'created_at'])
+            ->get(['user_id', 'event', 'created_at'])
             ->groupBy(fn ($l) => $l->user_id . '|' . $l->created_at->format('Y-m-d'));
 
         $rows = [];
@@ -118,9 +119,13 @@ class AttendanceController extends Controller
                 if ($day->lt($e->created_at->copy()->startOfDay())) {
                     continue; // account did not exist yet – not an absence
                 }
-                $set = $logins->get($e->id . '|' . $key);
-                $entry = $set?->first()?->created_at;
-                $exit = $set?->last()?->created_at;
+                $set = $events->get($e->id . '|' . $key);
+                $logins = $set ? $set->where('event', 'login') : collect();
+                $logouts = $set ? $set->where('event', 'logout') : collect();
+
+                // Entry = first login of the day, exit = last logout of the day
+                $entry = $logins->first()?->created_at;
+                $exit = $logouts->last()?->created_at;
 
                 if ($set) {
                     $status = 'Present';
@@ -137,8 +142,9 @@ class AttendanceController extends Controller
                     'date' => $day->copy(),
                     'entry' => $entry,
                     'exit' => $exit,
-                    'seconds' => $entry ? max(0, $entry->diffInSeconds($exit, true)) : null,
-                    'logins' => $set?->count() ?? 0,
+                    'seconds' => ($entry && $exit && $exit->gte($entry)) ? (int) $entry->diffInSeconds($exit, true) : null,
+                    'logins' => $logins->count(),
+                    'logouts' => $logouts->count(),
                     'status' => $status,
                 ];
             }

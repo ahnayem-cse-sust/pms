@@ -21,6 +21,10 @@ return [
         'max_months' => 6,                           // longest date range (From..To) allowed on the page and PDF
     ],
 
+    // How long the session record/cookie lives. Deliberately long: the 15-minute inactivity rule below is enforced by the
+    // app for signed-in users, while a short lifetime would also expire the login page itself (-> "419 Page Expired").
+    'session_lifetime_minutes' => (int) env('ITSM_SESSION_LIFETIME', 480),
+
     // Automatic sign-out after this many minutes without activity (override with ITSM_INACTIVITY_MINUTES).
     'inactivity_minutes' => (int) env('ITSM_INACTIVITY_MINUTES', 15),
 

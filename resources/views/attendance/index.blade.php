@@ -80,9 +80,8 @@
             <td class="text-nowrap">{{ $row->date->format('D, d M Y') }}</td>
             <td class="text-nowrap">{{ $row->entry ? $row->entry->format('h:i A') : '—' }}</td>
             <td class="text-nowrap">{{ $row->exit ? $row->exit->format('h:i A') : '—' }}</td>
-            <td class="text-nowrap" title="{{ $row->logins ? $row->logins . ' login(s) from office IPs' : '' }}">
+            <td class="text-nowrap" title="{{ $row->logins || $row->logouts ? $row->logins . ' login(s), ' . $row->logouts . ' logout(s) from office IPs' : '' }}">
                 {{ $row->seconds !== null ? $fmt($row->seconds) : '—' }}
-                @if($row->logins === 1)<span class="ticket-sub">(single login)</span>@endif
             </td>
             <td><span class="pill pill-{{ $tone[$row->status] }}">{{ $row->status }}</span></td>
         </tr>

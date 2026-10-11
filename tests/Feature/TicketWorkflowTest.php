@@ -153,20 +153,21 @@ class TicketWorkflowTest extends TestCase
         $this->actingAs($head)->post(route('tickets.store'), $payload + ['requester_id' => $this->u('sales_user@joplc.com')->id])->assertForbidden();
     }
 
-    public function test_attendance_uses_first_and_last_office_login_only(): void
+    public function test_attendance_entry_is_first_office_login_and_exit_is_last_office_logout(): void
     {
         $emp = $this->u('it_emp@joplc.com');
         $day = today();
-        $log = fn (string $time, string $ip, bool $ok = true) => \App\Models\LoginHistory::create([
-            'user_id' => $emp->id, 'email_tried' => $emp->email, 'successful' => $ok, 'ip_address' => $ip,
-            'created_at' => $day->copy()->setTimeFromTimeString($time),
+        $log = fn (string $time, string $ip, string $event = 'login', bool $ok = true) => \App\Models\LoginHistory::create([
+            'user_id' => $emp->id, 'email_tried' => $emp->email, 'successful' => $ok, 'event' => $event,
+            'ip_address' => $ip, 'created_at' => $day->copy()->setTimeFromTimeString($time),
         ]);
-        $log('07:45:00', '10.0.0.5');           // not an office IP -> ignored
-        $log('09:00:00', '103.16.73.139');      // entry
-        $log('13:10:00', '103.4.67.236');
-        $log('17:30:00', '103.16.73.141');      // exit
-        $log('19:55:00', '8.8.8.8');            // ignored
-        $log('18:00:00', '103.16.73.138', false); // failed login -> ignored
+        $log('07:45:00', '10.0.0.5');                       // login from outside -> ignored
+        $log('09:00:00', '103.16.73.139');                  // ENTRY (first office login)
+        $log('13:10:00', '103.4.67.236');                   // later login: not the entry
+        $log('13:40:00', '103.16.73.140', 'logout');        // earlier logout: not the exit
+        $log('17:30:00', '103.16.73.141', 'logout');        // EXIT (last office logout)
+        $log('18:30:00', '103.16.73.141');                  // a later login must NOT become the exit
+        $log('20:10:00', '8.8.8.8', 'logout');              // logout from outside -> ignored
 
         $this->actingAs($this->u('sharif99452@gmail.com'))->get(route('attendance.index'))
             ->assertOk()
@@ -174,12 +175,35 @@ class TicketWorkflowTest extends TestCase
             ->assertSee('09:00 AM')
             ->assertSee('05:30 PM')
             ->assertSee('8h 30m')
-            ->assertDontSee('Average time in office')
+            ->assertDontSee('06:30 PM')
+            ->assertDontSee('08:10 PM')
+            ->assertDontSee('07:45 AM')
             ->assertSee('Search attendance')
             ->assertSee('Download PDF')
-            ->assertSee('15 per page')
-            ->assertDontSee('07:45 AM')
-            ->assertDontSee('07:55 PM');
+            ->assertSee('15 per page');
+    }
+
+    public function test_manual_logout_is_recorded_and_idle_sessions_are_closed_at_last_activity(): void
+    {
+        $office = ['REMOTE_ADDR' => '103.16.73.139'];
+        $emp = $this->u('it_emp@joplc.com');
+
+        $this->withServerVariables($office)->post(route('login'), ['email' => $emp->email, 'password' => '123456']);
+        $this->assertDatabaseHas('login_histories', ['user_id' => $emp->id, 'event' => 'login', 'ip_address' => '103.16.73.139']);
+
+        $this->withServerVariables($office)->post(route('logout'));
+        $this->assertDatabaseHas('login_histories', ['user_id' => $emp->id, 'event' => 'logout', 'reason' => 'manual', 'ip_address' => '103.16.73.139']);
+
+        // idle session: the sweep records the logout at the last activity, not at sweep time
+        $last = now()->subMinutes(40)->startOfSecond();
+        $emp->forceFill(['session_open' => true, 'last_activity_at' => $last, 'last_activity_ip' => '103.4.67.236'])->save();
+        $this->artisan('itsm:record-logouts')->assertSuccessful();
+
+        $row = \App\Models\LoginHistory::where('user_id', $emp->id)->where('reason', 'timeout')->firstOrFail();
+        $this->assertSame('logout', $row->event);
+        $this->assertSame('103.4.67.236', $row->ip_address);
+        $this->assertTrue($row->created_at->equalTo($last));
+        $this->assertFalse($emp->fresh()->session_open);
     }
 
     public function test_attendance_is_for_management_only(): void
@@ -254,5 +278,11 @@ class TicketWorkflowTest extends TestCase
         $this->actingAs($u)->withSession(['last_activity_at' => now()->subMinutes(16)->timestamp])
             ->get(route('dashboard'))->assertRedirect(route('login'));
         $this->assertGuest();
+    }
+
+    public function test_session_lifetime_outlives_the_inactivity_limit_so_the_login_page_does_not_expire(): void
+    {
+        $this->assertGreaterThan(config('itsm.inactivity_minutes'), (int) config('session.lifetime'));
+        $this->get(route('login'))->assertOk()->assertHeader('Cache-Control');
     }
 }

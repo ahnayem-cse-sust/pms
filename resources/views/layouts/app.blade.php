@@ -156,7 +156,7 @@ window.toast = function (msg, type) {
 <script>
 // Automatic sign-out after {{ (int) config('itsm.inactivity_minutes', 15) }} minutes without activity (any open tab counts).
 (function () {
-    var LIMIT = {{ (int) config('itsm.inactivity_minutes', 15) }} * 60000, WARN = 60000, PING = 240000, KEY = 'itsm-last-activity';
+    var LIMIT = {{ (int) config('itsm.inactivity_minutes', 15) }} * 60000, WARN = 60000, PING = 60000, KEY = 'itsm-last-activity';
     var loginUrl = @json(route('login') . '?timeout=1'), logoutUrl = @json(route('logout')), pingUrl = @json(route('session.keepalive'));
     var csrf = document.querySelector('meta[name=csrf-token]').content;
     var start = Date.now(), lastPing = start, lastSeen = 0, warned = false, done = false;
@@ -177,7 +177,7 @@ window.toast = function (msg, type) {
     }
     function signOut() {
         if (done) return; done = true;
-        fetch(logoutUrl, { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF-TOKEN': csrf } })
+        fetch(logoutUrl, { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF-TOKEN': csrf }, body: new URLSearchParams({ idle: '1' }) })
             .catch(function () {})
             .then(function () { window.location.href = loginUrl; });
     }

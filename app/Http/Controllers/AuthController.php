@@ -6,6 +6,8 @@ use App\Models\AuditLog;
 use App\Models\LoginHistory;
 use App\Models\SystemSetting;
 use App\Models\User;
+use App\Services\SessionTracker;
+use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -32,6 +34,7 @@ class AuthController extends Controller
             $request->session()->regenerate();
             $user->update(['failed_logins' => 0, 'locked_until' => null, 'last_login_at' => now(), 'last_login_ip' => $request->ip()]);
             $this->record($user, $cred['email'], true, $request);
+            SessionTracker::touch($user->refresh(), $request->ip(), true);
             return redirect()->intended('/');
         }
 
@@ -48,6 +51,17 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
+        $user = Auth::user();
+        if ($user) {
+            // Sent by the browser's inactivity timer: the exit is the last activity, not "now"
+            $idle = $request->boolean('idle') && $request->session()->has('last_activity_at');
+            SessionTracker::recordLogout(
+                $user,
+                $idle ? Carbon::createFromTimestamp($request->session()->get('last_activity_at')) : now(),
+                $idle ? 'timeout' : 'manual',
+                $idle ? $request->session()->get('last_activity_ip', $request->ip()) : $request->ip()
+            );
+        }
         AuditLog::record('logout');
         Auth::logout();
         $request->session()->invalidate();
