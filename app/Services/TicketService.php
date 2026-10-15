@@ -13,6 +13,7 @@ use App\Models\TicketInternalNote;
 use App\Models\TicketPriority;
 use App\Models\TicketStatus;
 use App\Models\TicketSubcategory;
+use App\Models\TicketWorkUpdate;
 use App\Models\User;
 use App\Notifications\TicketNotification;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +23,14 @@ use Illuminate\Validation\ValidationException;
 class TicketService
 {
     /** Statuses from which a ticket may be (re)assigned. */
+    /** An employee's own progress on a request. */
+    public const WORK_STATUSES = [
+        'ASSIGNED' => 'To do',
+        'IN_PROGRESS' => 'In progress',
+        'WAITING' => 'Waiting',
+        'DONE' => 'Done',
+    ];
+
     public const ASSIGNABLE = ['NEW', 'ACKNOWLEDGED', 'ASSIGNED', 'IN_PROGRESS', 'WAITING_USER', 'ON_HOLD', 'REOPENED', 'ESCALATED'];
 
     public function __construct(protected AttachmentService $attachments) {}
@@ -189,6 +198,7 @@ class TicketService
 
             $t->update($upd);
             $this->log($t, $user, 'status_changed', 'status', $old->name, $to->name, $comment);
+            $this->syncWorkStatus($t, $code);
 
             if (filled($comment) && ! $system) {
                 TicketComment::create(['ticket_id' => $t->id, 'user_id' => $user->id, 'body' => $comment]);
@@ -212,68 +222,196 @@ class TicketService
 
     // ------------------------------------------------------------ assignment
 
+    /**
+     * Assign (or reassign) the PRIMARY responsible employee. Supporting employees stay on the team;
+     * the previous primary leaves it (use setTeam() to keep them as support).
+     */
     public function assign(Ticket $t, User $assignee, User $by, ?string $instructions = null, ?string $dueDate = null): Ticket
+    {
+        $support = TicketAssignment::where('ticket_id', $t->id)->where('role', TicketAssignment::SUPPORT)->pluck('employee_id')->all();
+        return $this->setTeam($t, $assignee, $support, $by, $instructions, $dueDate);
+    }
+
+    /**
+     * Set the whole team: exactly ONE primary responsible employee plus any number of supporting employees.
+     * Everything happens in one transaction; the request is left with exactly one primary or nothing changes.
+     */
+    public function setTeam(Ticket $t, User $primary, array $supportIds, User $by, ?string $instructions = null, ?string $dueDate = null): Ticket
     {
         $t->loadMissing('status', 'assignee');
         if (! in_array($t->status->code, self::ASSIGNABLE, true)) {
-            $this->fail('assignee_id', "A ticket in '{$t->status->name}' cannot be assigned.");
-        }
-        if (! $assignee->is_active || ! $assignee->hasPermission('ticket.work')) {
-            $this->fail('assignee_id', 'That user cannot work on tickets.');
+            $this->fail('primary_id', "A ticket in '{$t->status->name}' cannot be assigned.");
         }
 
-        $previous = $t->assignee;
+        $support = collect($supportIds)->map(fn ($i) => (int) $i)->reject(fn ($i) => $i === $primary->id)->unique()->values()->all();
+        $ids = array_merge([$primary->id], $support);
+        $people = User::whereIn('id', $ids)->get()->keyBy('id');
 
-        DB::transaction(function () use ($t, $assignee, $by, $instructions, $dueDate, $previous) {
-            $upd = [
-                'assigned_to' => $assignee->id,
-                'assigned_at' => now(),
-                'updated_by' => $by->id,
-                'acknowledged_at' => $t->acknowledged_at ?? now(),
-            ];
+        if (! ($primary->is_active && $primary->hasPermission('ticket.work'))) {
+            $this->fail('primary_id', 'The primary responsible employee must be an active IT employee.');
+        }
+        foreach ($support as $id) {
+            $p = $people->get($id);
+            if (! $p || ! $p->is_active || ! $p->hasPermission('ticket.work')) {
+                $this->fail('support_ids', 'Supporting employees must be active IT employees.');
+            }
+        }
+
+        $existing = TicketAssignment::with('employee')->where('ticket_id', $t->id)->get()->keyBy('employee_id');
+        $oldPrimary = $t->assignee;
+        $primaryChanged = $oldPrimary?->id !== $primary->id;
+        $added = $removed = $demoted = [];
+
+        DB::transaction(function () use ($t, $primary, $people, $existing, $by, $instructions, $dueDate, $oldPrimary, $primaryChanged, &$added, &$removed, &$demoted) {
+            // 1) people leaving the team
+            foreach ($existing as $empId => $row) {
+                if (! $people->has($empId)) {
+                    $row->delete();
+                    $removed[] = $row->employee;
+                    $this->log($t, $by, 'team_removed', 'team', $row->employee->name, null);
+                }
+            }
+            // 2) free the primary slot first (a request can never have two primaries, not even briefly)
+            foreach ($existing as $empId => $row) {
+                if ($people->has($empId) && $row->role === TicketAssignment::PRIMARY && $empId !== $primary->id) {
+                    $row->update(['role' => TicketAssignment::SUPPORT]);
+                    $demoted[] = $row->employee;
+                    $this->log($t, $by, 'team_role_changed', 'team', $row->employee->name . ' (Primary)', $row->employee->name . ' (Supporting)');
+                }
+            }
+            // 3) add new members / promote the new primary
+            foreach ($people as $id => $person) {
+                $role = $id === $primary->id ? TicketAssignment::PRIMARY : TicketAssignment::SUPPORT;
+                $row = $existing->get($id);
+                if ($row) {
+                    if ($row->role !== $role) {
+                        $row->update(['role' => $role]);
+                        $this->log($t, $by, 'team_role_changed', 'team', $person->name . ' (Supporting)', $person->name . ' (Primary)');
+                    }
+                } else {
+                    TicketAssignment::create([
+                        'ticket_id' => $t->id, 'employee_id' => $id, 'role' => $role,
+                        'assigned_by' => $by->id, 'assigned_at' => now(), 'work_status' => 'ASSIGNED',
+                    ]);
+                    if ($role === TicketAssignment::SUPPORT) {
+                        $added[] = $person;
+                    }
+                    $this->log($t, $by, 'team_added', 'team', null, $person->name . ($role === TicketAssignment::PRIMARY ? ' (Primary)' : ' (Supporting)'));
+                }
+            }
+
+            // 4) the request itself
+            $upd = ['assigned_to' => $primary->id, 'updated_by' => $by->id, 'acknowledged_at' => $t->acknowledged_at ?? now()];
+            if ($primaryChanged || ! $t->assigned_at) {
+                $upd['assigned_at'] = now();
+            }
             if ($dueDate) {
                 $upd['due_date'] = $dueDate;
             }
-
             $oldStatus = $t->status;
-            if ($oldStatus->code !== 'ASSIGNED') {
+            $toAssigned = $primaryChanged
+                ? $oldStatus->code !== 'ASSIGNED'
+                : in_array($oldStatus->code, ['NEW', 'ACKNOWLEDGED', 'REOPENED', 'ESCALATED'], true);
+            if ($toAssigned) {
                 $assigned = TicketStatus::where('code', 'ASSIGNED')->firstOrFail();
                 $upd['status_id'] = $assigned->id;
                 $this->log($t, $by, 'status_changed', 'status', $oldStatus->name, $assigned->name, null);
             }
             $t->update($upd);
 
-            TicketAssignment::create([
-                'ticket_id' => $t->id,
-                'assigned_to' => $assignee->id,
-                'assigned_from' => $previous?->id,
-                'assigned_by' => $by->id,
-                'instructions' => $instructions,
-                'created_at' => now(),
-            ]);
+            if ($primaryChanged) {
+                TicketAssignment::where('ticket_id', $t->id)->where('employee_id', $primary->id)->update(['work_status' => 'ASSIGNED']);
+                $this->log($t, $by, $oldPrimary ? 'reassigned' : 'assigned', 'assigned_to', $oldPrimary?->name, $primary->name, $instructions);
+            }
 
-            $this->log($t, $by, $previous ? 'reassigned' : 'assigned', 'assigned_to',
-                $previous?->name, $assignee->name, $instructions);
+            // exactly one primary – otherwise roll everything back
+            if (TicketAssignment::where('ticket_id', $t->id)->where('role', TicketAssignment::PRIMARY)->count() !== 1) {
+                $this->fail('primary_id', 'A request must have exactly one primary responsible employee.');
+            }
         });
 
         $t->refresh()->load('status', 'assignee');
-        $verb = $previous ? 'reassigned to you' : 'assigned to you';
-        $this->notify([$assignee], $t, "{$t->ticket_no} {$verb}" . ($instructions ? ": {$instructions}" : ''), $by);
-        if ($previous) {
-            $this->notify([$previous], $t, "{$t->ticket_no} was reassigned to {$assignee->name}", $by);
+
+        $tail = $instructions ? ": {$instructions}" : '';
+        if ($primaryChanged) {
+            $this->notify([$primary], $t, "{$t->ticket_no}: you are the primary responsible employee{$tail}", $by);
         }
-        $this->notify([$t->requester], $t, "{$t->ticket_no} has been assigned to {$assignee->name}", $by);
+        $this->notify($added, $t, "{$t->ticket_no}: you were added as a supporting employee ({$primary->name} is primary){$tail}", $by);
+        $this->notify($removed, $t, "{$t->ticket_no}: you were removed from the team", $by);
+        $this->notify($demoted, $t, "{$t->ticket_no}: you are now a supporting employee ({$primary->name} is primary)", $by);
+        if ($primaryChanged) {
+            $this->notify([$t->requester], $t, "{$t->ticket_no} has been assigned to {$primary->name}", $by);
+        }
         return $t;
     }
 
-    /** IT member with the fewest open tickets. */
-    public function autoPickAssignee(): ?User
+    /** An employee records their own progress; the primary is told when a supporting employee does. */
+    public function updateWork(Ticket $t, User $user, string $status, ?string $note = null): void
     {
-        $counts = Ticket::open()->whereNotNull('assigned_to')
+        $t->loadMissing('status');
+        $row = TicketAssignment::where('ticket_id', $t->id)->where('employee_id', $user->id)->first();
+        if (! $row) {
+            $this->fail('work_status', 'You are not part of the team on this request.');
+        }
+        if (! $t->status->is_open) {
+            $this->fail('work_status', 'This request is closed.');
+        }
+        if (! array_key_exists($status, self::WORK_STATUSES)) {
+            $this->fail('work_status', 'Unknown work status.');
+        }
+        if ($status === $row->work_status && blank($note)) {
+            $this->fail('note', 'Change your status or add a note.');
+        }
+
+        $old = $row->work_status;
+        DB::transaction(function () use ($t, $user, $row, $status, $note) {
+            $row->update(['work_status' => $status, 'remarks' => filled($note) ? $note : $row->remarks]);
+            TicketWorkUpdate::create([
+                'ticket_id' => $t->id, 'user_id' => $user->id, 'work_status' => $status,
+                'note' => $note, 'created_at' => now(),
+            ]);
+        });
+        AuditLog::record('ticket.work_update', $t, ['work_status' => $old], ['work_status' => $status, 'note' => $note]);
+
+        if ($t->assigned_to && $t->assigned_to !== $user->id) {
+            $label = self::WORK_STATUSES[$status];
+            $this->notify([$t->assignee ?? User::find($t->assigned_to)], $t, "{$user->name} updated their work on {$t->ticket_no}: {$label}", $user);
+        }
+    }
+
+    /** Keep each team member's own work status in step with the request's status. */
+    protected function syncWorkStatus(Ticket $t, string $code): void
+    {
+        $q = TicketAssignment::where('ticket_id', $t->id);
+        if ($code === 'RESOLVED') {
+            $q->update(['work_status' => 'DONE']);          // the primary resolved it: everyone's part is done
+            return;
+        }
+        if ($code === 'REOPENED') {
+            $q->update(['work_status' => 'ASSIGNED']);       // back to the team
+            return;
+        }
+        $map = ['ASSIGNED' => 'ASSIGNED', 'IN_PROGRESS' => 'IN_PROGRESS', 'WAITING_USER' => 'WAITING', 'ON_HOLD' => 'WAITING'];
+        if (isset($map[$code])) {
+            $q->where('role', TicketAssignment::PRIMARY)->update(['work_status' => $map[$code]]);
+        }
+    }
+
+    /** Assignable staff member (IT Team Member or IT Admin) with the fewest open tickets. */
+    public function autoPickAssignee(array $exclude = []): ?User
+    {
+        $primary = Ticket::open()->whereNotNull('assigned_to')
             ->select('assigned_to', DB::raw('count(*) as c'))->groupBy('assigned_to')->pluck('c', 'assigned_to');
 
-        return User::active()->withRole('it_member')->get()
-            ->sortBy(fn ($u) => $counts[$u->id] ?? 0)->first();
+        $support = DB::table('ticket_assignments as a')
+            ->join('tickets as t', 't.id', '=', 'a.ticket_id')
+            ->join('ticket_statuses as s', 's.id', '=', 't.status_id')
+            ->whereNull('t.deleted_at')->where('s.is_open', 1)->where('a.role', TicketAssignment::SUPPORT)
+            ->select('a.employee_id', DB::raw('count(*) as c'))->groupBy('a.employee_id')->pluck('c', 'employee_id');
+
+        return User::active()->assignable()->get()
+            ->reject(fn ($u) => in_array($u->id, $exclude, true))
+            ->sortBy(fn ($u) => ($primary[$u->id] ?? 0) + ($support[$u->id] ?? 0))->first();
     }
 
     // ------------------------------------------------------ field maintenance

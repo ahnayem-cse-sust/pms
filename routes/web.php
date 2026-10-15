@@ -28,11 +28,15 @@ Route::middleware('auth')->group(function () {
 
     // Tickets
     Route::get('/tickets', [TicketController::class, 'index'])->name('tickets.index');
+    Route::get('/my-requests', [TicketController::class, 'mine'])->middleware('can:ticket.work')->name('tickets.mine');
+    Route::get('/my-tasks', [TicketController::class, 'tasks'])->middleware('can:ticket.work')->name('tasks.index');
     Route::get('/tickets/create', [TicketController::class, 'create'])->middleware('can:ticket.create')->name('tickets.create');
     Route::post('/tickets', [TicketController::class, 'store'])->middleware('can:ticket.create')->name('tickets.store');
     Route::get('/tickets/{ticket}', [TicketController::class, 'show'])->name('tickets.show');
     Route::post('/tickets/{ticket}/transition', [TicketController::class, 'transition'])->name('tickets.transition');
     Route::post('/tickets/{ticket}/assign', [TicketController::class, 'assign'])->name('tickets.assign');
+    Route::post('/tickets/{ticket}/team', [TicketController::class, 'team'])->name('tickets.team');
+    Route::post('/tickets/{ticket}/work', [TicketController::class, 'work'])->name('tickets.work');
     Route::put('/tickets/{ticket}', [TicketController::class, 'update'])->name('tickets.update');
     Route::post('/tickets/{ticket}/comments', [TicketController::class, 'comment'])->name('tickets.comment');
     Route::post('/tickets/{ticket}/notes', [TicketController::class, 'note'])->name('tickets.note');

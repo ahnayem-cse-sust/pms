@@ -30,7 +30,10 @@
             <div class="col-md-4"><b>Category:</b> {{ $ticket->category->name }}@if($ticket->subcategory) / {{ $ticket->subcategory->name }}@endif</div>
             <div class="col-md-4"><b>Created:</b> {{ $ticket->created_at->format('d M Y H:i') }}</div>
             <div class="col-md-4"><b>Preferred date:</b> {{ $ticket->preferred_completion_date?->format('d M Y') ?? '—' }}</div>
-            <div class="col-md-4"><b>Assigned to:</b> {{ $ticket->assignee->name ?? 'Unassigned' }}</div>
+            <div class="col-md-4"><b>Primary responsible:</b> {{ $ticket->assignee->name ?? 'Unassigned' }}</div>
+            @if($team->where('role', 'SUPPORT')->isNotEmpty())
+                <div class="col-md-8"><b>Supporting:</b> {{ $team->where('role', 'SUPPORT')->map(fn ($m) => $m->employee->name)->implode(', ') }}</div>
+            @endif
             <div class="col-md-4"><b>Due:</b> {{ $ticket->due_date?->format('d M Y') ?? '—' }}</div>
             <div class="col-md-4"><b>SLA resolution due:</b> {{ $ticket->sla_resolution_due_at?->format('d M H:i') ?? '—' }}</div>
         </div>
@@ -127,23 +130,7 @@
     </div>
     @endif
 
-    @if($canAssign)
-    <div class="card mb-3">
-        <div class="card-header">{{ $ticket->assigned_to ? 'Reassign' : 'Assign' }}</div>
-        <div class="card-body">
-            <form method="POST" action="{{ route('tickets.assign', $ticket) }}">@csrf
-                <select name="assignee_id" class="form-select form-select-sm mb-2">
-                    <option value="">Select IT team member…</option>
-                    @foreach($members as $m)<option value="{{ $m->id }}" @selected($ticket->assigned_to == $m->id)>{{ $m->name }}</option>@endforeach
-                </select>
-                <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="auto" value="1" id="auto"><label class="form-check-label small" for="auto">Auto-assign to member with fewest open tickets</label></div>
-                <input type="date" name="due_date" value="{{ $ticket->due_date?->format('Y-m-d') }}" class="form-control form-control-sm mb-2" title="Due date">
-                <textarea name="instructions" rows="2" class="form-control form-control-sm mb-2" placeholder="Instructions for the assignee"></textarea>
-                <button class="btn btn-primary btn-sm w-100">{{ $ticket->assigned_to ? 'Reassign' : 'Assign' }}</button>
-            </form>
-        </div>
-    </div>
-    @endif
+    @include('tickets._team')
 
     @if($canEdit)
     <div class="card mb-3">
@@ -176,8 +163,11 @@
                             @case('created') created the request @break
                             @case('created_on_behalf') created the request on behalf of <b>{{ $h->new_value }}</b> @break
                             @case('status_changed') changed status: {{ $h->old_value }} → <b>{{ $h->new_value }}</b> @break
-                            @case('assigned') assigned to <b>{{ $h->new_value }}</b> @break
-                            @case('reassigned') reassigned {{ $h->old_value }} → <b>{{ $h->new_value }}</b> @break
+                            @case('assigned') made <b>{{ $h->new_value }}</b> the primary responsible employee @break
+                            @case('team_added') added <b>{{ $h->new_value }}</b> to the team @break
+                            @case('team_removed') removed <b>{{ $h->old_value }}</b> from the team @break
+                            @case('team_role_changed') changed the role: {{ $h->old_value }} → <b>{{ $h->new_value }}</b> @break
+                            @case('reassigned') changed the primary responsible employee: {{ $h->old_value }} → <b>{{ $h->new_value }}</b> @break
                             @case('comment_added') added a comment @break
                             @case('attachment_added') uploaded attachment(s) @break
                             @case('auto_closed') (auto-closed) @break

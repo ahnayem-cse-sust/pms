@@ -39,7 +39,24 @@ class Ticket extends Model
     public function notes() { return $this->hasMany(TicketInternalNote::class)->with('user')->oldest(); }
     public function attachments() { return $this->hasMany(TicketAttachment::class)->with('uploader'); }
     public function history() { return $this->hasMany(TicketHistory::class)->with('user')->oldest('created_at'); }
-    public function assignments() { return $this->hasMany(TicketAssignment::class)->with(['assignee', 'assigner']); }
+    /** Plain relation (no ordering/eager loading) for existence checks in scopes. */
+    public function assignees() { return $this->hasMany(TicketAssignment::class); }
+
+    /** The IT team on this request: the PRIMARY employee first, then supporting employees. */
+    public function team()
+    {
+        return $this->hasMany(TicketAssignment::class)->with(['employee', 'assigner'])
+            ->orderByRaw("CASE role WHEN 'PRIMARY' THEN 0 ELSE 1 END")->orderBy('assigned_at');
+    }
+
+    public function workUpdates() { return $this->hasMany(TicketWorkUpdate::class)->with('user')->latest('created_at'); }
+
+    /** Requests the user is on the team of (primary or supporting). */
+    public function scopeInvolving($q, User $u)
+    {
+        return $q->where(fn ($w) => $w->where('tickets.assigned_to', $u->id)
+            ->orWhereHas('assignees', fn ($t) => $t->where('employee_id', $u->id)));
+    }
 
     /** Row-level visibility. Applied to every list and to show(). */
     public function scopeVisibleTo($q, User $u)
@@ -54,7 +71,8 @@ class Ticket extends Model
                 $w->orWhere('department_id', $u->department_id);
             }
             if ($u->hasPermission('ticket.view.assigned')) {
-                $w->orWhere('assigned_to', $u->id);
+                $w->orWhere('assigned_to', $u->id)
+                    ->orWhereHas('assignees', fn ($t) => $t->where('employee_id', $u->id));
             }
         });
     }

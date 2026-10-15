@@ -9,7 +9,7 @@
             <div class="card-header">Team workload</div>
             <div class="table-responsive">
             <table class="table align-middle">
-                <thead><tr><th>Employee</th><th class="text-center">New / Assigned</th><th class="text-center">In progress</th><th class="text-center">Pending</th><th class="text-center">Resolved</th><th style="width:170px">Open load</th></tr></thead>
+                <thead><tr><th>Employee</th><th class="text-center">New / Assigned</th><th class="text-center">In progress</th><th class="text-center">Pending</th><th class="text-center">Supporting</th><th class="text-center">Resolved</th><th style="width:170px">Open load</th></tr></thead>
                 <tbody>
                 @forelse($team as $row)
                     <tr>
@@ -17,6 +17,7 @@
                         <td class="text-center">{{ $row->assigned }}</td>
                         <td class="text-center">{{ $row->in_progress }}</td>
                         <td class="text-center">{{ $row->pending }}</td>
+                        <td class="text-center">{{ $row->supporting }}</td>
                         <td class="text-center">{{ $row->resolved }}</td>
                         <td>
                             <div class="d-flex align-items-center gap-2">
@@ -26,7 +27,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="text-muted text-center py-4">No IT team members yet.</td></tr>
+                    <tr><td colspan="7" class="text-muted text-center py-4">No IT team members yet.</td></tr>
                 @endforelse
                 </tbody>
             </table>
@@ -41,7 +42,7 @@
 <div class="d-flex align-items-end justify-content-between mb-2">
     <div>
         <h5 class="mb-0">Assignment board</h5>
-        <div class="text-muted small">@if($board['canAssign'])Drag a ticket onto an IT member to assign or reassign it. @endif Open tickets, highest priority first.</div>
+        <div class="text-muted small">@if($board['canAssign'])Drag a ticket onto an IT employee to make them the primary responsible employee (supporting employees stay; use the ticket page to change the team). @endif Open tickets, highest priority first.</div>
     </div>
 </div>
 
@@ -65,6 +66,7 @@
                     <span v-if="t.sla === 'breached'" class="pill pill-danger ms-1">SLA</span>
                     <span v-else-if="t.sla === 'warning'" class="pill pill-warning ms-1">SLA</span>
                     <div class="subj">[[ t.subject ]]</div>
+                    <div v-if="t.support && t.support.length" class="ticket-sub mb-1">+ support: [[ t.support.join(', ') ]]</div>
                     <div class="meta">
                         <span>[[ t.dept ]] · [[ t.priority ]]<template v-if="t.due"> · due [[ t.due ]]</template></span>
                         <button v-if="canAssign && col.id === null" class="auto" type="button" title="Assign to the member with the fewest open tickets" v-on:click="autoAssign(t, col)">Auto</button>

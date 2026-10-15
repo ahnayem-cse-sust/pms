@@ -45,7 +45,14 @@ class DashboardController extends Controller
             ->select('assigned_to', 's.code', 's.is_open', DB::raw('count(*) as c'))
             ->groupBy('assigned_to', 's.code', 's.is_open')->get()->groupBy('assigned_to');
 
-        $team = User::active()->withRole('it_member')->orderBy('name')->get()->map(function ($m) use ($rows) {
+        // Open requests where each employee is a supporting (not primary) team member
+        $supportCounts = DB::table('ticket_assignments as a')
+            ->join('tickets as t', 't.id', '=', 'a.ticket_id')
+            ->join('ticket_statuses as s', 's.id', '=', 't.status_id')
+            ->whereNull('t.deleted_at')->where('s.is_open', 1)->where('a.role', 'SUPPORT')
+            ->select('a.employee_id', DB::raw('count(*) as c'))->groupBy('a.employee_id')->pluck('c', 'employee_id');
+
+        $team = User::active()->assignable()->orderBy('name')->get()->map(function ($m) use ($rows, $supportCounts) {
             $r = $rows->get($m->id, collect());
             $n = fn (array $codes) => $r->whereIn('code', $codes)->sum('c');
             return (object) [
@@ -55,18 +62,20 @@ class DashboardController extends Controller
                 'pending' => $n(['WAITING_USER', 'ON_HOLD']),
                 'resolved' => $n(['RESOLVED', 'USER_CONFIRMATION', 'CLOSED']),
                 'open' => $r->where('is_open', 1)->sum('c'),
+                'supporting' => $supportCounts[$m->id] ?? 0,
             ];
         });
 
         // Kanban-style assignment board: unassigned column + one column per IT member
-        $memberList = User::active()->withRole('it_member')->orderBy('name')->get();
-        $openTickets = Ticket::open()->with(['priority', 'department'])->orderBy('created_at')->limit(400)->get()
+        $memberList = User::active()->assignable()->orderBy('name')->get();
+        $openTickets = Ticket::open()->with(['priority', 'department', 'team'])->orderBy('created_at')->limit(400)->get()
             ->sortBy(fn ($t) => $t->priority->level)->values();
         $card = fn ($t) => [
             'id' => $t->id, 'no' => $t->ticket_no, 'subject' => $t->subject,
             'dept' => $t->department->name, 'priority' => $t->priority->name,
             'due' => $t->due_date?->format('d M'), 'sla' => $t->sla_status,
             'url' => route('tickets.show', $t),
+            'support' => $t->team->where('role', 'SUPPORT')->map(fn ($m) => $m->employee->name)->values()->all(),
         ];
         $columns = [[
             'id' => null, 'name' => 'Unassigned',
@@ -102,8 +111,8 @@ class DashboardController extends Controller
 
     protected function member(User $u)
     {
-        $mine = Ticket::where('assigned_to', $u->id)->with(['status', 'priority', 'department', 'category']);
-        $counts = Ticket::where('assigned_to', $u->id)
+        $mine = Ticket::involving($u)->with(['status', 'priority', 'department', 'category', 'assignee', 'team']);
+        $counts = Ticket::involving($u)
             ->join('ticket_statuses as s', 's.id', '=', 'tickets.status_id')
             ->select('s.code', DB::raw('count(*) as c'))->groupBy('s.code')->pluck('c', 'code');
 
@@ -111,7 +120,7 @@ class DashboardController extends Controller
             'New / Assigned' => ($counts['ASSIGNED'] ?? 0) + ($counts['REOPENED'] ?? 0) + ($counts['ESCALATED'] ?? 0),
             'In Progress' => $counts['IN_PROGRESS'] ?? 0,
             'Waiting' => ($counts['WAITING_USER'] ?? 0) + ($counts['ON_HOLD'] ?? 0),
-            'Overdue' => Ticket::where('assigned_to', $u->id)->open()->whereNotNull('due_date')->whereDate('due_date', '<', today())->count(),
+            'Overdue' => Ticket::involving($u)->open()->whereNotNull('due_date')->whereDate('due_date', '<', today())->count(),
             'Resolved' => ($counts['RESOLVED'] ?? 0) + ($counts['USER_CONFIRMATION'] ?? 0) + ($counts['CLOSED'] ?? 0),
         ];
 

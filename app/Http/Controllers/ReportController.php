@@ -42,7 +42,7 @@ class ReportController extends Controller
         $byPrio = $tickets->groupBy(fn ($t) => $t->priority->name)->map->count();
 
         // Operational (not a performance score): per IT member
-        $perMember = User::withRole('it_member')->orderBy('name')->get()->map(function ($m) use ($tickets) {
+        $perMember = User::assignable()->orderBy('name')->get()->map(function ($m) use ($tickets) {
             $mine = $tickets->where('assigned_to', $m->id);
             $done = $mine->whereNotNull('resolved_at');
             return (object) [

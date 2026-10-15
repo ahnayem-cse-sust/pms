@@ -2,7 +2,7 @@
 <div class="table-responsive">
 <table class="table table-hover align-middle">
     <thead>
-        <tr><th>Ticket</th><th>Department</th><th>Category</th><th>Priority</th><th>Assigned to</th><th>Status</th><th>Due</th><th>Created</th></tr>
+        <tr><th>Ticket</th><th>Department</th><th>Category</th><th>Priority</th><th>Primary</th>@if(($mode ?? '') === 'tasks')<th>My role</th>@endif<th>Status</th><th>Due</th><th>Created</th></tr>
     </thead>
     <tbody>
     @forelse($tickets as $t)
@@ -17,8 +17,13 @@
             <td>
                 @if($t->assignee)
                     <span class="d-inline-flex align-items-center gap-2"><x-avatar :name="$t->assignee->name"/> {{ $t->assignee->name }}</span>
+                    @php($sup = $t->relationLoaded('team') ? $t->team->where('role', 'SUPPORT') : collect())
+                    @if($sup->isNotEmpty())<span class="pill pill-secondary" title="Supporting: {{ $sup->map(fn ($m) => $m->employee->name)->implode(', ') }}">+{{ $sup->count() }}</span>@endif
                 @else <span class="text-muted">Unassigned</span> @endif
             </td>
+            @if(($mode ?? '') === 'tasks')
+                <td><span class="pill pill-{{ $t->assigned_to === auth()->id() ? 'primary' : 'secondary' }}">{{ $t->assigned_to === auth()->id() ? 'Primary' : 'Support' }}</span></td>
+            @endif
             <td>
                 <span class="pill pill-{{ $t->status->color ?? 'secondary' }}">{{ $t->status->name }}</span>
                 @if($t->status->is_open && $t->sla_status === 'breached')<span class="pill pill-danger">SLA</span>
@@ -28,7 +33,7 @@
             <td class="text-nowrap text-muted">{{ $t->created_at->format('d M Y H:i') }}</td>
         </tr>
     @empty
-        <tr><td colspan="8" class="text-center text-muted py-5">No requests found.</td></tr>
+        <tr><td colspan="{{ ($mode ?? '') === 'tasks' ? 9 : 8 }}" class="text-center text-muted py-5">No requests found.</td></tr>
     @endforelse
     </tbody>
 </table>

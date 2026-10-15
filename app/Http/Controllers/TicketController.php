@@ -19,10 +19,28 @@ class TicketController extends Controller
 {
     public function __construct(protected TicketService $svc) {}
 
+    /** All requests the user is allowed to see. */
     public function index(Request $r)
     {
+        return $this->listing($r, Ticket::visibleTo(auth()->user()), 'all');
+    }
+
+    /** My Requests (IT staff): only requests where the user is the requester, whether they filed it or someone filed it for them. */
+    public function mine(Request $r)
+    {
+        return $this->listing($r, Ticket::where('requester_id', auth()->id()), 'mine');
+    }
+
+    /** My Tasks (IT staff): every request the user is on the team of, as the primary responsible employee or in support. */
+    public function tasks(Request $r)
+    {
+        return $this->listing($r, Ticket::involving(auth()->user()), 'tasks');
+    }
+
+    protected function listing(Request $r, $base, string $mode)
+    {
         $u = auth()->user();
-        $q = Ticket::visibleTo($u)->with(['department', 'category', 'subcategory', 'priority', 'status', 'assignee', 'requester']);
+        $q = $base->with(['department', 'category', 'subcategory', 'priority', 'status', 'assignee', 'requester', 'team']);
 
         if ($s = trim((string) $r->q)) {
             $q->where(function ($w) use ($s) {
@@ -51,13 +69,14 @@ class TicketController extends Controller
         $tickets = $q->latest()->paginate(20)->withQueryString();
 
         return view('tickets.index', [
+            'mode' => $mode,
             'tickets' => $tickets,
             'departments' => Department::orderBy('name')->get(),
             'categories' => TicketCategory::orderBy('name')->get(),
             'statuses' => TicketStatus::orderBy('sort_order')->get(),
             'priorities' => TicketPriority::orderBy('level')->get(),
             'types' => TicketType::all(),
-            'members' => $u->hasPermission('ticket.view.all') ? User::active()->withRole('it_member')->orderBy('name')->get() : collect(),
+            'members' => ($mode === 'all' && $u->hasPermission('ticket.view.all')) ? User::active()->assignable()->orderBy('name')->get() : collect(),
         ]);
     }
 
@@ -131,7 +150,7 @@ class TicketController extends Controller
         abort_unless(Ticket::visibleTo($u)->whereKey($ticket->id)->exists(), 403);
 
         $ticket->load(['department', 'location', 'category', 'subcategory', 'priority', 'status', 'assignee', 'requester', 'type',
-            'comments', 'history', 'assignments', 'attachments', 'creator']);
+            'comments', 'history', 'team', 'attachments', 'creator']);
 
         $seeInternal = $u->hasPermission('ticket.note.internal');
         $notes = $seeInternal ? $ticket->notes : collect();
@@ -144,10 +163,14 @@ class TicketController extends Controller
             'transitions' => $this->svc->allowedTransitions($ticket, $u),
             'canAssign' => $u->can('ticket.assign') && in_array($ticket->status->code, TicketService::ASSIGNABLE, true),
             'canEdit' => $u->can('ticket.edit') && $ticket->status->is_open,
-            'members' => User::active()->withRole('it_member')->orderBy('name')->get(),
+            'members' => User::active()->assignable()->orderBy('name')->get(),
             'priorities' => TicketPriority::orderBy('level')->get(),
             'categories' => TicketCategory::with('subcategories')->orderBy('name')->get(),
             'seeInternal' => $seeInternal,
+            'team' => $ticket->team,
+            'myRow' => $ticket->team->firstWhere('employee_id', $u->id),
+            'workStatuses' => TicketService::WORK_STATUSES,
+            'workUpdates' => $seeInternal ? $ticket->workUpdates()->limit(30)->get() : collect(),
         ]);
     }
 
@@ -182,6 +205,45 @@ class TicketController extends Controller
             return response()->json(['ok' => true, 'assignee_id' => $assignee->id, 'assignee_name' => $assignee->name]);
         }
         return back()->with('ok', "Assigned to {$assignee->name}.");
+    }
+
+    /** IT Admin: set the whole team – one primary responsible employee plus supporting employees. */
+    public function team(Request $r, Ticket $ticket)
+    {
+        $this->authorize('ticket.assign');
+        $this->authorizeView($ticket);
+        $d = $r->validate([
+            'primary_id' => 'nullable|integer|exists:users,id',
+            'auto' => 'nullable|boolean',
+            'support_ids' => 'nullable|array',
+            'support_ids.*' => 'integer|exists:users,id',
+            'instructions' => 'nullable|string|max:2000',
+            'due_date' => 'nullable|date',
+        ]);
+
+        $support = $d['support_ids'] ?? [];
+        $primary = $r->boolean('auto')
+            ? $this->svc->autoPickAssignee(array_map('intval', $support))
+            : User::find($d['primary_id'] ?? null);
+        if (! $primary) {
+            return back()->withErrors(['primary_id' => 'Choose the primary responsible employee (or tick auto-assign).'])->withInput();
+        }
+
+        $this->svc->setTeam($ticket, $primary, $support, auth()->user(), $d['instructions'] ?? null, $d['due_date'] ?? null);
+        return back()->with('ok', "Team saved – {$primary->name} is the primary responsible employee.");
+    }
+
+    /** Any team member: record your own progress and notes. */
+    public function work(Request $r, Ticket $ticket)
+    {
+        $this->authorize('ticket.work');
+        $this->authorizeView($ticket);
+        $d = $r->validate([
+            'work_status' => 'required|in:' . implode(',', array_keys(TicketService::WORK_STATUSES)),
+            'note' => 'nullable|string|max:3000',
+        ]);
+        $this->svc->updateWork($ticket, auth()->user(), $d['work_status'], $d['note'] ?? null);
+        return back()->with('ok', 'Your work update was saved.');
     }
 
     public function update(Request $r, Ticket $ticket)

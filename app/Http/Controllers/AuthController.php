@@ -7,7 +7,6 @@ use App\Models\LoginHistory;
 use App\Models\SystemSetting;
 use App\Models\User;
 use App\Services\SessionTracker;
-use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -57,7 +56,7 @@ class AuthController extends Controller
             $idle = $request->boolean('idle') && $request->session()->has('last_activity_at');
             SessionTracker::recordLogout(
                 $user,
-                $idle ? Carbon::createFromTimestamp($request->session()->get('last_activity_at')) : now(),
+                $idle ? SessionTracker::fromTimestamp((int) $request->session()->get('last_activity_at')) : now(),
                 $idle ? 'timeout' : 'manual',
                 $idle ? $request->session()->get('last_activity_ip', $request->ip()) : $request->ip()
             );

@@ -58,6 +58,12 @@ class User extends Authenticatable
 
     public function scopeActive($q) { return $q->where('is_active', true); }
 
+    /** Staff who can be assigned tickets: IT Team Members and IT Admins (config itsm.assignable_roles). */
+    public function scopeAssignable($q)
+    {
+        return $q->whereHas('roles', fn ($r) => $r->whereIn('slug', config('itsm.assignable_roles', ['it_member'])));
+    }
+
     public function scopeWithRole($q, string $slug)
     {
         return $q->whereHas('roles', fn ($r) => $r->where('slug', $slug));

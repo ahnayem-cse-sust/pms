@@ -57,6 +57,28 @@ The system time zone is **GMT+6 (Asia/Dhaka)**, set in `config/itsm.php` (`ITSM_
 
 System Administrator, IT Admin and IT Team Member can file a request for any user (e.g. when a problem is reported by phone); a Department Head can file for users in their own department. Pick the person under **Request for** on the New Request form. The ticket belongs to that person (they see it and are notified), and shows who filed it. Permissions: `ticket.create.behalf` and `ticket.create.behalf.dept` in `config/itsm.php`. After upgrading run `php artisan migrate` and `php artisan optimize:clear`.
 
+## Team assignment: one primary + supporting employees
+
+A request can have several IT employees, with **exactly one primary responsible employee** (accountable for coordination, follow-up and the final resolution) and any number of **supporting employees**.
+
+- **IT Admin** sets the team on the ticket page (*Assign team* / *Change team*): choose the primary, tick the supporters, optional due date and instructions. The same screen changes the primary or the supporters later. Dragging a ticket onto an employee on the dashboard board changes only the primary; the supporters stay.
+- **Primary** moves the request through the workflow (acknowledge, in progress, waiting, resolved) and records the final resolution. Supporting employees cannot change the request's status.
+- **Every team member** records their own progress under *My work update* (To do / In progress / Waiting / Done plus a note). The primary is notified of supporters' updates. Work notes are visible to IT staff only; the requester sees the team's names and roles.
+- When the primary resolves the request every member's part is marked Done; a reopened request resets everyone to To do.
+- **My Tasks** lists requests where the employee is primary or supporting (with a *My role* column). Dashboard team workload shows primary and supporting counts, and auto-assign counts both.
+- **History:** who was added or removed, role changes, and who assigned them and when are recorded on the ticket timeline and in the audit log.
+- **Rule enforcement:** the application validates "exactly one primary" inside a transaction, and the database has a unique index (`ticket_assignments.ticket_id + primary_marker`) so a second primary can never be stored.
+
+Upgrading an existing install: `php artisan migrate` (the old assignment trail is kept as `ticket_assignment_log`; each already-assigned request gets its assignee as the primary), then `php artisan optimize:clear`.
+
+## My Requests and My Tasks (IT staff)
+
+IT Team Members and IT Admins have two personal menus. **My Requests** lists only requests where they are the requester: ones they submitted for themselves, or ones someone submitted on their behalf. **My Tasks** lists every request they are on the team of, as primary or supporting (with a badge for the open ones). IT Admins keep **All Requests** for the full list. Requests an IT employee filed for other people appear under that person's own list.
+
+## Who can be assigned tickets
+
+IT Team Members **and IT Admins** can be assigned requests: both appear in the assign lists, the dashboard team-workload table, the drag-and-drop board and auto-assign (fewest open tickets), and in the monthly report's team summary. The list of roles is `assignable_roles` in `config/itsm.php`.
+
 ## Multiple roles
 
 A user can hold more than one role (e.g. IT Admin + IT Team Member, or Department Head + Department User). Tick the roles on the user form; permissions are combined. After upgrading an existing install run `php artisan migrate` – existing users keep their current role.

@@ -21,6 +21,9 @@ return [
         'max_months' => 6,                           // longest date range (From..To) allowed on the page and PDF
     ],
 
+    // Roles whose members can be assigned tickets (team workload, assignment board, assign lists, auto-assign).
+    'assignable_roles' => ['it_member', 'it_officer'],
+
     // How long the session record/cookie lives. Deliberately long: the 15-minute inactivity rule below is enforced by the
     // app for signed-in users, while a short lifetime would also expire the login page itself (-> "419 Page Expired").
     'session_lifetime_minutes' => (int) env('ITSM_SESSION_LIFETIME', 480),

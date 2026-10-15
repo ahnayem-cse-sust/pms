@@ -93,7 +93,7 @@ Notes on ◐:
 ## 4. Business rules enforced in code (not just UI)
 
 1. **Ticket number:** `IT-{year}-{000000}`, generated inside a DB transaction with a row lock on `ticket_sequences` (no duplicates under concurrent submits); counter resets each year.
-2. **Assignment:** assignee must hold `ticket.work` and be active. Every assign/reassign writes `ticket_assignments` + `ticket_history`, and notifies the new assignee (and the old one on reassign).
+2. **Assignment:** a request has a team of IT employees (`ticket_assignments`): exactly one PRIMARY (also stored in `tickets.assigned_to`) plus any number of SUPPORT. Members must hold `ticket.work` and be active (IT Team Members and IT Admins). Only the primary (or an IT Admin) moves the request through its workflow and submits the resolution; every member records their own work status and notes. Every team change writes `ticket_history` and the audit log and notifies the people affected. Every assign/reassign writes `ticket_assignments` + `ticket_history`, and notifies the new assignee (and the old one on reassign).
 3. **Internal notes and internal attachments** are filtered at the query level for any user without `ticket.note.internal` (never hidden by CSS only).
 4. **Requester snapshot:** name, employee ID, designation, phone and email are copied onto the ticket at submit time.
 5. **Resolve** requires resolution text; sets `resolved_at`. **Close** sets `closed_at` and `closed_by`. **Reopen** clears `closed_at`, increments `reopen_count`, notifies the Officer.
