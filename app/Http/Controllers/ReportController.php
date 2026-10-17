@@ -24,7 +24,7 @@ class ReportController extends Controller
         $r->validate(['month' => 'nullable|date_format:Y-m']);
         [$month, $q] = $this->scope($r);
 
-        $tickets = (clone $q)->with(['status', 'priority', 'department', 'category', 'assignee'])->get();
+        $tickets = (clone $q)->with(['status', 'department', 'category', 'assignee'])->get();
 
         $summary = [
             'Total requests' => $tickets->count(),
@@ -39,7 +39,6 @@ class ReportController extends Controller
 
         $byDept = $tickets->groupBy(fn ($t) => $t->department->name)->map->count()->sortDesc();
         $byCat = $tickets->groupBy(fn ($t) => $t->category->name)->map->count()->sortDesc();
-        $byPrio = $tickets->groupBy(fn ($t) => $t->priority->name)->map->count();
 
         // Operational (not a performance score): per IT member
         $perMember = User::assignable()->orderBy('name')->get()->map(function ($m) use ($tickets) {
@@ -55,24 +54,24 @@ class ReportController extends Controller
             ];
         });
 
-        return view('reports.index', compact('month', 'summary', 'byDept', 'byCat', 'byPrio', 'perMember'));
+        return view('reports.index', compact('month', 'summary', 'byDept', 'byCat', 'perMember'));
     }
 
     public function csv(Request $r)
     {
         $r->validate(['month' => 'nullable|date_format:Y-m']);
         [$month, $q] = $this->scope($r);
-        $rows = $q->with(['status', 'priority', 'department', 'category', 'subcategory', 'assignee', 'type'])->orderBy('tickets.created_at')->get();
+        $rows = $q->with(['status', 'department', 'category', 'subcategory', 'assignee', 'type'])->orderBy('tickets.created_at')->get();
 
         return response()->streamDownload(function () use ($rows) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM so Excel opens it correctly
-            fputcsv($out, ['Ticket', 'Type', 'Created', 'Department', 'Requester', 'Employee ID', 'Category', 'Sub-category', 'Subject', 'Priority', 'Status', 'Assigned To', 'Due', 'Resolved', 'Closed', 'SLA']);
+            fputcsv($out, ['Ticket', 'Type', 'Created', 'Department', 'Requester', 'Employee ID', 'Category', 'Sub-category', 'Subject', 'Status', 'Assigned To', 'Due', 'Resolved', 'Closed', 'SLA']);
             foreach ($rows as $t) {
                 fputcsv($out, [
                     $t->ticket_no, $t->type->name, $t->created_at->format('Y-m-d H:i'), $t->department->name,
                     $t->requester_name, $t->requester_employee_id, $t->category->name, $t->subcategory?->name,
-                    $t->subject, $t->priority->name, $t->status->name, $t->assignee?->name,
+                    $t->subject, $t->status->name, $t->assignee?->name,
                     optional($t->due_date)->format('Y-m-d'), optional($t->resolved_at)?->format('Y-m-d H:i'),
                     optional($t->closed_at)?->format('Y-m-d H:i'), $t->sla_status,
                 ]);

@@ -55,7 +55,8 @@ class TicketService
             $ticketNo = config('itsm.ticket_prefix', 'RQ') . '-' . $next;
 
             $status = TicketStatus::where('code', 'NEW')->firstOrFail();
-            $priority = TicketPriority::findOrFail($d['priority_id']);
+            // Priority is no longer chosen by users; every request gets the default (Medium) so SLA timers still apply
+            $priority = TicketPriority::where('name', 'Medium')->first() ?? TicketPriority::orderBy('level')->firstOrFail();
             $now = now();
 
             $ticket = Ticket::create([
@@ -92,9 +93,8 @@ class TicketService
                 $this->log($ticket, $actor, 'created', null, null, $ticketNo, $ticket->subject);
             }
 
-            $flag = in_array($priority->name, ['Critical', 'High'], true) ? "[{$priority->name}] " : '';
             $suffix = $behalf ? " (for {$requester->name}, filed by {$actor->name})" : '';
-            $this->notify($this->officers(), $ticket, "{$flag}New request {$ticketNo}: {$ticket->subject}{$suffix}", $actor);
+            $this->notify($this->officers(), $ticket, "New request {$ticketNo}: {$ticket->subject}{$suffix}", $actor);
             $this->notify([$requester], $ticket, $behalf
                 ? "{$actor->name} submitted request {$ticketNo} on your behalf."
                 : "Your request {$ticketNo} was submitted.");

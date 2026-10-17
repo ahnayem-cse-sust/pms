@@ -17,14 +17,10 @@
             'id' => $c->id, 'name' => $c->name,
             'subs' => $c->subcategories->map(fn ($s) => ['id' => $s->id, 'name' => $s->name])->values(),
         ])->values(),
-        'priorities' => $priorities->map(fn ($p) => [
-            'id' => $p->id, 'name' => $p->name, 'resp' => $p->response_minutes, 'reso' => $p->resolution_minutes,
-        ])->values(),
         'old' => [
             'requester' => (string) old('requester_id'),
             'phone' => old('phone'), 'location' => (string) old('location_id'), 'department' => (string) old('department_id'),
             'category' => (string) old('category_id'), 'sub' => (string) old('subcategory_id'),
-            'priority' => (string) old('priority_id', optional($priorities->firstWhere('name', 'Medium'))->id),
             'subject' => old('subject', ''), 'description' => old('description', ''),
         ],
     ];
@@ -107,18 +103,6 @@
                 </div>
 
                 <div class="col-12">
-                    <label class="form-label">Priority *</label>
-                    <div class="prio-grid">
-                        <div v-for="p in priorities" :key="p.id">
-                            <input type="radio" class="btn-check" name="priority_id" :id="'p' + p.id" :value="String(p.id)" v-model="priority" required>
-                            <label class="prio-card" :for="'p' + p.id">
-                                <b>[[ p.name ]]</b>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-12">
                     <label class="form-label">Subject *</label>
                     <input name="subject" v-model="subject" class="form-control" maxlength="200" placeholder="e.g. Unable to print Sales Invoice" required>
                 </div>
@@ -171,8 +155,8 @@ Vue.createApp({
             search: '', typing: false, open: false, hi: 0,
             phone: o.phone !== null && o.phone !== '' ? o.phone : (start.phone || ''),
             departmentId: o.department,
-            categories: CFG.categories, priorities: CFG.priorities,
-            category: o.category, sub: o.sub, priority: o.priority,
+            categories: CFG.categories,
+            category: o.category, sub: o.sub,
             subject: o.subject, description: o.description,
             files: [], fileError: '', maxKb: CFG.maxKb, dragOver: false, submitting: false
         };

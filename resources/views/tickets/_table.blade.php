@@ -2,7 +2,7 @@
 <div class="table-responsive">
 <table class="table table-hover align-middle">
     <thead>
-        <tr><th>Ticket</th><th>Department</th><th>Category</th><th>Priority</th><th>Primary</th>@if(($mode ?? '') === 'tasks')<th>My role</th>@endif<th>Status</th><th>Due</th><th>Created</th></tr>
+        <tr><th>Ticket</th><th>Department</th><th>Category</th><th>Primary</th>@if(($mode ?? '') === 'tasks')<th>My role</th>@endif<th>Status</th><th>Due</th><th>Created</th></tr>
     </thead>
     <tbody>
     @forelse($tickets as $t)
@@ -13,7 +13,6 @@
             </td>
             <td>{{ $t->department->name ?? '' }}</td>
             <td>{{ $t->category->name ?? '' }}@if($t->subcategory)<div class="ticket-sub">{{ $t->subcategory->name }}</div>@endif</td>
-            <td><span class="pill pill-{{ $t->priority->color ?? 'secondary' }}">{{ $t->priority->name }}</span></td>
             <td>
                 @if($t->assignee)
                     <span class="d-inline-flex align-items-center gap-2"><x-avatar :name="$t->assignee->name"/> {{ $t->assignee->name }}</span>
@@ -33,7 +32,7 @@
             <td class="text-nowrap text-muted">{{ $t->created_at->format('d M Y H:i') }}</td>
         </tr>
     @empty
-        <tr><td colspan="{{ ($mode ?? '') === 'tasks' ? 9 : 8 }}" class="text-center text-muted py-5">No requests found.</td></tr>
+        <tr><td colspan="{{ ($mode ?? '') === 'tasks' ? 8 : 7 }}" class="text-center text-muted py-5">No requests found.</td></tr>
     @endforelse
     </tbody>
 </table>

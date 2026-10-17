@@ -7,7 +7,6 @@ use App\Models\Location;
 use App\Models\Ticket;
 use App\Models\TicketAttachment;
 use App\Models\TicketCategory;
-use App\Models\TicketPriority;
 use App\Models\TicketStatus;
 use App\Models\TicketType;
 use App\Models\User;
@@ -51,7 +50,7 @@ class TicketController extends Controller
                     ->orWhere('requester_employee_id', 'like', "%{$s}%");
             });
         }
-        foreach (['department_id', 'category_id', 'status_id', 'priority_id', 'assigned_to', 'ticket_type_id'] as $f) {
+        foreach (['department_id', 'category_id', 'status_id', 'assigned_to', 'ticket_type_id'] as $f) {
             if ($r->filled($f)) {
                 $q->where($f, $r->input($f));
             }
@@ -74,7 +73,6 @@ class TicketController extends Controller
             'departments' => Department::orderBy('name')->get(),
             'categories' => TicketCategory::orderBy('name')->get(),
             'statuses' => TicketStatus::orderBy('sort_order')->get(),
-            'priorities' => TicketPriority::orderBy('level')->get(),
             'types' => TicketType::all(),
             'members' => ($mode === 'all' && $u->hasPermission('ticket.view.all')) ? User::active()->assignable()->orderBy('name')->get() : collect(),
         ]);
@@ -85,7 +83,6 @@ class TicketController extends Controller
         return view('tickets.create', [
             'types' => TicketType::where('is_active', true)->get(),
             'categories' => TicketCategory::with(['subcategories' => fn ($s) => $s->where('is_active', true)])->where('is_active', true)->orderBy('sort_order')->get(),
-            'priorities' => TicketPriority::where('is_active', true)->orderBy('level')->get(),
             'locations' => Location::where('is_active', true)->orderBy('name')->get(),
             'departments' => Department::where('is_active', true)->orderBy('name')->get(),
             'requesters' => $this->eligibleRequesters(auth()->user()),
@@ -127,7 +124,6 @@ class TicketController extends Controller
             'ticket_type_id' => 'required|exists:ticket_types,id',
             'category_id' => 'required|exists:ticket_categories,id',
             'subcategory_id' => 'nullable|exists:ticket_subcategories,id',
-            'priority_id' => 'required|exists:ticket_priorities,id',
             'subject' => 'required|string|max:200',
             'description' => 'required|string|max:10000',
             'preferred_completion_date' => 'nullable|date|after_or_equal:today',
@@ -164,7 +160,6 @@ class TicketController extends Controller
             'canAssign' => $u->can('ticket.assign') && in_array($ticket->status->code, TicketService::ASSIGNABLE, true),
             'canEdit' => $u->can('ticket.edit') && $ticket->status->is_open,
             'members' => User::active()->assignable()->orderBy('name')->get(),
-            'priorities' => TicketPriority::orderBy('level')->get(),
             'categories' => TicketCategory::with('subcategories')->orderBy('name')->get(),
             'seeInternal' => $seeInternal,
             'team' => $ticket->team,
@@ -251,7 +246,6 @@ class TicketController extends Controller
         $this->authorize('ticket.edit');
         $this->authorizeView($ticket);
         $d = $r->validate([
-            'priority_id' => 'nullable|exists:ticket_priorities,id',
             'category_id' => 'nullable|exists:ticket_categories,id',
             'subcategory_id' => 'nullable|exists:ticket_subcategories,id',
             'due_date' => 'nullable|date',

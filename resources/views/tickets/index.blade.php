@@ -35,11 +35,6 @@
             </select>
         </div>
         <div class="col-md-2">
-            <select name="priority_id" class="form-select"><option value="">All priorities</option>
-                @foreach($priorities as $p)<option value="{{ $p->id }}" @selected(request('priority_id') == $p->id)>{{ $p->name }}</option>@endforeach
-            </select>
-        </div>
-        <div class="col-md-2">
             <select name="ticket_type_id" class="form-select"><option value="">All types</option>
                 @foreach($types as $t)<option value="{{ $t->id }}" @selected(request('ticket_type_id') == $t->id)>{{ $t->name }}</option>@endforeach
             </select>

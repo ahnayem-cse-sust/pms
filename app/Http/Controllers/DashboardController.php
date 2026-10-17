@@ -18,7 +18,7 @@ class DashboardController extends Controller
         if ($u->hasPermission('dashboard.member')) {
             return $this->member($u);
         }
-        $tickets = Ticket::visibleTo($u)->with(['status', 'priority', 'category', 'assignee'])->latest()->paginate(15);
+        $tickets = Ticket::visibleTo($u)->with(['status', 'category', 'assignee'])->latest()->paginate(15);
         return view('dashboard.department', compact('tickets'));
     }
 
@@ -68,11 +68,10 @@ class DashboardController extends Controller
 
         // Kanban-style assignment board: unassigned column + one column per IT member
         $memberList = User::active()->assignable()->orderBy('name')->get();
-        $openTickets = Ticket::open()->with(['priority', 'department', 'team'])->orderBy('created_at')->limit(400)->get()
-            ->sortBy(fn ($t) => $t->priority->level)->values();
+        $openTickets = Ticket::open()->with(['department', 'team'])->orderBy('created_at')->limit(400)->get();
         $card = fn ($t) => [
             'id' => $t->id, 'no' => $t->ticket_no, 'subject' => $t->subject,
-            'dept' => $t->department->name, 'priority' => $t->priority->name,
+            'dept' => $t->department->name,
             'due' => $t->due_date?->format('d M'), 'sla' => $t->sla_status,
             'url' => route('tickets.show', $t),
             'support' => $t->team->where('role', 'SUPPORT')->map(fn ($m) => $m->employee->name)->values()->all(),
@@ -97,8 +96,6 @@ class DashboardController extends Controller
             ->whereNull('tickets.deleted_at')->select('d.name', DB::raw('count(*) as c'))->groupBy('d.name')->pluck('c', 'name');
         $byCat = Ticket::join('ticket_categories as c', 'c.id', '=', 'tickets.category_id')
             ->whereNull('tickets.deleted_at')->select('c.name', DB::raw('count(*) as c'))->groupBy('c.name')->pluck('c', 'name');
-        $byPrio = Ticket::join('ticket_priorities as p', 'p.id', '=', 'tickets.priority_id')
-            ->whereNull('tickets.deleted_at')->select('p.name', DB::raw('count(*) as c'))->groupBy('p.name')->pluck('c', 'name');
 
         // Last 6 months trend (portable across MySQL/SQLite: group in PHP)
         $trend = Ticket::where('created_at', '>=', now()->startOfMonth()->subMonths(5))->pluck('created_at')
@@ -106,12 +103,12 @@ class DashboardController extends Controller
         $months = collect(range(5, 0))->map(fn ($i) => now()->startOfMonth()->subMonths($i)->format('Y-m'));
         $trend = $months->mapWithKeys(fn ($m) => [$m => $trend[$m] ?? 0]);
 
-        return view('dashboard.officer', compact('stats', 'team', 'board', 'byDept', 'byCat', 'byPrio', 'trend'));
+        return view('dashboard.officer', compact('stats', 'team', 'board', 'byDept', 'byCat', 'trend'));
     }
 
     protected function member(User $u)
     {
-        $mine = Ticket::involving($u)->with(['status', 'priority', 'department', 'category', 'assignee', 'team']);
+        $mine = Ticket::involving($u)->with(['status', 'department', 'category', 'assignee', 'team']);
         $counts = Ticket::involving($u)
             ->join('ticket_statuses as s', 's.id', '=', 'tickets.status_id')
             ->select('s.code', DB::raw('count(*) as c'))->groupBy('s.code')->pluck('c', 'code');
@@ -125,8 +122,7 @@ class DashboardController extends Controller
         ];
 
         $open = (clone $mine)->open()
-            ->join('ticket_priorities as p', 'p.id', '=', 'tickets.priority_id')
-            ->orderBy('p.level')->orderBy('tickets.due_date')->select('tickets.*')->get();
+            ->orderByRaw('tickets.due_date is null')->orderBy('tickets.due_date')->orderBy('tickets.created_at')->select('tickets.*')->get();
 
         return view('dashboard.member', compact('stats', 'open'));
     }

@@ -60,7 +60,7 @@
             </div>
             <div class="board-list">
                 <div v-for="t in col.tickets" :key="t.id" class="tcard"
-                     :class="['prio-' + t.priority.toLowerCase(), { dragging: dragging && dragging.t.id === t.id }]"
+                     :class="{ dragging: dragging && dragging.t.id === t.id }"
                      :draggable="canAssign" v-on:dragstart="onDragStart(t, col)" v-on:dragend="dragging = null; overCol = null">
                     <a :href="t.url" class="no">[[ t.no ]]</a>
                     <span v-if="t.sla === 'breached'" class="pill pill-danger ms-1">SLA</span>
@@ -68,7 +68,7 @@
                     <div class="subj">[[ t.subject ]]</div>
                     <div v-if="t.support && t.support.length" class="ticket-sub mb-1">+ support: [[ t.support.join(', ') ]]</div>
                     <div class="meta">
-                        <span>[[ t.dept ]] · [[ t.priority ]]<template v-if="t.due"> · due [[ t.due ]]</template></span>
+                        <span>[[ t.dept ]]<template v-if="t.due"> · due [[ t.due ]]</template></span>
                         <button v-if="canAssign && col.id === null" class="auto" type="button" title="Assign to the member with the fewest open tickets" v-on:click="autoAssign(t, col)">Auto</button>
                     </div>
                 </div>
@@ -79,9 +79,8 @@
 </div>
 
 <div class="row g-4 mt-1">
-    <div class="col-md-4"><div class="card"><div class="card-header">By department</div><div class="card-body"><canvas id="dept"></canvas></div></div></div>
-    <div class="col-md-4"><div class="card"><div class="card-header">By category</div><div class="card-body"><canvas id="cat"></canvas></div></div></div>
-    <div class="col-md-4"><div class="card"><div class="card-header">By priority</div><div class="card-body"><canvas id="prio"></canvas></div></div></div>
+    <div class="col-md-6"><div class="card"><div class="card-header">By department</div><div class="card-body"><canvas id="dept"></canvas></div></div></div>
+    <div class="col-md-6"><div class="card"><div class="card-header">By category</div><div class="card-body"><canvas id="cat"></canvas></div></div></div>
 </div>
 @endsection
 
@@ -102,7 +101,6 @@
     mk('trend', 'line', @json($trend->keys()), @json($trend->values()));
     mk('dept', 'bar', @json($byDept->keys()), @json($byDept->values()));
     mk('cat', 'bar', @json($byCat->keys()), @json($byCat->values()));
-    mk('prio', 'doughnut', @json($byPrio->keys()), @json($byPrio->values()));
 })();
 
 const BOARD = @json($board);

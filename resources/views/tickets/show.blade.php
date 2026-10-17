@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', $ticket->ticket_no)
+@section('title', str_replace('-', '', $ticket->ticket_no))
 @section('content')
 @php
     $steps = ['New', 'Assigned', 'In progress', 'Resolved', 'Closed'];
@@ -7,55 +7,50 @@
                'ON_HOLD' => 2, 'ESCALATED' => 2, 'RESOLVED' => 3, 'USER_CONFIRMATION' => 3, 'CLOSED' => 4];
     $cur = $stepOf[$ticket->status->code] ?? null;
     $open = $ticket->status->is_open;
+    $reqNo = str_replace('-', '', $ticket->ticket_no);
 @endphp
-
-{{-- ───────── Header: number, subject, status, progress ───────── --}}
-<div class="card mb-4 req-head">
-    <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <div class="d-flex flex-wrap align-items-center gap-2">
-                <span class="ticket-id">{{ $ticket->ticket_no }}</span>
-                <span class="pill pill-{{ $ticket->status->color ?? 'secondary' }}">{{ $ticket->status->name }}</span>
-                <span class="pill pill-{{ $ticket->priority->color ?? 'secondary' }}">{{ $ticket->priority->name }}</span>
-                @if($open && $ticket->sla_status === 'breached')<span class="pill pill-danger">SLA breached</span>
-                @elseif($open && $ticket->sla_status === 'warning')<span class="pill pill-warning">SLA approaching</span>@endif
-                @if($ticket->reopen_count)<span class="pill pill-danger">Reopened ×{{ $ticket->reopen_count }}</span>@endif
-            </div>
-            <a href="{{ route('tickets.index') }}" class="btn btn-sm btn-outline-secondary">← Back</a>
-        </div>
-        <h4 class="req-title">{{ $ticket->subject }}</h4>
-        <div class="text-muted small">
-            {{ $ticket->created_at->format('d M Y, h:i A') }} · {{ $ticket->category->name }}@if($ticket->subcategory) / {{ $ticket->subcategory->name }}@endif
-            @if($ticket->created_by !== $ticket->requester_id) · filed by {{ $ticket->creator->name ?? 'IT' }}@endif
-        </div>
-
-        @if($cur !== null)
-            <div class="stepper">
-                @foreach($steps as $i => $label)
-                    <div class="step {{ $i < $cur ? 'done' : ($i === $cur ? 'current' : '') }}">
-                        <div class="dot">@if($i < $cur)<x-icon name="check" :size="14"/>@else{{ $i + 1 }}@endif</div>
-                        {{ $label }}
-                    </div>
-                @endforeach
-            </div>
-        @else
-            <div class="text-muted small mt-3">Cancelled</div>
-        @endif
-    </div>
-</div>
 
 <div class="row g-4 align-items-start">
     {{-- ───────── Left: description + tabs ───────── --}}
     <div class="col-lg-8">
-        <div class="card mb-4">
-            <div class="card-body">
-                <div class="section-label">Description</div>
-                <div class="ticket-body">{{ $ticket->description }}</div>
-                @if($ticket->resolution)
-                    <div class="resolution-box mt-3">
-                        <div class="fw-semibold mb-1 small">Resolution</div>
-                        <div class="ticket-body">{{ $ticket->resolution }}</div>
+        {{-- ───────── Top panel: id + subject, summary table, description, progress ───────── --}}
+        <div class="card mb-4 req-head">
+            <div class="card-header d-flex align-items-center gap-2">
+                <a class="fold-toggle flex-grow-1 min-w-0" data-bs-toggle="collapse" href="#fold-top" role="button" aria-expanded="true">
+                    <span class="d-flex align-items-center gap-2 min-w-0"><span class="ticket-id">{{ $reqNo }}</span><span class="req-subject">{{ $ticket->subject }}</span></span>
+                </a>
+                <a href="{{ route('tickets.index') }}" class="btn btn-sm btn-outline-secondary flex-none">← Back</a>
+            </div>
+            <div class="collapse show" id="fold-top">
+                <table class="table table-sm info-table mb-0">
+                    <tbody>
+                        <tr><th>Status</th><td>
+                            <span class="pill pill-{{ $ticket->status->color ?? 'secondary' }}">{{ $ticket->status->name }}</span>
+                            @if($open && $ticket->sla_status === 'breached')<span class="pill pill-danger ms-1">SLA breached</span>
+                            @elseif($open && $ticket->sla_status === 'warning')<span class="pill pill-warning ms-1">SLA approaching</span>@endif
+                            @if($ticket->reopen_count)<span class="pill pill-danger ms-1">Reopened ×{{ $ticket->reopen_count }}</span>@endif
+                        </td></tr>
+                        <tr><th>Category</th><td>{{ $ticket->category->name }}@if($ticket->subcategory) / {{ $ticket->subcategory->name }}@endif</td></tr>
+                        <tr><th>Submitted at</th><td>{{ $ticket->created_at->format('d M Y, h:i A') }}</td></tr>
+                        <tr><th>Description</th><td><div class="ticket-body">{{ $ticket->description }}</div></td></tr>
+                        @if($ticket->resolution)
+                            <tr><th>Resolution</th><td><div class="ticket-body">{{ $ticket->resolution }}</div></td></tr>
+                        @endif
+                    </tbody>
+                </table>
+                @if($cur !== null)
+                    <div class="card-body border-top">
+                        <div class="stepper">
+                            @foreach($steps as $i => $label)
+                                <div class="step {{ $i < $cur ? 'done' : ($i === $cur ? 'current' : '') }}">
+                                    <div class="dot">@if($i < $cur)<x-icon name="check" :size="14"/>@else{{ $i + 1 }}@endif</div>
+                                    {{ $label }}
+                                </div>
+                            @endforeach
+                        </div>
                     </div>
+                @else
+                    <div class="card-body border-top text-muted small">Cancelled</div>
                 @endif
             </div>
         </div>
@@ -215,26 +210,30 @@
                 </div>
             @endif
 
-            <div class="card mb-3 side-card">
-                <div class="side-section">
-                    <a class="section-label fold-toggle" data-bs-toggle="collapse" href="#fold-requester" role="button" aria-expanded="true">Requester</a>
-                    <div class="collapse show" id="fold-requester">
-                        <div class="d-flex align-items-center gap-2 mb-3">
-                            <x-avatar :name="$ticket->requester_name" class="avatar-lg"/>
-                            <div class="lh-sm"><div class="fw-semibold">{{ $ticket->requester_name }}</div><div class="small text-muted">{{ $ticket->requester_designation ?? '—' }}</div></div>
-                        </div>
-                        <dl class="info-rows">
-                            <div><dt>Employee ID</dt><dd>{{ $ticket->requester_employee_id ?? '—' }}</dd></div>
-                            <div><dt>WhatsApp</dt><dd>{{ $ticket->requester_phone ?? '—' }}</dd></div>
-                            <div><dt>Department</dt><dd>{{ $ticket->department->name }}</dd></div>
-                            <div><dt>Due date</dt><dd>{{ $ticket->due_date?->format('d M Y') ?? '—' }}</dd></div>
-                            <div><dt>Resolve by</dt><dd>{{ $ticket->sla_resolution_due_at?->format('d M, h:i A') ?? '—' }}</dd></div>
-                        </dl>
-                    </div>
+            <div class="card mb-3">
+                <a class="card-header fold-toggle collapsed" data-bs-toggle="collapse" href="#fold-info" role="button" aria-expanded="false">Requester</a>
+                <div class="collapse" id="fold-info">
+                    <table class="table table-sm info-table mb-0">
+                        <tbody>
+                            <tr><th>Requester</th><td>{{ $ticket->requester_name }}</td></tr>
+                            @if($ticket->created_by !== $ticket->requester_id)
+                                <tr><th>Filed by</th><td>{{ $ticket->creator->name ?? 'IT' }}</td></tr>
+                            @endif
+                            <tr><th>Designation</th><td>{{ $ticket->requester_designation ?? '—' }}</td></tr>
+                            <tr><th>Employee ID</th><td>{{ $ticket->requester_employee_id ?? '—' }}</td></tr>
+                            <tr><th>WhatsApp</th><td>{{ $ticket->requester_phone ?? '—' }}</td></tr>
+                            <tr><th>Department</th><td>{{ $ticket->department->name }}</td></tr>
+                            <tr><th>Due date</th><td>{{ $ticket->due_date?->format('d M Y') ?? '—' }}</td></tr>
+                            <tr><th>Resolve by</th><td>{{ $ticket->sla_resolution_due_at?->format('d M, h:i A') ?? '—' }}</td></tr>
+                        </tbody>
+                    </table>
                 </div>
-                <div class="side-section">
-                    <a class="section-label fold-toggle" data-bs-toggle="collapse" href="#fold-team" role="button" aria-expanded="true">Team</a>
-                    <div class="collapse show" id="fold-team">
+            </div>
+
+            <div class="card mb-3">
+                <a class="card-header fold-toggle collapsed" data-bs-toggle="collapse" href="#fold-team" role="button" aria-expanded="false">Assigned IT Team</a>
+                <div class="collapse" id="fold-team">
+                    <div class="card-body">
                         @include('tickets._team_summary')
                     </div>
                 </div>
@@ -244,14 +243,10 @@
 
             @if($canEdit)
                 <div class="card mb-3">
-                    <a class="card-header fold-toggle collapsed" data-bs-toggle="collapse" href="#fold-edit" role="button" aria-expanded="false">Edit priority / category</a>
+                    <a class="card-header fold-toggle collapsed" data-bs-toggle="collapse" href="#fold-edit" role="button" aria-expanded="false">Edit category</a>
                     <div class="collapse" id="fold-edit">
                     <div class="card-body">
                         <form method="POST" action="{{ route('tickets.update', $ticket) }}">@csrf @method('PUT')
-                            <label class="small text-muted">Priority</label>
-                            <select name="priority_id" class="form-select form-select-sm mb-2">
-                                @foreach($priorities as $p)<option value="{{ $p->id }}" @selected($ticket->priority_id == $p->id)>{{ $p->name }}</option>@endforeach
-                            </select>
                             <label class="small text-muted">Category</label>
                             <select name="category_id" class="form-select form-select-sm mb-2">
                                 @foreach($categories as $c)<option value="{{ $c->id }}" @selected($ticket->category_id == $c->id)>{{ $c->name }}</option>@endforeach

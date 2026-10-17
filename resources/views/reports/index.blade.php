@@ -19,8 +19,8 @@
 </div>
 
 <div class="row g-4 mb-4">
-    @foreach(['Department-wise' => $byDept, 'Category-wise' => $byCat, 'Priority-wise' => $byPrio] as $title => $data)
-    <div class="col-md-4"><div class="card"><div class="card-header">{{ $title }}</div>
+    @foreach(['Department-wise' => $byDept, 'Category-wise' => $byCat] as $title => $data)
+    <div class="col-md-6"><div class="card"><div class="card-header">{{ $title }}</div>
         <table class="table table-sm mb-0">
             @forelse($data as $k => $v)<tr><td>{{ $k }}</td><td class="text-end">{{ $v }}</td></tr>
             @empty<tr><td class="text-muted">No data</td></tr>@endforelse

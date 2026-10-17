@@ -7,8 +7,8 @@
 
 @if($myRow && $isOpen)
 <div class="card mb-3">
-    <a class="card-header fold-toggle" data-bs-toggle="collapse" href="#fold-mywork" role="button" aria-expanded="true">My work update <span class="pill pill-{{ $myRow->role === 'PRIMARY' ? 'primary' : 'secondary' }} ms-1">{{ $myRow->role === 'PRIMARY' ? 'Primary' : 'Support' }}</span></a>
-    <div class="collapse show" id="fold-mywork">
+    <a class="card-header fold-toggle collapsed" data-bs-toggle="collapse" href="#fold-mywork" role="button" aria-expanded="false">My work update <span class="pill pill-{{ $myRow->role === 'PRIMARY' ? 'primary' : 'secondary' }} ms-1">{{ $myRow->role === 'PRIMARY' ? 'Primary' : 'Support' }}</span></a>
+    <div class="collapse" id="fold-mywork">
     <div class="card-body">
         <form method="POST" action="{{ route('tickets.work', $ticket) }}">@csrf
             <label class="form-label">My status</label>
@@ -25,8 +25,8 @@
 
 @if($canAssign)
 <div class="card mb-3">
-    <a class="card-header fold-toggle {{ ($team->isEmpty() || $errors->has('primary_id') || $errors->has('support_ids')) ? '' : 'collapsed' }}" data-bs-toggle="collapse" href="#teamEdit" role="button" aria-expanded="{{ ($team->isEmpty() || $errors->has('primary_id') || $errors->has('support_ids')) ? 'true' : 'false' }}">{{ $team->count() ? 'Change team' : 'Assign team' }}</a>
-    <div class="collapse {{ ($team->isEmpty() || $errors->has('primary_id') || $errors->has('support_ids')) ? 'show' : '' }}" id="teamEdit">
+    <a class="card-header fold-toggle {{ ($errors->has('primary_id') || $errors->has('support_ids')) ? '' : 'collapsed' }}" data-bs-toggle="collapse" href="#teamEdit" role="button" aria-expanded="{{ ($errors->has('primary_id') || $errors->has('support_ids')) ? 'true' : 'false' }}">{{ $team->count() ? 'Change team' : 'Assign team' }}</a>
+    <div class="collapse {{ ($errors->has('primary_id') || $errors->has('support_ids')) ? 'show' : '' }}" id="teamEdit">
     <div class="card-body">
         <form method="POST" action="{{ route('tickets.team', $ticket) }}" id="teamForm">@csrf
             <label class="form-label">Primary responsible employee *</label>
