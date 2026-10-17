@@ -35,7 +35,7 @@
     @csrf
     <div class="card mb-3">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <span>Requester</span>
+            <span>Requester information</span>
             <span v-if="behalf" class="pill pill-warning">Filing on behalf of another person</span>
         </div>
         <div class="card-body">
@@ -65,22 +65,16 @@
             @endif
 
             <div class="row g-3">
-                <div class="col-md-4"><label class="form-label">Name</label><input class="form-control" :value="who.name" disabled></div>
-                <div class="col-md-2"><label class="form-label">Employee ID</label><input class="form-control" :value="who.emp" disabled></div>
-                <div class="col-md-3"><label class="form-label">Designation</label><input class="form-control" :value="who.desig" disabled></div>
-                <div class="col-md-3">
-                    <label class="form-label">Department</label>
-                    <input v-if="who.deptId" class="form-control" :value="who.dept" disabled>
-                    <select v-else name="department_id" class="form-select" v-model="departmentId" required>
+                <div class="col-md-6"><label class="form-label">Name</label><input class="form-control" :value="who.name" disabled></div>
+                <div class="col-md-6"><label class="form-label">Employee ID</label><input class="form-control" :value="who.emp" disabled></div>
+                <div class="col-md-6"><label class="form-label">Designation</label><input class="form-control" :value="who.desig" disabled></div>
+                <div class="col-md-6"><label class="form-label">WhatsApp number</label><input name="phone" v-model="phone" class="form-control" placeholder="+8801XXXXXXXXX" inputmode="tel"></div>
+                {{-- Department comes from the requester's profile; only asked for when the profile has none --}}
+                <div class="col-md-6" v-if="!who.deptId">
+                    <label class="form-label">Department *</label>
+                    <select name="department_id" class="form-select" v-model="departmentId" required>
                         <option value="">Select…</option>
                         @foreach($departments as $d)<option value="{{ $d->id }}">{{ $d->name }}</option>@endforeach
-                    </select>
-                </div>
-                <div class="col-md-6"><label class="form-label">Contact / WhatsApp number</label><input name="phone" v-model="phone" class="form-control"></div>
-                <div class="col-md-6">
-                    <label class="form-label">Location / office</label>
-                    <select name="location_id" class="form-select" v-model="location"><option value="">—</option>
-                        @foreach($locations as $l)<option value="{{ $l->id }}">{{ $l->name }}</option>@endforeach
                     </select>
                 </div>
             </div>
@@ -176,7 +170,6 @@ Vue.createApp({
             me: CFG.me, users: CFG.users, requesterId: o.requester,
             search: '', typing: false, open: false, hi: 0,
             phone: o.phone !== null && o.phone !== '' ? o.phone : (start.phone || ''),
-            location: o.location !== '' ? o.location : (start.locId ? String(start.locId) : ''),
             departmentId: o.department,
             categories: CFG.categories, priorities: CFG.priorities,
             category: o.category, sub: o.sub, priority: o.priority,
@@ -222,7 +215,6 @@ Vue.createApp({
         // switching person refreshes the contact number and office from that person's record
         requesterId() {
             this.phone = this.who.phone || '';
-            this.location = this.who.locId ? String(this.who.locId) : '';
             this.departmentId = '';
         },
         category() {

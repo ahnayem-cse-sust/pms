@@ -24,9 +24,6 @@
 </style>
 </head>
 <body>
-@php
-    $fmt = fn ($s) => intdiv($s, 3600) . 'h ' . str_pad(intdiv($s % 3600, 60), 2, '0', STR_PAD_LEFT) . 'm';
-@endphp
 <table class="head"><tr>
     {{-- dompdf needs the PHP GD extension to embed a PNG; without it the logo is skipped so the PDF still works --}}
     @if(extension_loaded('gd'))
@@ -45,24 +42,22 @@
     <td style="text-align:right"><b>Generated:</b> {{ $generatedAt->format('d M Y h:i A') }} (GMT+6) by {{ $generatedBy }}</td>
 </tr></table>
 <table class="data">
-    <thead><tr><th>Employee name</th><th>Date</th><th>Entry time</th><th>Exit time</th><th>Total time</th><th>Status</th></tr></thead>
+    <thead><tr><th>Employee name</th><th>Date</th><th>Entry time</th><th>Status</th></tr></thead>
     <tbody>
     @forelse($rows as $row)
         <tr>
             <td>{{ $row->employee->name }}</td>
             <td>{{ $row->date->format('D, d M Y') }}</td>
             <td>{{ $row->entry ? $row->entry->format('h:i A') : '—' }}</td>
-            <td>{{ $row->exit ? $row->exit->format('h:i A') : '—' }}</td>
-            <td>{{ $row->seconds !== null ? $fmt($row->seconds) : '—' }}</td>
             <td class="st-{{ str_replace(' ', '', $row->status) }}">{{ $row->status }}</td>
         </tr>
     @empty
-        <tr><td colspan="6" style="text-align:center" class="muted">No records for the selected period.</td></tr>
+        <tr><td colspan="4" style="text-align:center" class="muted">No records for the selected period.</td></tr>
     @endforelse
     </tbody>
 </table>
 
-<p class="muted" style="margin-top:10px">Logins from devices outside the office network will not be considered for Entry/Exit records.</p>
+<p class="muted" style="margin-top:10px">Logins from devices outside the office network will not be considered for entry records.</p>
 <div class="foot">Developed by MIS &amp; IT Department of JOPLC.</div>
 </body>
 </html>

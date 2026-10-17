@@ -47,12 +47,12 @@ class TicketService
         $behalf = $actor->id !== $requester->id;
 
         return DB::transaction(function () use ($requester, $actor, $behalf, $d, $files) {
-            $year = now()->year;
-            DB::table('ticket_sequences')->insertOrIgnore(['year' => $year, 'last_number' => 0]);
-            $seq = DB::table('ticket_sequences')->where('year', $year)->lockForUpdate()->first();
+            // one running counter (row 0 of ticket_sequences), locked so two simultaneous requests never share a number
+            DB::table('ticket_sequences')->insertOrIgnore(['year' => 0, 'last_number' => 0]);
+            $seq = DB::table('ticket_sequences')->where('year', 0)->lockForUpdate()->first();
             $next = $seq->last_number + 1;
-            DB::table('ticket_sequences')->where('year', $year)->update(['last_number' => $next]);
-            $ticketNo = sprintf('IT-%d-%06d', $year, $next);
+            DB::table('ticket_sequences')->where('year', 0)->update(['last_number' => $next]);
+            $ticketNo = config('itsm.ticket_prefix', 'RQ') . '-' . $next;
 
             $status = TicketStatus::where('code', 'NEW')->firstOrFail();
             $priority = TicketPriority::findOrFail($d['priority_id']);
@@ -143,6 +143,9 @@ class TicketService
                 $window = (int) SystemSetting::get('ticket.reopen_window_days', 7);
                 $inWindow = $t->closed_at === null || $t->closed_at->gte(now()->subDays($window));
                 return ($isRequester || $isHead) && $inWindow;
+            case 'ticket.escalate':
+                // IT Admin, or the primary responsible employee asking for help from the IT Admin
+                return $u->hasPermission('ticket.assign') || $t->assigned_to === $u->id;
             case 'ticket.cancel':
                 if ($u->hasPermission('ticket.assign')) {
                     return true;

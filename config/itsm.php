@@ -21,6 +21,9 @@ return [
         'max_months' => 6,                           // longest date range (From..To) allowed on the page and PDF
     ],
 
+    // Request numbers are RQ-1, RQ-2, RQ-3 ... (one running counter, no year, no zero padding).
+    'ticket_prefix' => 'RQ',
+
     // Roles whose members can be assigned tickets (team workload, assignment board, assign lists, auto-assign).
     'assignable_roles' => ['it_member', 'it_officer'],
 
@@ -58,7 +61,7 @@ return [
         ],
         'it_member' => [
             'ticket.create', 'ticket.create.behalf', 'ticket.view.own', 'ticket.view.assigned', 'ticket.work',
-            'ticket.comment.public', 'ticket.note.internal', 'attachment.upload',
+            'ticket.comment.public', 'ticket.note.internal', 'ticket.escalate', 'attachment.upload',
             'attachment.download.internal', 'dashboard.member', 'attendance.own',
         ],
         'dept_user' => [

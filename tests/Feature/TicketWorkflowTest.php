@@ -51,7 +51,8 @@ class TicketWorkflowTest extends TestCase
     public function test_ticket_number_and_visibility(): void
     {
         $t = $this->submit($this->u('sales_user@joplc.com'));
-        $this->assertMatchesRegularExpression('/^IT-\d{4}-000001$/', $t->ticket_no);
+        $this->assertSame('RQ-1', $t->ticket_no);
+        $this->assertSame('RQ-2', $this->submit($this->u('sales_user@joplc.com'))->ticket_no);   // running counter, no year, no padding
         $this->assertSame('NEW', $t->status->code);
 
         $this->actingAs($this->u('acct_user@joplc.com'))->get(route('tickets.show', $t))->assertForbidden();
@@ -490,5 +491,34 @@ class TicketWorkflowTest extends TestCase
         $this->actingAs($admin)->post(route('tickets.team', $t), ['primary_id' => $primary->id, 'support_ids' => []]);
         $this->assertSame(1, \App\Models\TicketAssignment::where('ticket_id', $t->id)->count());
         $this->assertDatabaseHas('ticket_history', ['ticket_id' => $t->id, 'action' => 'team_removed']);
+    }
+
+    public function test_primary_employee_and_it_admin_can_escalate_with_a_comment(): void
+    {
+        [$t, $admin, $primary, $support] = $this->teamTicket();
+        $this->actingAs($primary)->post(route('tickets.transition', $t), ['to' => 'IN_PROGRESS']);
+
+        // the Escalate button is offered to the primary, but not to a supporting employee
+        $this->actingAs($primary)->get(route('tickets.show', $t))->assertOk()->assertSee('Escalate');
+        $this->actingAs($support)->get(route('tickets.show', $t))->assertOk()->assertDontSee('Escalate');
+        $this->actingAs($support)->post(route('tickets.transition', $t), ['to' => 'ESCALATED', 'comment' => 'x'])->assertSessionHasErrors('status');
+
+        // a reason is required
+        $this->actingAs($primary)->post(route('tickets.transition', $t), ['to' => 'ESCALATED'])->assertSessionHasErrors('comment');
+        $this->actingAs($primary)->post(route('tickets.transition', $t), ['to' => 'ESCALATED', 'comment' => 'Needs the vendor'])->assertSessionHasNoErrors();
+        $this->assertSame('ESCALATED', $t->fresh()->status->code);
+        $this->assertTrue($admin->fresh()->notifications()->where('data', 'like', '%ESCALATED%')->orWhere('data', 'like', '%Escalated%')->exists());
+    }
+
+    public function test_it_admin_can_escalate_a_brand_new_request(): void
+    {
+        $t = $this->submit($this->u('sales_user@joplc.com'));
+        $admin = $this->u('it_admin@joplc.com');
+
+        $this->actingAs($admin)->post(route('tickets.transition', $t), ['to' => 'ESCALATED', 'comment' => 'Critical for payroll run'])->assertSessionHasNoErrors();
+        $this->assertSame('ESCALATED', $t->fresh()->status->code);
+        // the requester cannot escalate their own request
+        $other = $this->submit($this->u('sales_user@joplc.com'));
+        $this->actingAs($this->u('sales_user@joplc.com'))->post(route('tickets.transition', $other), ['to' => 'ESCALATED', 'comment' => 'x'])->assertSessionHasErrors('status');
     }
 }

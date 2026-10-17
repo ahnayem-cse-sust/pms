@@ -29,7 +29,7 @@ Transitions live in the `ticket_status_transitions` table (seeded by `ItsmLookup
 | USER_CONFIRMATION | CLOSED | ticket.close | No | IT Admin, or auto-close job after `ticket.auto_close_days` |
 | USER_CONFIRMATION | REOPENED | ticket.confirm | Yes | Requester ("problem still exists") |
 | CLOSED | REOPENED | ticket.reopen | Yes | Requester within `ticket.reopen_window_days`; Officer anytime |
-| ASSIGNED / IN_PROGRESS / WAITING_USER / ON_HOLD / REOPENED | ESCALATED | ticket.escalate | Yes | IT Admin (SLA job in Phase 2) |
+| NEW / ACKNOWLEDGED / ASSIGNED / IN_PROGRESS / WAITING_USER / ON_HOLD / REOPENED | ESCALATED | ticket.escalate | Yes | IT Admin, or the primary responsible IT employee |
 | NEW / ACKNOWLEDGED / ASSIGNED | CANCELLED | ticket.cancel | Yes | Requester (own, while NEW) / IT Admin |
 
 **Design note:** RESOLVED and USER_CONFIRMATION are effectively the same waiting state. Phase 1 keeps both to match your spec; if it feels redundant in UAT, merge them (resolve → "Resolved – Awaiting Confirmation").
@@ -66,7 +66,7 @@ Legend: ● = yes, ◐ = limited (see note), blank = no.
 | ticket.confirm | | | | ◐ | ◐ | |
 | ticket.close | | ● | | | | |
 | ticket.reopen | | ● | | ◐ | ◐ | |
-| ticket.escalate | | ● | | | | |
+| ticket.escalate | | ● | ◐ | | | |
 | ticket.cancel | | ● | | ◐ | ◐ | |
 | attachment.upload | ● | ● | ● | ● | ● | |
 | attachment.download.internal | ● | ● | ● | | | |
@@ -85,6 +85,7 @@ Notes on ◐:
 - **IT Member** can change priority/category only if the Officer enables it; `ticket.work` applies only to tickets where `assigned_to` = self.
 - **IT Admin user.manage**: can create and edit users and assign any role except System Administrator. System Administrator accounts and that role are hidden from them, and the server rejects attempts to edit such an account or grant the role.
 - **Dept Head ticket.create.behalf**: may file requests only for users of their own department. Admin, IT Admin and IT Team Member may file for any user (System Administrator accounts are hidden from non-admins).
+- **IT Team Member ticket.escalate**: only on requests where they are the primary responsible employee. Escalation is available from any open working state (New through Reopened) and needs a comment.
 - **Dept User / Dept Head** `confirm`, `reopen`, `cancel` apply only to their own (Head: own department's) tickets and only from the valid states above.
 - **Dept Head report.view** is limited to own department.
 - **IT Admin lookup.manage** is limited to categories/sub-categories; priorities and SLA values stay Admin-only.
@@ -92,7 +93,7 @@ Notes on ◐:
 
 ## 4. Business rules enforced in code (not just UI)
 
-1. **Ticket number:** `IT-{year}-{000000}`, generated inside a DB transaction with a row lock on `ticket_sequences` (no duplicates under concurrent submits); counter resets each year.
+1. **Request number:** `RQ-{n}` (RQ-1, RQ-2, …), one running counter, generated inside a DB transaction with a row lock on `ticket_sequences` (no duplicates under concurrent submits).
 2. **Assignment:** a request has a team of IT employees (`ticket_assignments`): exactly one PRIMARY (also stored in `tickets.assigned_to`) plus any number of SUPPORT. Members must hold `ticket.work` and be active (IT Team Members and IT Admins). Only the primary (or an IT Admin) moves the request through its workflow and submits the resolution; every member records their own work status and notes. Every team change writes `ticket_history` and the audit log and notifies the people affected. Every assign/reassign writes `ticket_assignments` + `ticket_history`, and notifies the new assignee (and the old one on reassign).
 3. **Internal notes and internal attachments** are filtered at the query level for any user without `ticket.note.internal` (never hidden by CSS only).
 4. **Requester snapshot:** name, employee ID, designation, phone and email are copied onto the ticket at submit time.

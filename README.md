@@ -57,6 +57,15 @@ The system time zone is **GMT+6 (Asia/Dhaka)**, set in `config/itsm.php` (`ITSM_
 
 System Administrator, IT Admin and IT Team Member can file a request for any user (e.g. when a problem is reported by phone); a Department Head can file for users in their own department. Pick the person under **Request for** on the New Request form. The ticket belongs to that person (they see it and are notified), and shows who filed it. Permissions: `ticket.create.behalf` and `ticket.create.behalf.dept` in `config/itsm.php`. After upgrading run `php artisan migrate` and `php artisan optimize:clear`.
 
+## Escalation
+
+The **Escalate** button in a request's Actions panel (red, with a mandatory comment) flags the request for the IT Admin. The IT Admin can escalate any open request; an IT employee can escalate a request where they are the primary responsible employee. It is available from New through Reopened. Escalating notifies the IT Admins, the requester and the primary employee. After upgrading run `php artisan migrate` (adds the New/Acknowledged transitions and the permission for IT employees).
+
+## Request numbers and the request page
+
+Requests are numbered **RQ-1, RQ-2, RQ-3 …** (one running counter, `ticket_prefix` in `config/itsm.php`). `php artisan migrate` renumbers existing requests in the order they were created and continues from the last one. Old numbers inside already-sent notifications are not rewritten.
+The request page shows the number, status and a progress bar (New → Assigned → In progress → Resolved → Closed) on top, a panel with the request details and the assigned team, then the description and resolution and tabs for Conversation, Internal notes (IT staff only), Attachments and History. The details panel at the top has the requester (name, designation, employee ID, WhatsApp number), department and due date next to the assigned team; the side column has the actions available to you (including Escalate), work updates and team editing. The New Request form asks only for the requester's name, employee ID, designation and WhatsApp number (department is asked only if the person's profile has none).
+
 ## Team assignment: one primary + supporting employees
 
 A request can have several IT employees, with **exactly one primary responsible employee** (accountable for coordination, follow-up and the final resolution) and any number of **supporting employees**.
@@ -91,7 +100,7 @@ Vue 3 (loaded from `public/vendor`, no build step) powers two screens: the **New
 ## What is in Phase 1
 
 - Login with lockout, login history, session timeout, role + permission authorization, audit log
-- Request submission (type, category/sub-category, priority, attachments, preferred date), ticket numbers `IT-YYYY-000001`
+- Request submission (type, category/sub-category, priority, attachments, preferred date), request numbers `RQ-1`, `RQ-2`, …
 - IT Admin: unassigned queue, assign / reassign / auto-assign (fewest open tickets), priority/category/due-date changes, escalate, close, reopen
 - IT Member: own queue, work, wait-for-user, hold, resolve with resolution text
 - Department: track own requests, comment, upload, confirm & close or reopen; Department Head sees the whole department

@@ -2,7 +2,6 @@
 @section('title', $mine ? 'My Attendance' : 'IT Employee Attendance')
 @section('content')
 @php
-    $fmt = fn ($s) => intdiv($s, 3600) . 'h ' . str_pad(intdiv($s % 3600, 60), 2, '0', STR_PAD_LEFT) . 'm';
     $tone = ['Present' => 'success', 'Absent' => 'danger', 'Weekend' => 'secondary', 'Not in yet' => 'warning'];
     $route = $mine ? 'attendance.mine' : 'attendance.index';
     $today = today();
@@ -72,21 +71,17 @@
 <div class="table-card">
 <div class="table-responsive">
 <table class="table table-hover align-middle">
-    <thead><tr><th>Employee name</th><th>Date</th><th>Entry time</th><th>Exit time</th><th>Total time</th><th>Status</th></tr></thead>
+    <thead><tr><th>Employee name</th><th>Date</th><th>Entry time</th><th>Status</th></tr></thead>
     <tbody>
     @forelse($rows as $row)
         <tr class="{{ $row->status === 'Weekend' ? 'text-muted' : '' }}">
             <td><span class="d-inline-flex align-items-center gap-2"><x-avatar :name="$row->employee->name"/> {{ $row->employee->name }}</span></td>
             <td class="text-nowrap">{{ $row->date->format('D, d M Y') }}</td>
             <td class="text-nowrap">{{ $row->entry ? $row->entry->format('h:i A') : '—' }}</td>
-            <td class="text-nowrap">{{ $row->exit ? $row->exit->format('h:i A') : '—' }}</td>
-            <td class="text-nowrap" title="{{ $row->logins || $row->logouts ? $row->logins . ' login(s), ' . $row->logouts . ' logout(s) from office IPs' : '' }}">
-                {{ $row->seconds !== null ? $fmt($row->seconds) : '—' }}
-            </td>
             <td><span class="pill pill-{{ $tone[$row->status] }}">{{ $row->status }}</span></td>
         </tr>
     @empty
-        <tr><td colspan="6" class="text-center text-muted py-5">No records for the selected period.</td></tr>
+        <tr><td colspan="4" class="text-center text-muted py-5">No records for the selected period.</td></tr>
     @endforelse
     </tbody>
 </table>
@@ -95,7 +90,7 @@
 
 @include('attendance._pager')
 
-<p class="text-muted small mt-3 mb-0">Logins from devices outside the office network will not be considered for Entry/Exit records.</p>
+<p class="text-muted small mt-3 mb-0">Logins from devices outside the office network will not be considered for entry records.</p>
 @endsection
 
 @push('scripts')

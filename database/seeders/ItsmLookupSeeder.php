@@ -71,7 +71,7 @@ class ItsmLookupSeeder extends Seeder
             ]);
         }
         // Escalate from any active working state (officer / system SLA job)
-        foreach (['ASSIGNED', 'IN_PROGRESS', 'WAITING_USER', 'ON_HOLD', 'REOPENED'] as $from) {
+        foreach (['NEW', 'ACKNOWLEDGED', 'ASSIGNED', 'IN_PROGRESS', 'WAITING_USER', 'ON_HOLD', 'REOPENED'] as $from) {
             DB::table('ticket_status_transitions')->insert([
                 'from_status_id' => $id($from), 'to_status_id' => $id('ESCALATED'),
                 'permission' => 'ticket.escalate', 'requires_comment' => 1,
