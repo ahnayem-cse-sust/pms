@@ -53,7 +53,7 @@ class AttendanceController extends Controller
             'rows' => $rows, 'from' => $f['from'], 'to' => $f['to'],
             'employeeName' => $f['employee_id'] ? optional($everyone->firstWhere('id', $f['employee_id']))->name : 'All IT employees',
             'status' => $f['status'], 'generatedBy' => $r->user()->name, 'generatedAt' => now(),
-        ])->setPaper('a4', 'landscape');
+        ])->setPaper('a4', 'portrait');
 
         return $pdf->download('IT-Attendance_' . $f['from']->format('Y-m-d') . '_to_' . $f['to']->format('Y-m-d') . '.pdf');
     }

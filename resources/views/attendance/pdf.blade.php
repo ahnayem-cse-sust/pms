@@ -35,12 +35,16 @@
     </td>
 </tr></table>
 
-<table class="meta"><tr>
-    <td><b>Period:</b> {{ $from->format('d M Y') }} to {{ $to->format('d M Y') }}</td>
-    <td><b>Employee:</b> {{ $employeeName }}</td>
-    <td><b>Status filter:</b> {{ $status ?: 'All' }}</td>
-    <td style="text-align:right"><b>Generated:</b> {{ $generatedAt->format('d M Y h:i A') }} (GMT+6) by {{ $generatedBy }}</td>
-</tr></table>
+<table class="meta">
+    <tr>
+        <td><b>Period:</b> {{ $from->format('d M Y') }} to {{ $to->format('d M Y') }}</td>
+        <td><b>Employee:</b> {{ $employeeName }}</td>
+    </tr>
+    <tr>
+        <td><b>Status filter:</b> {{ $status ?: 'All' }}</td>
+        <td><b>Generated:</b> {{ $generatedAt->format('d M Y h:i A') }} (GMT+6) by {{ $generatedBy }}</td>
+    </tr>
+</table>
 <table class="data">
     <thead><tr><th>Employee name</th><th>Date</th><th>Entry time</th><th>Status</th></tr></thead>
     <tbody>

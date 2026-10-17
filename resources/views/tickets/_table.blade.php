@@ -25,8 +25,6 @@
             @endif
             <td>
                 <span class="pill pill-{{ $t->status->color ?? 'secondary' }}">{{ $t->status->name }}</span>
-                @if($t->status->is_open && $t->sla_status === 'breached')<span class="pill pill-danger">SLA</span>
-                @elseif($t->status->is_open && $t->sla_status === 'warning')<span class="pill pill-warning">SLA</span>@endif
             </td>
             <td class="text-nowrap">{{ $t->due_date?->format('d M') ?? '—' }}</td>
             <td class="text-nowrap text-muted">{{ $t->created_at->format('d M Y H:i') }}</td>

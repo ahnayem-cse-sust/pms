@@ -26,8 +26,6 @@
                     <tbody>
                         <tr><th>Status</th><td>
                             <span class="pill pill-{{ $ticket->status->color ?? 'secondary' }}">{{ $ticket->status->name }}</span>
-                            @if($open && $ticket->sla_status === 'breached')<span class="pill pill-danger ms-1">SLA breached</span>
-                            @elseif($open && $ticket->sla_status === 'warning')<span class="pill pill-warning ms-1">SLA approaching</span>@endif
                             @if($ticket->reopen_count)<span class="pill pill-danger ms-1">Reopened ×{{ $ticket->reopen_count }}</span>@endif
                         </td></tr>
                         <tr><th>Category</th><td>{{ $ticket->category->name }}@if($ticket->subcategory) / {{ $ticket->subcategory->name }}@endif</td></tr>

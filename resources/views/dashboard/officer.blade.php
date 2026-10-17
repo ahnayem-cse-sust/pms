@@ -63,8 +63,6 @@
                      :class="{ dragging: dragging && dragging.t.id === t.id }"
                      :draggable="canAssign" v-on:dragstart="onDragStart(t, col)" v-on:dragend="dragging = null; overCol = null">
                     <a :href="t.url" class="no">[[ t.no ]]</a>
-                    <span v-if="t.sla === 'breached'" class="pill pill-danger ms-1">SLA</span>
-                    <span v-else-if="t.sla === 'warning'" class="pill pill-warning ms-1">SLA</span>
                     <div class="subj">[[ t.subject ]]</div>
                     <div v-if="t.support && t.support.length" class="ticket-sub mb-1">+ support: [[ t.support.join(', ') ]]</div>
                     <div class="meta">

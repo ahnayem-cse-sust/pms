@@ -55,7 +55,7 @@ class TicketService
             $ticketNo = config('itsm.ticket_prefix', 'RQ') . '-' . $next;
 
             $status = TicketStatus::where('code', 'NEW')->firstOrFail();
-            // Priority is no longer chosen by users; every request gets the default (Medium) so SLA timers still apply
+            // Priority is no longer chosen by users; every request gets the default (Medium) behind the scenes
             $priority = TicketPriority::where('name', 'Medium')->first() ?? TicketPriority::orderBy('level')->firstOrFail();
             $now = now();
 
@@ -183,9 +183,6 @@ class TicketService
                 case 'RESOLVED':
                     $upd['resolved_at'] = now();
                     $upd['resolution'] = $comment;
-                    if ($t->sla_resolution_due_at) {
-                        $upd['sla_status'] = now()->lte($t->sla_resolution_due_at) ? 'met' : 'breached';
-                    }
                     break;
                 case 'CLOSED':
                     $upd['closed_at'] = now();

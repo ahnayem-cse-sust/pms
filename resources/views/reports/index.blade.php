@@ -31,10 +31,10 @@
 <div class="card">
     <div class="card-header">IT team – operational summary <span class="small text-muted">(workload and turnaround for management planning; not a performance score)</span></div>
     <table class="table table-sm mb-0">
-        <thead><tr><th>IT employee</th><th class="text-end">Assigned</th><th class="text-end">Completed</th><th class="text-end">Pending</th><th class="text-end">Avg resolution (h)</th><th class="text-end">SLA breach</th></tr></thead>
+        <thead><tr><th>IT employee</th><th class="text-end">Assigned</th><th class="text-end">Completed</th><th class="text-end">Pending</th><th class="text-end">Avg resolution (h)</th></tr></thead>
         <tbody>
         @foreach($perMember as $m)
-            <tr><td>{{ $m->name }}</td><td class="text-end">{{ $m->assigned }}</td><td class="text-end">{{ $m->completed }}</td><td class="text-end">{{ $m->pending }}</td><td class="text-end">{{ $m->avg_hours ?? '—' }}</td><td class="text-end">{{ $m->sla_breach }}</td></tr>
+            <tr><td>{{ $m->name }}</td><td class="text-end">{{ $m->assigned }}</td><td class="text-end">{{ $m->completed }}</td><td class="text-end">{{ $m->pending }}</td><td class="text-end">{{ $m->avg_hours ?? '—' }}</td></tr>
         @endforeach
         </tbody>
     </table>

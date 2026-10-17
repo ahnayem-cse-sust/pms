@@ -2,7 +2,7 @@
     $map = [
         'Total' => ['list', 'indigo'], 'New' => ['inbox', 'blue'], 'Assigned' => ['users', 'cyan'],
         'In Progress' => ['activity', 'amber'], 'Waiting' => ['clock', 'slate'], 'Resolved' => ['check', 'green'],
-        'Closed' => ['shield', 'dark'], 'SLA Breached' => ['alert', 'red'],
+        'Closed' => ['shield', 'dark'],
         'New / Assigned' => ['inbox', 'blue'], 'Overdue' => ['alert', 'red'],
     ];
 @endphp

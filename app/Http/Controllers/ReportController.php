@@ -32,7 +32,6 @@ class ReportController extends Controller
             'Resolved' => $tickets->whereNotNull('resolved_at')->count(),
             'Closed' => $tickets->where('status.code', 'CLOSED')->count(),
             'Pending (open)' => $tickets->filter(fn ($t) => $t->status->is_open)->count(),
-            'SLA breaches' => $tickets->where('sla_status', 'breached')->count(),
             'Avg resolution (hours)' => round($tickets->whereNotNull('resolved_at')
                 ->avg(fn ($t) => $t->created_at->diffInMinutes($t->resolved_at, true)) / 60, 1),
         ];
@@ -50,7 +49,6 @@ class ReportController extends Controller
                 'completed' => $done->count(),
                 'pending' => $mine->filter(fn ($t) => $t->status->is_open && ! $t->resolved_at)->count(),
                 'avg_hours' => $done->count() ? round($done->avg(fn ($t) => $t->created_at->diffInMinutes($t->resolved_at, true)) / 60, 1) : null,
-                'sla_breach' => $mine->where('sla_status', 'breached')->count(),
             ];
         });
 
@@ -66,14 +64,14 @@ class ReportController extends Controller
         return response()->streamDownload(function () use ($rows) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM so Excel opens it correctly
-            fputcsv($out, ['Ticket', 'Type', 'Created', 'Department', 'Requester', 'Employee ID', 'Category', 'Sub-category', 'Subject', 'Status', 'Assigned To', 'Due', 'Resolved', 'Closed', 'SLA']);
+            fputcsv($out, ['Ticket', 'Type', 'Created', 'Department', 'Requester', 'Employee ID', 'Category', 'Sub-category', 'Subject', 'Status', 'Assigned To', 'Due', 'Resolved', 'Closed']);
             foreach ($rows as $t) {
                 fputcsv($out, [
                     $t->ticket_no, $t->type->name, $t->created_at->format('Y-m-d H:i'), $t->department->name,
                     $t->requester_name, $t->requester_employee_id, $t->category->name, $t->subcategory?->name,
                     $t->subject, $t->status->name, $t->assignee?->name,
                     optional($t->due_date)->format('Y-m-d'), optional($t->resolved_at)?->format('Y-m-d H:i'),
-                    optional($t->closed_at)?->format('Y-m-d H:i'), $t->sla_status,
+                    optional($t->closed_at)?->format('Y-m-d H:i'),
                 ]);
             }
             fclose($out);

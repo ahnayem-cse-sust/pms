@@ -36,7 +36,6 @@ class DashboardController extends Controller
             'Waiting' => ($byStatus['WAITING_USER'] ?? 0) + ($byStatus['ON_HOLD'] ?? 0),
             'Resolved' => ($byStatus['RESOLVED'] ?? 0) + ($byStatus['USER_CONFIRMATION'] ?? 0),
             'Closed' => $byStatus['CLOSED'] ?? 0,
-            'SLA Breached' => Ticket::where('sla_status', 'breached')->count(),
         ];
 
         // Team workload per IT member
@@ -72,7 +71,7 @@ class DashboardController extends Controller
         $card = fn ($t) => [
             'id' => $t->id, 'no' => $t->ticket_no, 'subject' => $t->subject,
             'dept' => $t->department->name,
-            'due' => $t->due_date?->format('d M'), 'sla' => $t->sla_status,
+            'due' => $t->due_date?->format('d M'),
             'url' => route('tickets.show', $t),
             'support' => $t->team->where('role', 'SUPPORT')->map(fn ($m) => $m->employee->name)->values()->all(),
         ];
