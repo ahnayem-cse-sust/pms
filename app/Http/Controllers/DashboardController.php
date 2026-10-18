@@ -60,7 +60,7 @@ class DashboardController extends Controller
                 'in_progress' => $n(['IN_PROGRESS']),
                 'pending' => $n(['WAITING_USER', 'ON_HOLD']),
                 'resolved' => $n(['RESOLVED', 'USER_CONFIRMATION', 'CLOSED']),
-                'open' => $r->where('is_open', 1)->sum('c'),
+                'open' => $r->where('is_open', 1)->sum('c') + ($supportCounts[$m->id] ?? 0),
                 'supporting' => $supportCounts[$m->id] ?? 0,
             ];
         });

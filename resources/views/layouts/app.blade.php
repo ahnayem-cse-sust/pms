@@ -39,7 +39,7 @@
                     <li><a class="nav-link {{ request()->routeIs('tickets.index') && ! request()->has('unassigned') ? 'active' : '' }}" href="{{ route('tickets.index') }}"><x-icon name="list"/> All Requests</a></li>
                 @endcan
                 <li><a class="nav-link {{ request()->routeIs('tickets.mine') ? 'active' : '' }}" href="{{ route('tickets.mine') }}"><x-icon name="user"/> My Requests</a></li>
-                @php($openTasks = \App\Models\Ticket::where('assigned_to', auth()->id())->open()->count())
+                @php($openTasks = \App\Models\Ticket::involving(auth()->user())->open()->count())
                 <li><a class="nav-link {{ request()->routeIs('tasks.index') ? 'active' : '' }}" href="{{ route('tasks.index') }}">
                     <x-icon name="check"/> My Tasks @if($openTasks)<span class="badge bg-primary count">{{ $openTasks }}</span>@endif</a></li>
             @else

@@ -8,11 +8,14 @@
     $cur = $stepOf[$ticket->status->code] ?? null;
     $open = $ticket->status->is_open;
     $reqNo = str_replace('-', '', $ticket->ticket_no);
+    // Opened from My Requests: behave like the requester view, with only Conversation and Attachments
+    $fromMine = request('from') === 'mine';
+    $staffTabs = $seeInternal && ! $fromMine;
 @endphp
 
 <div class="row g-4 align-items-start">
     {{-- ───────── Left: description + tabs ───────── --}}
-    <div class="col-lg-8">
+    <div class="col-lg-{{ $fromMine ? 12 : 8 }}">
         {{-- ───────── Top panel: id + subject, summary table, description, progress ───────── --}}
         <div class="card mb-4 req-head">
             <div class="card-header d-flex align-items-center gap-2">
@@ -57,14 +60,16 @@
             <div class="card-header">
                 <ul class="nav nav-tabs" role="tablist">
                     <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-conv" type="button" role="tab"><x-icon name="message" :size="16"/> Conversation <span class="count">{{ $ticket->comments->count() }}</span></button></li>
-                    @if($seeInternal)
+                    @if($staffTabs)
                         <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-notes" type="button" role="tab"><x-icon name="lock" :size="16"/> Internal notes <span class="count">{{ $notes->count() }}</span></button></li>
                     @endif
-                    @if($seeInternal && $workUpdates->isNotEmpty())
+                    @if($staffTabs && $workUpdates->isNotEmpty())
                         <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-work" type="button" role="tab"><x-icon name="check" :size="16"/> Team progress <span class="count">{{ $workUpdates->count() }}</span></button></li>
                     @endif
                     <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-files" type="button" role="tab"><x-icon name="paperclip" :size="16"/> Attachments <span class="count">{{ $attachments->count() }}</span></button></li>
-                    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-history" type="button" role="tab"><x-icon name="clock" :size="16"/> History</button></li>
+                    @unless($fromMine)
+                        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-history" type="button" role="tab"><x-icon name="clock" :size="16"/> History</button></li>
+                    @endunless
                 </ul>
             </div>
             <div class="card-body tab-content">
@@ -91,7 +96,7 @@
                 </div>
 
                 {{-- Internal notes (IT staff only – never sent to the requester) --}}
-                @if($seeInternal)
+                @if($staffTabs)
                     <div class="tab-pane fade" id="tab-notes" role="tabpanel">
                         @forelse($notes as $n)
                             <div class="comment">
@@ -112,7 +117,7 @@
                 @endif
 
                 {{-- Team progress (IT staff only) --}}
-                @if($seeInternal && $workUpdates->isNotEmpty())
+                @if($staffTabs && $workUpdates->isNotEmpty())
                     @php($wTone = ['ASSIGNED' => 'secondary', 'IN_PROGRESS' => 'warning', 'WAITING' => 'info', 'DONE' => 'success'])
                     <div class="tab-pane fade" id="tab-work" role="tabpanel">
                         @foreach($workUpdates as $w)
@@ -144,41 +149,34 @@
                     @can('attachment.upload')
                         <form method="POST" action="{{ route('tickets.upload', $ticket) }}" enctype="multipart/form-data" class="row g-2 align-items-center">@csrf
                             <div class="col"><input type="file" name="attachments[]" class="form-control form-control-sm" multiple required></div>
-                            @if($seeInternal)<div class="col-auto form-check"><input type="checkbox" name="internal" value="1" class="form-check-input" id="int"><label class="form-check-label small" for="int">IT only</label></div>@endif
+                            @if($staffTabs)<div class="col-auto form-check"><input type="checkbox" name="internal" value="1" class="form-check-input" id="int"><label class="form-check-label small" for="int">IT only</label></div>@endif
                             <div class="col-auto"><button class="btn btn-secondary btn-sm">Upload</button></div>
                         </form>
                     @endcan
                 </div>
 
+                @unless($fromMine)
                 {{-- History --}}
                 <div class="tab-pane fade" id="tab-history" role="tabpanel">
+                    <div class="d-flex justify-content-end mb-3">
+                        <a href="{{ route('tickets.history.pdf', $ticket) }}" class="btn btn-sm btn-outline-primary">Download history (PDF)</a>
+                    </div>
                     <ul class="list-unstyled timeline mb-0">
-                        @foreach($ticket->history as $h)
+                        @foreach($history as $h)
                             <li>
                                 <span class="text-muted">{{ $h->created_at->format('d M H:i') }}</span>
                                 <b>{{ $h->user->name ?? 'System' }}</b>
-                                @switch($h->action)
-                                    @case('created') created the request @break
-                                    @case('created_on_behalf') created the request on behalf of <b>{{ $h->new_value }}</b> @break
-                                    @case('status_changed') changed status: {{ $h->old_value }} → <b>{{ $h->new_value }}</b> @break
-                                    @case('assigned') made <b>{{ $h->new_value }}</b> the primary responsible employee @break
-                                    @case('reassigned') changed the primary responsible employee: {{ $h->old_value }} → <b>{{ $h->new_value }}</b> @break
-                                    @case('team_added') added <b>{{ $h->new_value }}</b> to the team @break
-                                    @case('team_removed') removed <b>{{ $h->old_value }}</b> from the team @break
-                                    @case('team_role_changed') changed the role: {{ $h->old_value }} → <b>{{ $h->new_value }}</b> @break
-                                    @case('comment_added') added a comment @break
-                                    @case('attachment_added') uploaded attachment(s) @break
-                                    @case('auto_closed') (auto-closed) @break
-                                    @default changed {{ $h->field }}: {{ $h->old_value ?? '—' }} → <b>{{ $h->new_value ?? '—' }}</b>
-                                @endswitch
+                                @include('tickets._history_text', ['h' => $h])
                             </li>
                         @endforeach
                     </ul>
                 </div>
+                @endunless
             </div>
         </div>
     </div>
 
+    @unless($fromMine)
     {{-- ───────── Right: actions, details, team ───────── --}}
     <div class="col-lg-4">
         <div class="sticky-side">
@@ -228,6 +226,7 @@
                 </div>
             </div>
 
+            @if($seeInternal)
             <div class="card mb-3">
                 <a class="card-header fold-toggle collapsed" data-bs-toggle="collapse" href="#fold-team" role="button" aria-expanded="false">Assigned IT Team</a>
                 <div class="collapse" id="fold-team">
@@ -236,8 +235,23 @@
                     </div>
                 </div>
             </div>
+            @endif
 
             @include('tickets._team')
+
+            @if(auth()->user()->isRole('admin'))
+                <div class="card mb-3">
+                    <a class="card-header fold-toggle collapsed" data-bs-toggle="collapse" href="#fold-delete" role="button" aria-expanded="false">Delete request</a>
+                    <div class="collapse" id="fold-delete">
+                        <div class="card-body">
+                            <form method="POST" action="{{ route('tickets.destroy', $ticket) }}" onsubmit="return confirm('Delete request {{ $reqNo }}? It will disappear from all lists and reports.');">
+                                @csrf @method('DELETE')
+                                <button class="btn btn-danger w-100">Delete this request</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            @endif
 
             @if($canEdit)
                 <div class="card mb-3">
@@ -257,6 +271,7 @@
             @endif
         </div>
     </div>
+    @endunless
 </div>
 @endsection
 

@@ -20,13 +20,15 @@
             @php($picked = collect(old('role_ids', $user->exists ? $user->roles->pluck('id')->all() : []))->map(fn ($v) => (int) $v)->all())
             <div class="d-flex flex-wrap gap-2">
                 @foreach($roles as $r)
+                    @php($isSelf = $user->exists && $user->id === auth()->id())
+                    @php($isAdminRole = $r->slug === 'admin')
                     <div>
-                        <input type="checkbox" class="btn-check" name="role_ids[]" value="{{ $r->id }}" id="role{{ $r->id }}" @checked(in_array($r->id, $picked)) @disabled($user->id === auth()->id())>
+                        <input type="checkbox" class="btn-check" name="role_ids[]" value="{{ $r->id }}" id="role{{ $r->id }}" @checked(in_array($r->id, $picked) || ($isSelf && $isAdminRole)) @disabled($isSelf && (! auth()->user()->isRole('admin') || $isAdminRole))>
                         <label class="btn btn-outline-primary btn-sm" for="role{{ $r->id }}">{{ $r->name }}</label>
                     </div>
                 @endforeach
             </div>
-            @if($user->exists && $user->id === auth()->id())<div class="form-text">You cannot change your own roles.</div>@endif
+            @if($user->exists && $user->id === auth()->id())<div class="form-text">{{ auth()->user()->isRole('admin') ? 'You can change your other roles, but the System Administrator role cannot be removed from your own account.' : 'You cannot change your own roles.' }}</div>@endif
         </div>
 
         <div class="col-md-4"><label class="form-label">Department{{ $star }}</label>

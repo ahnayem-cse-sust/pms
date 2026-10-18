@@ -56,8 +56,13 @@ class UserController extends Controller
     public function update(Request $r, User $user)
     {
         $this->guardTarget($user);
-        // Admins cannot change their own roles (the form disables those boxes), so keep them as they are.
-        if ($user->id === auth()->id()) {
+        $self = $user->id === auth()->id();
+        if ($self && $this->actorIsAdmin()) {
+            // A System Administrator may change their other roles, but can never drop the System Administrator role.
+            $adminId = Role::where('slug', 'admin')->value('id');
+            $r->merge(['role_ids' => array_values(array_unique(array_merge((array) $r->input('role_ids', []), [$adminId])))]);
+        } elseif ($self) {
+            // Everyone else keeps their own roles as they are.
             $r->merge(['role_ids' => $user->roles->pluck('id')->all()]);
         }
         $d = $r->validate($this->rules($user) + [
@@ -72,10 +77,9 @@ class UserController extends Controller
         $d['is_active'] = $r->boolean('is_active');
         $d['is_department_head'] = $r->boolean('is_department_head');
 
-        // An admin must not lock themselves out.
-        if ($user->id === auth()->id()) {
+        // Nobody can deactivate their own account.
+        if ($self) {
             $d['is_active'] = true;
-            $d['role_ids'] = $user->roles->pluck('id')->all();
         }
         $roleIds = array_map('intval', $d['role_ids']);
         unset($d['role_ids']);

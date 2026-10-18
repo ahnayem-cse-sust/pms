@@ -10,7 +10,9 @@ use App\Models\TicketCategory;
 use App\Models\TicketStatus;
 use App\Models\TicketType;
 use App\Models\User;
+use App\Models\AuditLog;
 use App\Services\TicketService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -162,11 +164,47 @@ class TicketController extends Controller
             'members' => User::active()->assignable()->orderBy('name')->get(),
             'categories' => TicketCategory::with('subcategories')->orderBy('name')->get(),
             'seeInternal' => $seeInternal,
+            'history' => $this->visibleHistory($ticket, $u),
             'team' => $ticket->team,
             'myRow' => $ticket->team->firstWhere('employee_id', $u->id),
             'workStatuses' => TicketService::WORK_STATUSES,
             'workUpdates' => $seeInternal ? $ticket->workUpdates()->limit(30)->get() : collect(),
         ]);
+    }
+
+    /** Requesters do not see who on the IT team is assigned, so team-related history lines are hidden from them. */
+    protected function visibleHistory(Ticket $ticket, User $u)
+    {
+        if ($u->hasPermission('ticket.note.internal')) {
+            return $ticket->history;
+        }
+        $hidden = ['assigned', 'reassigned', 'team_added', 'team_removed', 'team_role_changed'];
+
+        return $ticket->history->reject(fn ($h) => in_array($h->action, $hidden, true))->values();
+    }
+
+    /** Printable history of a request. */
+    public function historyPdf(Ticket $ticket)
+    {
+        $this->authorizeView($ticket);
+        $u = auth()->user();
+        $ticket->load(['department', 'category', 'subcategory', 'status', 'requester', 'creator', 'history']);
+        $reqNo = str_replace('-', '', $ticket->ticket_no);
+
+        return Pdf::loadView('tickets.history_pdf', [
+            'ticket' => $ticket, 'reqNo' => $reqNo, 'history' => $this->visibleHistory($ticket, $u),
+            'generatedBy' => $u->name, 'generatedAt' => now(),
+        ])->setPaper('a4', 'portrait')->download("Request-{$reqNo}-History.pdf");
+    }
+
+    /** Only a System Administrator can delete a request (soft delete: it disappears from lists and reports). */
+    public function destroy(Ticket $ticket)
+    {
+        abort_unless(auth()->user()->isRole('admin'), 403);
+        AuditLog::record('ticket.deleted', $ticket, ['ticket_no' => $ticket->ticket_no, 'subject' => $ticket->subject], null);
+        $ticket->delete();
+
+        return redirect()->route('tickets.index')->with('ok', 'Request ' . str_replace('-', '', $ticket->ticket_no) . ' deleted.');
     }
 
     public function transition(Request $r, Ticket $ticket)

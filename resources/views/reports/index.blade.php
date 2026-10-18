@@ -29,12 +29,12 @@
 </div>
 
 <div class="card">
-    <div class="card-header">IT team – operational summary <span class="small text-muted">(workload and turnaround for management planning; not a performance score)</span></div>
+    <div class="card-header">IT team – operational summary <span class="small text-muted">(tasks = requests where the employee is primary or supporting; not a performance score)</span></div>
     <table class="table table-sm mb-0">
-        <thead><tr><th>IT employee</th><th class="text-end">Assigned</th><th class="text-end">Completed</th><th class="text-end">Pending</th><th class="text-end">Avg resolution (h)</th></tr></thead>
+        <thead><tr><th>IT employee</th><th class="text-end">Tasks</th><th class="text-end">Primary</th><th class="text-end">Supporting</th><th class="text-end">Completed</th><th class="text-end">Pending</th><th class="text-end">Avg resolution (h)</th></tr></thead>
         <tbody>
         @foreach($perMember as $m)
-            <tr><td>{{ $m->name }}</td><td class="text-end">{{ $m->assigned }}</td><td class="text-end">{{ $m->completed }}</td><td class="text-end">{{ $m->pending }}</td><td class="text-end">{{ $m->avg_hours ?? '—' }}</td></tr>
+            <tr><td>{{ $m->name }}</td><td class="text-end"><b>{{ $m->tasks }}</b></td><td class="text-end">{{ $m->primary }}</td><td class="text-end">{{ $m->supporting }}</td><td class="text-end">{{ $m->completed }}</td><td class="text-end">{{ $m->pending }}</td><td class="text-end">{{ $m->avg_hours ?? '—' }}</td></tr>
         @endforeach
         </tbody>
     </table>

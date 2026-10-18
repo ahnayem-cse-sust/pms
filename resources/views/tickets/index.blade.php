@@ -29,11 +29,13 @@
                 @foreach($categories as $c)<option value="{{ $c->id }}" @selected(request('category_id') == $c->id)>{{ $c->name }}</option>@endforeach
             </select>
         </div>
+        @if($mode !== 'mine')
         <div class="col-md-2">
             <select name="status_id" class="form-select"><option value="">All statuses</option>
                 @foreach($statuses as $s)<option value="{{ $s->id }}" @selected(request('status_id') == $s->id)>{{ $s->name }}</option>@endforeach
             </select>
         </div>
+        @endif
         <div class="col-md-2">
             <select name="ticket_type_id" class="form-select"><option value="">All types</option>
                 @foreach($types as $t)<option value="{{ $t->id }}" @selected(request('ticket_type_id') == $t->id)>{{ $t->name }}</option>@endforeach

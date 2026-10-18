@@ -24,7 +24,7 @@ class ReportController extends Controller
         $r->validate(['month' => 'nullable|date_format:Y-m']);
         [$month, $q] = $this->scope($r);
 
-        $tickets = (clone $q)->with(['status', 'department', 'category', 'assignee'])->get();
+        $tickets = (clone $q)->with(['status', 'department', 'category', 'assignee', 'assignees'])->get();
 
         $summary = [
             'Total requests' => $tickets->count(),
@@ -41,11 +41,15 @@ class ReportController extends Controller
 
         // Operational (not a performance score): per IT member
         $perMember = User::assignable()->orderBy('name')->get()->map(function ($m) use ($tickets) {
-            $mine = $tickets->where('assigned_to', $m->id);
+            // A task is any request the employee is on the team of, as primary or as a supporting employee
+            $mine = $tickets->filter(fn ($t) => $t->assigned_to === $m->id || $t->assignees->contains('employee_id', $m->id));
+            $primary = $mine->where('assigned_to', $m->id)->count();
             $done = $mine->whereNotNull('resolved_at');
             return (object) [
                 'name' => $m->name,
-                'assigned' => $mine->count(),
+                'tasks' => $mine->count(),
+                'primary' => $primary,
+                'supporting' => $mine->count() - $primary,
                 'completed' => $done->count(),
                 'pending' => $mine->filter(fn ($t) => $t->status->is_open && ! $t->resolved_at)->count(),
                 'avg_hours' => $done->count() ? round($done->avg(fn ($t) => $t->created_at->diffInMinutes($t->resolved_at, true)) / 60, 1) : null,
