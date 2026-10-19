@@ -80,7 +80,7 @@
                             <x-icon name="folder"/> Configuration
                         </a>
                         <ul class="nav flex-column sub collapse {{ $cfgActive ? 'show' : '' }}" id="cfgMenu">
-                            @foreach(['categories' => 'Categories', 'subcategories' => 'Sub-categories', 'departments' => 'Departments', 'designations' => 'Designations', 'locations' => 'Locations'] as $key => $label)
+                            @foreach(['service_types' => 'Service Types', 'categories' => 'Categories', 'subcategories' => 'Sub-categories', 'departments' => 'Departments', 'designations' => 'Designations', 'locations' => 'Locations'] as $key => $label)
                                 <li><a class="nav-link {{ request()->is('admin/lookups/'.$key) ? 'active' : '' }}" href="{{ route('admin.lookups', $key) }}">{{ $label }}</a></li>
                             @endforeach
                             @can('settings.manage')

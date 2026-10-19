@@ -133,7 +133,7 @@ class TicketController extends Controller
             'location_id' => 'nullable|exists:locations,id',
             'department_id' => $requester->department_id ? 'nullable' : 'required|exists:departments,id',
             'attachments.*' => $this->fileRule(),
-        ], $this->fileMessages());
+        ], $this->fileMessages(), ['ticket_type_id' => 'service type']);
 
         $ticket = $this->svc->create($requester, $d, $r->file('attachments', []), $actor);
         $msg = $requester->id === $actor->id

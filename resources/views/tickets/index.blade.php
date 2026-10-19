@@ -37,7 +37,7 @@
         </div>
         @endif
         <div class="col-md-2">
-            <select name="ticket_type_id" class="form-select"><option value="">All types</option>
+            <select name="ticket_type_id" class="form-select"><option value="">All service types</option>
                 @foreach($types as $t)<option value="{{ $t->id }}" @selected(request('ticket_type_id') == $t->id)>{{ $t->name }}</option>@endforeach
             </select>
         </div>

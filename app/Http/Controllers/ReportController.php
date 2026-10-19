@@ -68,7 +68,7 @@ class ReportController extends Controller
         return response()->streamDownload(function () use ($rows) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM so Excel opens it correctly
-            fputcsv($out, ['Ticket', 'Type', 'Created', 'Department', 'Requester', 'Employee ID', 'Category', 'Sub-category', 'Subject', 'Status', 'Assigned To', 'Due', 'Resolved', 'Closed']);
+            fputcsv($out, ['Ticket', 'Service Type', 'Created', 'Department', 'Requester', 'Employee ID', 'Category', 'Sub-category', 'Subject', 'Status', 'Assigned To', 'Due', 'Resolved', 'Closed']);
             foreach ($rows as $t) {
                 fputcsv($out, [
                     $t->ticket_no, $t->type->name, $t->created_at->format('Y-m-d H:i'), $t->department->name,

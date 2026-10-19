@@ -10,7 +10,9 @@ use App\Models\Location;
 use App\Models\TicketCategory;
 use App\Models\TicketPriority;
 use App\Models\TicketSubcategory;
+use App\Models\TicketType;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 /** One generic CRUD screen for all small configurable lists. */
 class LookupController extends Controller
@@ -27,6 +29,9 @@ class LookupController extends Controller
             'locations' => ['model' => Location::class, 'label' => 'Locations', 'fields' => [
                 'name' => ['text', 'required|string|max:150'],
             ]],
+            'service_types' => ['model' => TicketType::class, 'label' => 'Service Types', 'unique' => ['name', 'code'], 'fields' => [
+                'name' => ['text', 'required|string|max:100'], 'code' => ['text', 'required|string|max:10'],
+            ]],
             'categories' => ['model' => TicketCategory::class, 'label' => 'Request Categories', 'fields' => [
                 'name' => ['text', 'required|string|max:150'], 'sort_order' => ['number', 'nullable|integer|min:0'],
             ]],
@@ -41,6 +46,21 @@ class LookupController extends Controller
                 'resolution_minutes' => ['number', 'nullable|integer|min:1'],
             ]],
         ];
+    }
+
+    /** Validation rules for a list's fields; fields marked 'unique' must not repeat (ignoring the row being edited). */
+    protected function rules(array $def, ?int $ignore = null): array
+    {
+        $table = (new $def['model'])->getTable();
+
+        return collect($def['fields'])->map(function ($f, $name) use ($def, $table, $ignore) {
+            $rule = explode('|', $f[1]);
+            if (in_array($name, $def['unique'] ?? [], true)) {
+                $rule[] = Rule::unique($table, $name)->ignore($ignore);
+            }
+
+            return $rule;
+        })->all();
     }
 
     protected function def(string $type): array
@@ -62,7 +82,7 @@ class LookupController extends Controller
     public function store(Request $r, string $type)
     {
         $def = $this->def($type);
-        $d = $r->validate(collect($def['fields'])->map(fn ($f) => $f[1])->all());
+        $d = $r->validate($this->rules($def));
         $row = $def['model']::create($d);
         AuditLog::record("lookup.$type.created", $row, null, $d);
         return back()->with('ok', 'Added.');
@@ -72,7 +92,7 @@ class LookupController extends Controller
     {
         $def = $this->def($type);
         $row = $def['model']::findOrFail($id);
-        $d = $r->validate(collect($def['fields'])->map(fn ($f) => $f[1])->all());
+        $d = $r->validate($this->rules($def, $id));
         $d['is_active'] = $r->boolean('is_active');
         $old = $row->only(array_keys($d));
         $row->update($d);

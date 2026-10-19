@@ -82,7 +82,7 @@
         <div class="card-body">
             <div class="row g-3">
                 <div class="col-md-4">
-                    <label class="form-label">Request type *</label>
+                    <label class="form-label">Service type *</label>
                     <select name="ticket_type_id" class="form-select" required>
                         @foreach($types as $t)<option value="{{ $t->id }}" @selected(old('ticket_type_id') == $t->id)>{{ $t->name }}</option>@endforeach
                     </select>
