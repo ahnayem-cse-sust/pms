@@ -31,6 +31,7 @@
                             <span class="pill pill-{{ $ticket->status->color ?? 'secondary' }}">{{ $ticket->status->name }}</span>
                             @if($ticket->reopen_count)<span class="pill pill-danger ms-1">Reopened ×{{ $ticket->reopen_count }}</span>@endif
                         </td></tr>
+                        <tr><th>Service type</th><td>{{ $ticket->type->name ?? '—' }}</td></tr>
                         <tr><th>Category</th><td>{{ $ticket->category->name }}@if($ticket->subcategory) / {{ $ticket->subcategory->name }}@endif</td></tr>
                         <tr><th>Submitted at</th><td>{{ $ticket->created_at->format('d M Y, h:i A') }}</td></tr>
                         <tr><th>Description</th><td><div class="ticket-body">{{ $ticket->description }}</div></td></tr>
@@ -255,13 +256,28 @@
 
             @if($canEdit)
                 <div class="card mb-3">
-                    <a class="card-header fold-toggle collapsed" data-bs-toggle="collapse" href="#fold-edit" role="button" aria-expanded="false">Edit category</a>
+                    <a class="card-header fold-toggle collapsed" data-bs-toggle="collapse" href="#fold-edit" role="button" aria-expanded="false">Edit service type &amp; category</a>
                     <div class="collapse" id="fold-edit">
                     <div class="card-body">
                         <form method="POST" action="{{ route('tickets.update', $ticket) }}">@csrf @method('PUT')
+                            <label class="small text-muted">Service type</label>
+                            <select name="ticket_type_id" class="form-select form-select-sm mb-2">
+                                @foreach($types as $ty)<option value="{{ $ty->id }}" @selected($ticket->ticket_type_id == $ty->id)>{{ $ty->name }}</option>@endforeach
+                            </select>
                             <label class="small text-muted">Category</label>
-                            <select name="category_id" class="form-select form-select-sm mb-2">
+                            <select name="category_id" id="editCat" class="form-select form-select-sm mb-2">
                                 @foreach($categories as $c)<option value="{{ $c->id }}" @selected($ticket->category_id == $c->id)>{{ $c->name }}</option>@endforeach
+                            </select>
+                            <label class="small text-muted">Sub-category</label>
+                            <select name="subcategory_id" id="editSub" class="form-select form-select-sm mb-2">
+                                <option value="">— None —</option>
+                                @foreach($categories as $c)
+                                    @foreach($c->subcategories as $sc)
+                                        @if($sc->is_active || $ticket->subcategory_id == $sc->id)
+                                            <option value="{{ $sc->id }}" data-cat="{{ $c->id }}" @selected($ticket->subcategory_id == $sc->id)>{{ $sc->name }}</option>
+                                        @endif
+                                    @endforeach
+                                @endforeach
                             </select>
                             <button class="btn btn-outline-secondary btn-sm w-100">Update</button>
                         </form>
@@ -277,6 +293,23 @@
 
 @push('scripts')
 <script>
+// Sub-category list follows the chosen category
+(function () {
+    var cat = document.getElementById('editCat'), sub = document.getElementById('editSub');
+    if (!cat || !sub) return;
+    function sync() {
+        var keep = false;
+        Array.prototype.forEach.call(sub.options, function (o) {
+            if (!o.value) return;
+            var ok = o.getAttribute('data-cat') === cat.value;
+            o.hidden = !ok; o.disabled = !ok;
+            if (ok && o.selected) keep = true;
+        });
+        if (!keep) sub.value = '';
+    }
+    cat.addEventListener('change', sync);
+    sync();
+})();
 // Remember which side panels are folded
 document.querySelectorAll('.fold-toggle').forEach(function (t) {
     var id = t.getAttribute('href'), el = document.querySelector(id), key = 'fold-' + id;

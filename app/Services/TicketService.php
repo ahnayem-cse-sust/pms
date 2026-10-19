@@ -13,6 +13,7 @@ use App\Models\TicketInternalNote;
 use App\Models\TicketPriority;
 use App\Models\TicketStatus;
 use App\Models\TicketSubcategory;
+use App\Models\TicketType;
 use App\Models\TicketWorkUpdate;
 use App\Models\User;
 use App\Notifications\TicketNotification;
@@ -430,6 +431,11 @@ class TicketService
             if ($new->response_minutes) {
                 $t->sla_response_due_at = $t->created_at->copy()->addMinutes($new->response_minutes);
             }
+        }
+        if (! empty($in['ticket_type_id']) && (int) $in['ticket_type_id'] !== $t->ticket_type_id) {
+            $new = TicketType::findOrFail($in['ticket_type_id']);
+            $changes[] = ['service type', $t->type?->name, $new->name];
+            $t->ticket_type_id = $new->id;
         }
         if (! empty($in['category_id']) && (int) $in['category_id'] !== $t->category_id) {
             $new = TicketCategory::findOrFail($in['category_id']);

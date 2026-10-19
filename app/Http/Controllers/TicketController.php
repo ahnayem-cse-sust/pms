@@ -163,6 +163,7 @@ class TicketController extends Controller
             'canEdit' => $u->can('ticket.edit') && $ticket->status->is_open,
             'members' => User::active()->assignable()->orderBy('name')->get(),
             'categories' => TicketCategory::with('subcategories')->orderBy('name')->get(),
+            'types' => TicketType::where('is_active', true)->orWhere('id', $ticket->ticket_type_id)->orderBy('name')->get(),
             'seeInternal' => $seeInternal,
             'history' => $this->visibleHistory($ticket, $u),
             'team' => $ticket->team,
@@ -284,10 +285,17 @@ class TicketController extends Controller
         $this->authorize('ticket.edit');
         $this->authorizeView($ticket);
         $d = $r->validate([
+            'ticket_type_id' => 'nullable|exists:ticket_types,id',
             'category_id' => 'nullable|exists:ticket_categories,id',
             'subcategory_id' => 'nullable|exists:ticket_subcategories,id',
             'due_date' => 'nullable|date',
-        ]);
+        ], [], ['ticket_type_id' => 'service type', 'subcategory_id' => 'sub-category']);
+
+        // The sub-category must belong to the (new or current) category
+        if (! empty($d['subcategory_id'])) {
+            $catId = (int) ($d['category_id'] ?? $ticket->category_id);
+            abort_unless(\App\Models\TicketSubcategory::where('id', $d['subcategory_id'])->where('category_id', $catId)->exists(), 422, 'That sub-category does not belong to the selected category.');
+        }
         $this->svc->updateFields($ticket, auth()->user(), $d);
         return back()->with('ok', 'Ticket updated.');
     }
