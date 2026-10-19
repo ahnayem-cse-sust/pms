@@ -52,7 +52,6 @@ class ReportController extends Controller
                 'supporting' => $mine->count() - $primary,
                 'completed' => $done->count(),
                 'pending' => $mine->filter(fn ($t) => $t->status->is_open && ! $t->resolved_at)->count(),
-                'avg_hours' => $done->count() ? round($done->avg(fn ($t) => $t->created_at->diffInMinutes($t->resolved_at, true)) / 60, 1) : null,
             ];
         });
 

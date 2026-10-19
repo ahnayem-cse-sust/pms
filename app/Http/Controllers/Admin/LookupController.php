@@ -73,7 +73,7 @@ class LookupController extends Controller
     public function index(string $type)
     {
         $def = $this->def($type);
-        $rows = $def['model']::query()->when($def['with'] ?? null, fn ($q, $w) => $q->with($w))->orderBy('id')->get();
+        $rows = $def['model']::query()->when($def['with'] ?? null, fn ($q, $w) => $q->with($w))->orderBy('id')->paginate(25)->withQueryString();
         $selects = ['categories' => TicketCategory::orderBy('name')->pluck('name', 'id')];
         $tabs = collect($this->defs())->filter(fn ($d) => ! ($d['admin'] ?? false) || auth()->user()->can('settings.manage'))->map->label;
         return view('admin.lookups', compact('type', 'def', 'rows', 'selects', 'tabs'));

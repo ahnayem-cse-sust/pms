@@ -1,7 +1,16 @@
 @extends('layouts.app')
 @section('title', 'My Tickets')
 @section('content')
-<div class="mb-4">@include('dashboard._stats', ['stats' => $stats])</div>
-<h6 class="mb-2">Open work <span class="text-muted fw-normal">– earliest due first</span></h6>
-@include('tickets._table', ['tickets' => $open, 'mode' => 'tasks'])
+<section class="dash-section">@include('dashboard._stats', ['stats' => $stats])</section>
+
+<section class="dash-section">
+    <div class="section-head">
+        <div>
+            <h5 class="section-title">Open work</h5>
+            <div class="section-sub">Earliest due date first.</div>
+        </div>
+    </div>
+    @include('tickets._table', ['tickets' => $open, 'mode' => 'tasks'])
+    <div class="mt-3">{{ $open->links() }}</div>
+</section>
 @endsection

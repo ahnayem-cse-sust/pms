@@ -53,4 +53,5 @@
     @endforeach
     </tbody>
 </table>
+<div class="mt-3">{{ $rows->links() }}</div>
 @endsection

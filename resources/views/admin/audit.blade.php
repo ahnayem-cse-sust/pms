@@ -2,9 +2,24 @@
 @section('title', 'Audit log')
 @section('content')
 <h4 class="mb-3">Audit log</h4>
-<form class="row g-2 mb-3" method="GET">
-    <div class="col-md-3"><input name="event" value="{{ request('event') }}" class="form-control" placeholder="Event contains… (e.g. ticket.assigned)"></div>
-    <div class="col"><button class="btn btn-secondary">Filter</button></div>
+<form class="card filter-card mb-3" method="GET">
+    <div class="filter-head">
+        <x-icon name="search" :size="18"/>
+        <span>Search audit log</span>
+        @if(request('event'))<span class="filter-count">1 active</span>@endif
+    </div>
+    <div class="filter-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-6">
+                <label class="form-label">Event</label>
+                <div class="input-icon"><x-icon name="search" :size="16"/><input name="event" value="{{ request('event') }}" class="form-control" placeholder="Event contains… (e.g. ticket.assigned)"></div>
+            </div>
+            <div class="col-md-3 d-flex gap-2">
+                <button class="btn btn-primary d-inline-flex align-items-center gap-2"><x-icon name="search" :size="16"/> Search</button>
+                <a href="{{ url()->current() }}" class="btn btn-outline-secondary">Reset</a>
+            </div>
+        </div>
+    </div>
 </form>
 <div class="table-responsive">
 <table class="table table-sm bg-white align-middle small">

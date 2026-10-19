@@ -5,11 +5,30 @@
     <h4 class="mb-0">Users</h4>
     <a href="{{ route('admin.users.create') }}" class="btn btn-primary">+ New user</a>
 </div>
-<form class="row g-2 mb-3" method="GET">
-    <div class="col-md-4"><input name="q" value="{{ request('q') }}" class="form-control" placeholder="Name, email, employee ID"></div>
-    <div class="col-md-3"><select name="role_id" class="form-select"><option value="">All roles</option>
-        @foreach($roles as $r)<option value="{{ $r->id }}" @selected(request('role_id') == $r->id)>{{ $r->name }}</option>@endforeach</select></div>
-    <div class="col"><button class="btn btn-secondary">Filter</button></div>
+@php($activeFilters = collect(request()->only(['q','role_id']))->filter(fn ($v) => $v !== null && $v !== '')->count())
+<form class="card filter-card mb-3" method="GET">
+    <div class="filter-head">
+        <x-icon name="search" :size="18"/>
+        <span>Search users</span>
+        @if($activeFilters)<span class="filter-count">{{ $activeFilters }} active</span>@endif
+    </div>
+    <div class="filter-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-6">
+                <label class="form-label">Keyword</label>
+                <div class="input-icon"><x-icon name="search" :size="16"/><input name="q" value="{{ request('q') }}" class="form-control" placeholder="Name, email, employee ID"></div>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Role</label>
+                <select name="role_id" class="form-select"><option value="">All roles</option>
+                    @foreach($roles as $r)<option value="{{ $r->id }}" @selected(request('role_id') == $r->id)>{{ $r->name }}</option>@endforeach</select>
+            </div>
+            <div class="col-md-3 d-flex gap-2">
+                <button class="btn btn-primary d-inline-flex align-items-center gap-2"><x-icon name="search" :size="16"/> Search</button>
+                <a href="{{ url()->current() }}" class="btn btn-outline-secondary">Reset</a>
+            </div>
+        </div>
+    </div>
 </form>
 <table class="table table-sm bg-white align-middle">
     <thead class="table-light"><tr><th>Name</th><th>Employee ID</th><th>Email</th><th>Role</th><th>Department</th><th>Last login</th><th>Status</th><th></th></tr></thead>

@@ -1,48 +1,25 @@
 @extends('layouts.app')
 @section('title', 'Dashboard')
 @section('content')
-<div class="mb-4">@include('dashboard._stats', ['stats' => $stats])</div>
-
-<div class="row g-4 mb-4">
-    <div class="col-xl-7">
-        <div class="card h-100">
-            <div class="card-header">Team workload</div>
-            <div class="table-responsive">
-            <table class="table align-middle">
-                <thead><tr><th>Employee</th><th class="text-center">New / Assigned</th><th class="text-center">In progress</th><th class="text-center">Pending</th><th class="text-center">Supporting</th><th class="text-center">Resolved</th><th style="width:170px">Open load</th></tr></thead>
-                <tbody>
-                @forelse($team as $row)
-                    <tr>
-                        <td><a href="{{ route('tickets.index', ['assigned_to' => $row->user->id]) }}" class="text-decoration-none d-inline-flex align-items-center gap-2 text-reset"><x-avatar :name="$row->user->name" :user="$row->user"/> {{ $row->user->name }}</a></td>
-                        <td class="text-center">{{ $row->assigned }}</td>
-                        <td class="text-center">{{ $row->in_progress }}</td>
-                        <td class="text-center">{{ $row->pending }}</td>
-                        <td class="text-center">{{ $row->supporting }}</td>
-                        <td class="text-center">{{ $row->resolved }}</td>
-                        <td>
-                            <div class="d-flex align-items-center gap-2">
-                                <div class="loadbar flex-grow-1"><span style="width:{{ min(100, $row->open * 10) }}%"></span></div>
-                                <b>{{ $row->open }}</b>
-                            </div>
-                        </td>
-                    </tr>
-                @empty
-                    <tr><td colspan="7" class="text-muted text-center py-4">No IT team members yet.</td></tr>
-                @endforelse
-                </tbody>
-            </table>
-            </div>
-        </div>
+<div class="dash-hero">
+    <div>
+        <h4 class="dash-title">IT Operations Dashboard</h4>
+        <div class="dash-date">{{ now()->format('l, d F Y') }} &middot; overview of all requests and the IT team</div>
     </div>
-    <div class="col-xl-5">
-        <div class="card h-100"><div class="card-header">Monthly trend</div><div class="card-body"><canvas id="trend" height="170"></canvas></div></div>
+    <div class="dash-hero-actions">
+        @if($summary['unassigned'])<a href="{{ route('tickets.index') }}" class="hero-chip warn"><span class="dot"></span>{{ $summary['unassigned'] }} unassigned</a>@endif
+        @if($summary['overdue'])<a href="{{ route('tickets.index') }}" class="hero-chip danger"><span class="dot"></span>{{ $summary['overdue'] }} overdue</a>@endif
+        @if(!$summary['unassigned'] && !$summary['overdue'])<span class="hero-chip ok"><span class="dot"></span>All clear</span>@endif
     </div>
 </div>
 
-<div class="d-flex align-items-end justify-content-between mb-2">
+<section class="dash-section">@include('dashboard._stats', ['stats' => $stats])</section>
+
+<section class="dash-section">
+<div class="section-head">
     <div>
-        <h5 class="mb-0">Assignment board</h5>
-        <div class="text-muted small">@if($board['canAssign'])Drag a ticket onto an IT employee to make them the primary responsible employee (supporting employees stay; use the ticket page to change the team). @endif Open tickets, highest priority first.</div>
+        <h5 class="section-title"><span class="title-bar"></span>Assignment board</h5>
+        <div class="section-sub">@if($board['canAssign'])Drag a ticket onto an IT employee to make them the primary responsible employee (supporting employees stay; use the ticket page to change the team). @endif Open tickets, oldest first.</div>
     </div>
 </div>
 
@@ -75,11 +52,72 @@
         </div>
     </div>
 </div>
+</section>
 
-<div class="row g-4 mt-1">
-    <div class="col-md-6"><div class="card"><div class="card-header">By department</div><div class="card-body"><canvas id="dept"></canvas></div></div></div>
-    <div class="col-md-6"><div class="card"><div class="card-header">By category</div><div class="card-body"><canvas id="cat"></canvas></div></div></div>
+<section class="dash-section">
+<div class="section-head">
+    <div>
+        <h5 class="section-title"><span class="title-bar teal"></span>Team workload</h5>
+        <div class="section-sub">Live view of what each IT team member is carrying. Click a name to see their requests.</div>
+    </div>
+    <div class="wl-summary">
+        <div><b>{{ $team->count() }}</b><span>Members</span></div>
+        <div><b>{{ $team->sum('open') }}</b><span>Open load</span></div>
+        <div><b>{{ $team->where('open', '>', 6)->count() }}</b><span>Heavily loaded</span></div>
+    </div>
 </div>
+<div class="card wl-card">
+    <div class="table-responsive">
+    <table class="table align-middle dash-table wl-table">
+        <thead><tr>
+            <th>Employee</th>
+            <th class="text-center">New / Assigned</th>
+            <th class="text-center">In progress</th>
+            <th class="text-center">Pending</th>
+            <th class="text-center">Supporting</th>
+            <th class="text-center">Resolved</th>
+            <th style="width:26%">Open load</th>
+        </tr></thead>
+        <tbody>
+        @forelse($team as $row)
+            @php($level = $row->open > 6 ? ['Heavy', 'heavy'] : ($row->open > 3 ? ['Balanced', 'mid'] : ['Light', 'light']))
+            <tr>
+                <td>
+                    <a href="{{ route('tickets.index', ['assigned_to' => $row->user->id]) }}" class="wl-person text-decoration-none text-reset">
+                        <x-avatar :name="$row->user->name" :user="$row->user" class="avatar-lg"/>
+                        <span><b>{{ $row->user->name }}</b><small>{{ $row->open }} open &middot; {{ $row->supporting }} supporting</small></span>
+                    </a>
+                </td>
+                <td class="text-center"><span class="wl-num n-blue">{{ $row->assigned }}</span></td>
+                <td class="text-center"><span class="wl-num n-amber">{{ $row->in_progress }}</span></td>
+                <td class="text-center"><span class="wl-num n-slate">{{ $row->pending }}</span></td>
+                <td class="text-center"><span class="wl-num n-cyan">{{ $row->supporting }}</span></td>
+                <td class="text-center"><span class="wl-num n-green">{{ $row->resolved }}</span></td>
+                <td>
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="loadbar loadbar-lg flex-grow-1"><span style="width:{{ min(100, $row->open * 10) }}%"></span></div>
+                        <b class="wl-open">{{ $row->open }}</b>
+                        <span class="load-pill {{ $level[1] }}">{{ $level[0] }}</span>
+                    </div>
+                </td>
+            </tr>
+        @empty
+            <tr><td colspan="7" class="text-muted text-center py-4">No IT team members yet.</td></tr>
+        @endforelse
+        </tbody>
+    </table>
+    </div>
+</div>
+</section>
+
+<section class="dash-section">
+<div class="section-head"><h5 class="section-title"><span class="title-bar violet"></span>Insights</h5><div class="section-sub">Request volume and where requests come from.</div></div>
+<div class="row g-4">
+    <div class="col-lg-4"><div class="card h-100"><div class="card-header">Monthly trend <small class="text-muted fw-normal">&middot; last 6 months</small></div><div class="card-body"><canvas id="trend"></canvas></div></div></div>
+    <div class="col-lg-4"><div class="card h-100"><div class="card-header">By department</div><div class="card-body"><canvas id="dept"></canvas></div></div></div>
+    <div class="col-lg-4"><div class="card h-100"><div class="card-header">By category</div><div class="card-body"><canvas id="cat"></canvas></div></div></div>
+</div>
+</section>
 @endsection
 
 @push('scripts')

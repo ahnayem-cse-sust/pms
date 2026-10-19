@@ -102,7 +102,12 @@ class DashboardController extends Controller
         $months = collect(range(5, 0))->map(fn ($i) => now()->startOfMonth()->subMonths($i)->format('Y-m'));
         $trend = $months->mapWithKeys(fn ($m) => [$m => $trend[$m] ?? 0]);
 
-        return view('dashboard.officer', compact('stats', 'team', 'board', 'byDept', 'byCat', 'trend'));
+        $summary = [
+            'unassigned' => Ticket::open()->whereNull('assigned_to')->count(),
+            'overdue' => Ticket::open()->whereNotNull('due_date')->whereDate('due_date', '<', today())->count(),
+        ];
+
+        return view('dashboard.officer', compact('stats', 'team', 'board', 'byDept', 'byCat', 'trend', 'summary'));
     }
 
     protected function member(User $u)
@@ -121,7 +126,7 @@ class DashboardController extends Controller
         ];
 
         $open = (clone $mine)->open()
-            ->orderByRaw('tickets.due_date is null')->orderBy('tickets.due_date')->orderBy('tickets.created_at')->select('tickets.*')->get();
+            ->orderByRaw('tickets.due_date is null')->orderBy('tickets.due_date')->orderBy('tickets.created_at')->select('tickets.*')->paginate(15)->withQueryString();
 
         return view('dashboard.member', compact('stats', 'open'));
     }
