@@ -62,9 +62,8 @@ class AttendanceController extends Controller
 
     protected function itEmployees()
     {
-        return User::active()
-            ->whereHas('roles', fn ($q) => $q->whereIn('slug', config('itsm.attendance.roles')))
-            ->orderBy('name')->get();
+        // Employees whose profile has the "Show on IT attendance" checkmark
+        return User::active()->where('show_in_attendance', true)->orderBy('name')->get();
     }
 
     protected function filters(Request $r): array

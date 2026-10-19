@@ -50,6 +50,7 @@
         <div class="col-md-4 pt-4">
             <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" name="is_active" value="1" id="act" @checked(old('is_active', $user->is_active))><label for="act" class="form-check-label">Active</label></div>
             <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" name="is_department_head" value="1" id="head" @checked(old('is_department_head', $user->is_department_head))><label for="head" class="form-check-label">Department head</label></div>
+            <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" name="show_in_attendance" value="1" id="att" @checked(old('show_in_attendance', $user->show_in_attendance))><label for="att" class="form-check-label">Show on IT attendance</label></div>
             @if($user->exists)<div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" name="unlock" value="1" id="unl"><label for="unl" class="form-check-label">Unlock account</label></div>@endif
         </div>
     </div>

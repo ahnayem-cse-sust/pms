@@ -41,7 +41,7 @@ class UserController extends Controller
         $d['password_changed_at'] = now();
         $roleIds = $d['role_ids'];
         unset($d['role_ids']);
-        $user = User::create($d + ['is_active' => $r->boolean('is_active'), 'is_department_head' => $r->boolean('is_department_head')]);
+        $user = User::create($d + ['is_active' => $r->boolean('is_active'), 'is_department_head' => $r->boolean('is_department_head'), 'show_in_attendance' => $r->boolean('show_in_attendance')]);
         $user->roles()->sync($roleIds);
         AuditLog::record('user.created', $user, null, collect($d)->except('password')->all() + ['role_ids' => $roleIds]);
         return redirect()->route('admin.users.index')->with('ok', 'User created.');
@@ -76,6 +76,7 @@ class UserController extends Controller
         }
         $d['is_active'] = $r->boolean('is_active');
         $d['is_department_head'] = $r->boolean('is_department_head');
+        $d['show_in_attendance'] = $r->boolean('show_in_attendance');
 
         // Nobody can deactivate their own account.
         if ($self) {

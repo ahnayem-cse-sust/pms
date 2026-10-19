@@ -46,6 +46,7 @@ class UserSeeder extends Seeder
                 'department_id' => $deptCode ? Department::where('code', $deptCode)->value('id') : null,
                 'location_id' => $location->id,
                 'is_department_head' => $head,
+                'show_in_attendance' => $roleSlug === 'it_member',
                 'is_active' => true,
                 'failed_logins' => 0,
                 'locked_until' => null,

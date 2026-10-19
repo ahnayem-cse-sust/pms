@@ -11,7 +11,7 @@ class User extends Authenticatable
 
     protected $fillable = [
         'name', 'email', 'password', 'employee_id', 'department_id', 'designation_id',
-        'location_id', 'whatsapp', 'is_active', 'is_department_head',
+        'location_id', 'whatsapp', 'is_active', 'is_department_head', 'show_in_attendance',
         'failed_logins', 'locked_until', 'last_login_at', 'last_login_ip', 'password_changed_at',
     ];
 
@@ -31,6 +31,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_active' => 'boolean',
             'is_department_head' => 'boolean',
+            'show_in_attendance' => 'boolean',
             'locked_until' => 'datetime',
             'last_activity_at' => 'datetime',
             'session_open' => 'boolean',
