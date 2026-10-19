@@ -323,3 +323,7 @@ details.card > summary::-webkit-details-marker{ display:none; }
 .req-subject{ font-size:1.05rem; font-weight:650; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .req-head:has(.fold-toggle.collapsed) > .card-header{ border-bottom:0; }
 .req-head .info-table th{ width:22%; }
+
+/* Dark green pill (Closed) */
+.pill-darkgreen{ background:#14532d; color:#fff; }
+[data-bs-theme=dark] .pill-darkgreen{ background:#166534; color:#dcfce7; }

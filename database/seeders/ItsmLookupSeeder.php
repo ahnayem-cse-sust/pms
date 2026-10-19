@@ -19,17 +19,17 @@ class ItsmLookupSeeder extends Seeder
         // ---- Statuses ----
         $statuses = [
             // code, name, is_open, is_final, color
-            ['NEW',               'New',               1, 0, 'primary'],
+            ['NEW',               'New',               1, 0, 'danger'],
             ['ACKNOWLEDGED',      'Acknowledged',      1, 0, 'info'],
             ['ASSIGNED',          'Assigned',          1, 0, 'info'],
             ['IN_PROGRESS',       'In Progress',       1, 0, 'warning'],
             ['WAITING_USER',      'Waiting for User',  1, 0, 'secondary'],
             ['ON_HOLD',           'On Hold',           1, 0, 'secondary'],
             ['ESCALATED',         'Escalated',         1, 0, 'danger'],
-            ['RESOLVED',          'Resolved',          1, 0, 'success'],
+            ['RESOLVED',          'Resolved',          1, 0, 'primary'],
             ['USER_CONFIRMATION', 'User Confirmation', 1, 0, 'success'],
             ['REOPENED',          'Reopened',          1, 0, 'danger'],
-            ['CLOSED',            'Closed',            0, 1, 'dark'],
+            ['CLOSED',            'Closed',            0, 1, 'darkgreen'],
             ['CANCELLED',         'Cancelled',         0, 1, 'dark'],
         ];
         foreach ($statuses as $i => [$code, $name, $open, $final, $color]) {
