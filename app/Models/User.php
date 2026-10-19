@@ -11,7 +11,7 @@ class User extends Authenticatable
 
     protected $fillable = [
         'name', 'email', 'password', 'employee_id', 'department_id', 'designation_id',
-        'location_id', 'whatsapp', 'is_active', 'is_department_head', 'show_in_attendance',
+        'location_id', 'whatsapp', 'avatar_path', 'is_active', 'is_department_head', 'show_in_attendance',
         'failed_logins', 'locked_until', 'last_login_at', 'last_login_ip', 'password_changed_at',
     ];
 

@@ -3,7 +3,7 @@
 @endphp
 @forelse($team as $m)
     <div class="team-row">
-        <x-avatar :name="$m->employee->name"/>
+        <x-avatar :name="$m->employee->name" :user="$m->employee"/>
         <div class="flex-grow-1 lh-sm">
             <div class="fw-semibold">{{ $m->employee->name }}</div>
             <div class="small text-muted">{{ $m->role === 'PRIMARY' ? 'Primary' : 'Support' }}@if($seeInternal) · {{ $workStatuses[$m->work_status] ?? $m->work_status }}@endif</div>

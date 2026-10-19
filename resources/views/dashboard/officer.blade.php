@@ -13,7 +13,7 @@
                 <tbody>
                 @forelse($team as $row)
                     <tr>
-                        <td><a href="{{ route('tickets.index', ['assigned_to' => $row->user->id]) }}" class="text-decoration-none d-inline-flex align-items-center gap-2 text-reset"><x-avatar :name="$row->user->name"/> {{ $row->user->name }}</a></td>
+                        <td><a href="{{ route('tickets.index', ['assigned_to' => $row->user->id]) }}" class="text-decoration-none d-inline-flex align-items-center gap-2 text-reset"><x-avatar :name="$row->user->name" :user="$row->user"/> {{ $row->user->name }}</a></td>
                         <td class="text-center">{{ $row->assigned }}</td>
                         <td class="text-center">{{ $row->in_progress }}</td>
                         <td class="text-center">{{ $row->pending }}</td>

@@ -17,7 +17,7 @@
             @unless($mine)
             <td>
                 @if($t->assignee)
-                    <span class="d-inline-flex align-items-center gap-2"><x-avatar :name="$t->assignee->name"/> {{ $t->assignee->name }}</span>
+                    <span class="d-inline-flex align-items-center gap-2"><x-avatar :name="$t->assignee->name" :user="$t->assignee"/> {{ $t->assignee->name }}</span>
                     @php($sup = $t->relationLoaded('team') ? $t->team->where('role', 'SUPPORT') : collect())
                     @if($sup->isNotEmpty())<span class="pill pill-secondary" title="Supporting: {{ $sup->map(fn ($m) => $m->employee->name)->implode(', ') }}">+{{ $sup->count() }}</span>@endif
                 @else <span class="text-muted">Unassigned</span> @endif

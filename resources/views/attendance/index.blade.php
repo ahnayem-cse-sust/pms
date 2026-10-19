@@ -75,7 +75,7 @@
     <tbody>
     @forelse($rows as $row)
         <tr class="{{ $row->status === 'Weekend' ? 'text-muted' : '' }}">
-            <td><span class="d-inline-flex align-items-center gap-2"><x-avatar :name="$row->employee->name"/> {{ $row->employee->name }}</span></td>
+            <td><span class="d-inline-flex align-items-center gap-2"><x-avatar :name="$row->employee->name" :user="$row->employee"/> {{ $row->employee->name }}</span></td>
             <td class="text-nowrap">{{ $row->date->format('D, d M Y') }}</td>
             <td class="text-nowrap">{{ $row->entry ? $row->entry->format('h:i A') : '—' }}</td>
             <td><span class="pill pill-{{ $tone[$row->status] }}">{{ $row->status }}</span></td>

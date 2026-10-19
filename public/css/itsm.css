@@ -327,3 +327,7 @@ details.card > summary::-webkit-details-marker{ display:none; }
 /* Dark green pill (Closed) */
 .pill-darkgreen{ background:#14532d; color:#fff; }
 [data-bs-theme=dark] .pill-darkgreen{ background:#166534; color:#dcfce7; }
+
+/* Profile pictures */
+.avatar-img{ object-fit:cover; background:var(--border); }
+.avatar-xl{ width:64px; height:64px; font-size:1.2rem; }

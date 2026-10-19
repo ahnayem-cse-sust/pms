@@ -78,7 +78,7 @@
                 <div class="tab-pane fade show active" id="tab-conv" role="tabpanel">
                     @forelse($ticket->comments as $c)
                         <div class="comment">
-                            <x-avatar :name="$c->user->name"/>
+                            <x-avatar :name="$c->user->name" :user="$c->user"/>
                             <div class="comment-bubble">
                                 <div class="comment-meta"><b>{{ $c->user->name }}</b>{{ $c->created_at->format('d M Y h:i A') }}</div>
                                 <div class="ticket-body">{{ $c->body }}</div>
@@ -100,7 +100,7 @@
                     <div class="tab-pane fade" id="tab-notes" role="tabpanel">
                         @forelse($notes as $n)
                             <div class="comment">
-                                <x-avatar :name="$n->user->name"/>
+                                <x-avatar :name="$n->user->name" :user="$n->user"/>
                                 <div class="comment-bubble">
                                     <div class="comment-meta"><b>{{ $n->user->name }}</b>{{ $n->created_at->format('d M Y h:i A') }}</div>
                                     <div class="ticket-body">{{ $n->body }}</div>
@@ -122,7 +122,7 @@
                     <div class="tab-pane fade" id="tab-work" role="tabpanel">
                         @foreach($workUpdates as $w)
                             <div class="comment">
-                                <x-avatar :name="$w->user->name"/>
+                                <x-avatar :name="$w->user->name" :user="$w->user"/>
                                 <div class="comment-bubble">
                                     <div class="comment-meta"><b>{{ $w->user->name }}</b>{{ $w->created_at->format('d M Y h:i A') }}
                                         <span class="pill pill-{{ $wTone[$w->work_status] ?? 'secondary' }} ms-1">{{ $workStatuses[$w->work_status] ?? $w->work_status }}</span></div>

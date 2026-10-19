@@ -107,8 +107,8 @@
         <div class="ms-auto d-flex align-items-center gap-2">
             <button class="btn-icon" id="themeToggle" type="button" title="Light / dark" aria-label="Toggle theme"><x-icon name="moon"/></button>
             <a class="btn-icon" href="{{ route('notifications.index') }}" title="Notifications"><x-icon name="bell"/>@if($unread)<span class="dot">{{ $unread }}</span>@endif</a>
-            <a href="{{ route('profile.password') }}" class="top-user d-none d-md-flex text-decoration-none" title="My account – change password">
-                <x-avatar :name="auth()->user()->name" class="avatar-lg"/>
+            <a href="{{ route('profile.password') }}" class="top-user d-none d-md-flex text-decoration-none" title="My account">
+                <x-avatar :name="auth()->user()->name" :user="auth()->user()" class="avatar-lg"/>
                 <div class="lh-sm">
                     <div class="fw-semibold">{{ auth()->user()->name }}</div>
                     <div class="small text-muted">{{ auth()->user()->role_names }}</div>

@@ -24,6 +24,9 @@ Route::middleware('auth')->group(function () {
 
     // Own account
     Route::get('/profile/password', [ProfileController::class, 'editPassword'])->name('profile.password');
+    Route::post('/profile/photo', [ProfileController::class, 'updatePhoto'])->middleware('throttle:20,1')->name('profile.photo.update');
+    Route::delete('/profile/photo', [ProfileController::class, 'removePhoto'])->name('profile.photo.remove');
+    Route::get('/avatars/{user}', [ProfileController::class, 'avatar'])->name('avatar.show');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->middleware('throttle:10,1')->name('profile.password.update');
 
     // Tickets
