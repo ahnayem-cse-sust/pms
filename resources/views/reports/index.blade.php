@@ -1,21 +1,16 @@
 @extends('layouts.app')
 @section('title', 'Reports')
 @section('content')
-<div class="mb-3"><h4 class="mb-0">Monthly IT Report</h4></div>
-<form method="GET" class="card filter-card mb-4">
-    <div class="filter-head">
-        <x-icon name="search" :size="18"/>
-        <span>Report period</span>
-    </div>
+<form method="GET" class="card filter-card mb-3">
     <div class="filter-body">
-        <div class="row g-3 align-items-end">
-            <div class="col-sm-6 col-md-3">
+        <div class="row g-2 align-items-end">
+            <div class="col-12 col-sm-5 col-md-3">
                 <label class="form-label">Month</label>
                 <input type="month" name="month" value="{{ $month }}" class="form-control">
             </div>
-            <div class="col-sm-6 col-md-9 d-flex flex-wrap gap-2">
-                <button class="btn btn-primary d-inline-flex align-items-center gap-2"><x-icon name="search" :size="16"/> Show report</button>
-                <a class="btn btn-outline-success ms-md-auto d-inline-flex align-items-center gap-2" href="{{ route('reports.csv', ['month' => $month]) }}"><x-icon name="download" :size="16"/> Export CSV</a>
+            <div class="col-12 col-sm filter-btns">
+                <button class="btn btn-primary"><x-icon name="search" :size="15"/> Show report</button>
+                <a class="btn btn-outline-success ms-sm-auto" href="{{ route('reports.csv', ['month' => $month]) }}"><x-icon name="download" :size="15"/> Export CSV</a>
             </div>
         </div>
     </div>

@@ -1,7 +1,6 @@
 @extends('layouts.app')
 @section('title', $def['label'])
 @section('content')
-<h4 class="mb-3">{{ $def['label'] }}</h4>
 @php
     $input = function ($name, $meta, $row = null, $formId = null) use ($selects) {
         $kind = $meta[0];

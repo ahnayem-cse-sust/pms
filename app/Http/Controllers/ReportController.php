@@ -67,14 +67,14 @@ class ReportController extends Controller
         return response()->streamDownload(function () use ($rows) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM so Excel opens it correctly
-            fputcsv($out, ['Ticket', 'Service Type', 'Created', 'Department', 'Requester', 'Employee ID', 'Category', 'Sub-category', 'Subject', 'Status', 'Assigned To', 'Due', 'Resolved', 'Closed']);
+            fputcsv($out, ['Request ID', 'Service Type', 'Created', 'Department', 'Requester', 'Employee ID', 'Category', 'Sub-category', 'Subject', 'Status', 'Assigned To', 'Due', 'Resolved', 'Closed']);
             foreach ($rows as $t) {
                 fputcsv($out, [
-                    $t->ticket_no, $t->type->name, $t->created_at->format('Y-m-d H:i'), $t->department->name,
+                    $t->ticket_no, $t->type->name, $t->created_at->format('Y-m-d h:i A'), $t->department->name,
                     $t->requester_name, $t->requester_employee_id, $t->category->name, $t->subcategory?->name,
                     $t->subject, $t->status->name, $t->assignee?->name,
-                    optional($t->due_date)->format('Y-m-d'), optional($t->resolved_at)?->format('Y-m-d H:i'),
-                    optional($t->closed_at)?->format('Y-m-d H:i'),
+                    optional($t->due_date)->format('Y-m-d'), optional($t->resolved_at)?->format('Y-m-d h:i A'),
+                    optional($t->closed_at)?->format('Y-m-d h:i A'),
                 ]);
             }
             fclose($out);

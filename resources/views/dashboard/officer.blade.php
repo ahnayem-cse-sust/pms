@@ -1,15 +1,10 @@
 @extends('layouts.app')
 @section('title', 'Dashboard')
 @section('content')
-<div class="dash-hero">
+<div class="section-head dash-now">
     <div>
-        <h4 class="dash-title">IT Operations Dashboard</h4>
-        <div class="dash-date">{{ now()->format('l, d F Y') }} &middot; overview of all requests and the IT team</div>
-    </div>
-    <div class="dash-hero-actions">
-        @if($summary['unassigned'])<a href="{{ route('tickets.index') }}" class="hero-chip warn"><span class="dot"></span>{{ $summary['unassigned'] }} unassigned</a>@endif
-        @if($summary['overdue'])<a href="{{ route('tickets.index') }}" class="hero-chip danger"><span class="dot"></span>{{ $summary['overdue'] }} overdue</a>@endif
-        @if(!$summary['unassigned'] && !$summary['overdue'])<span class="hero-chip ok"><span class="dot"></span>All clear</span>@endif
+        <h5 class="section-title"><span class="title-bar"></span><span id="nowStamp" data-ts="{{ now()->getTimestamp() * 1000 }}" data-tz="{{ config('app.timezone') }}">{{ now()->format('l, d F Y · h:i A') }}</span></h5>
+        <div class="section-sub">Overview of all requests and the IT team.</div>
     </div>
 </div>
 
@@ -121,6 +116,19 @@
 @endsection
 
 @push('scripts')
+<script>
+// Date and time heading (12-hour), kept current every 30 seconds in the app time zone.
+(function () {
+    var el = document.getElementById('nowStamp'); if (!el) return;
+    var offset = parseInt(el.dataset.ts, 10) - Date.now();
+    var fmt = new Intl.DateTimeFormat('en-GB', { timeZone: el.dataset.tz, weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+    function tick() {
+        var p = {}; fmt.formatToParts(new Date(Date.now() + offset)).forEach(function (x) { p[x.type] = x.value; });
+        el.textContent = p.weekday + ', ' + p.day + ' ' + p.month + ' ' + p.year + ' · ' + p.hour + ':' + p.minute + ' ' + (p.dayPeriod || '').toUpperCase();
+    }
+    tick(); setInterval(tick, 30000);
+})();
+</script>
 <style>[v-cloak]{display:none}</style>
 <script src="{{ asset('vendor/js/chart.umd.js') }}"></script>
 <script>

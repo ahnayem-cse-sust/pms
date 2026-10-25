@@ -18,7 +18,7 @@ class DashboardController extends Controller
         if ($u->hasPermission('dashboard.member')) {
             return $this->member($u);
         }
-        $tickets = Ticket::visibleTo($u)->with(['status', 'category', 'assignee'])->latest()->paginate(15);
+        $tickets = Ticket::visibleTo($u)->with(['status', 'category', 'assignee', 'type'])->latest()->paginate(15);
         return view('dashboard.department', compact('tickets'));
     }
 
@@ -102,17 +102,12 @@ class DashboardController extends Controller
         $months = collect(range(5, 0))->map(fn ($i) => now()->startOfMonth()->subMonths($i)->format('Y-m'));
         $trend = $months->mapWithKeys(fn ($m) => [$m => $trend[$m] ?? 0]);
 
-        $summary = [
-            'unassigned' => Ticket::open()->whereNull('assigned_to')->count(),
-            'overdue' => Ticket::open()->whereNotNull('due_date')->whereDate('due_date', '<', today())->count(),
-        ];
-
-        return view('dashboard.officer', compact('stats', 'team', 'board', 'byDept', 'byCat', 'trend', 'summary'));
+        return view('dashboard.officer', compact('stats', 'team', 'board', 'byDept', 'byCat', 'trend'));
     }
 
     protected function member(User $u)
     {
-        $mine = Ticket::involving($u)->with(['status', 'department', 'category', 'assignee', 'team']);
+        $mine = Ticket::involving($u)->with(['status', 'department', 'category', 'assignee', 'team', 'type']);
         $counts = Ticket::involving($u)
             ->join('ticket_statuses as s', 's.id', '=', 'tickets.status_id')
             ->select('s.code', DB::raw('count(*) as c'))->groupBy('s.code')->pluck('c', 'code');

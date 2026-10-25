@@ -1,21 +1,15 @@
 @extends('layouts.app')
 @section('title', 'Audit log')
 @section('content')
-<h4 class="mb-3">Audit log</h4>
 <form class="card filter-card mb-3" method="GET">
-    <div class="filter-head">
-        <x-icon name="search" :size="18"/>
-        <span>Search audit log</span>
-        @if(request('event'))<span class="filter-count">1 active</span>@endif
-    </div>
     <div class="filter-body">
-        <div class="row g-3 align-items-end">
-            <div class="col-md-6">
+        <div class="row g-2 align-items-end">
+            <div class="col-12 col-md-6">
                 <label class="form-label">Event</label>
-                <div class="input-icon"><x-icon name="search" :size="16"/><input name="event" value="{{ request('event') }}" class="form-control" placeholder="Event contains… (e.g. ticket.assigned)"></div>
+                <div class="input-icon"><x-icon name="search" :size="15"/><input name="event" value="{{ request('event') }}" class="form-control" placeholder="Event contains… (e.g. ticket.assigned)"></div>
             </div>
-            <div class="col-md-3 d-flex gap-2">
-                <button class="btn btn-primary d-inline-flex align-items-center gap-2"><x-icon name="search" :size="16"/> Search</button>
+            <div class="col-12 col-md filter-btns">
+                <button class="btn btn-primary"><x-icon name="search" :size="15"/> Search</button>
                 <a href="{{ url()->current() }}" class="btn btn-outline-secondary">Reset</a>
             </div>
         </div>
@@ -27,7 +21,7 @@
     <tbody>
     @foreach($logs as $l)
         <tr>
-            <td class="text-nowrap">{{ $l->created_at->format('d M Y H:i:s') }}</td>
+            <td class="text-nowrap">{{ $l->created_at->format('d M Y h:i:s A') }}</td>
             <td>{{ $l->user->name ?? 'System' }}</td>
             <td>{{ $l->event }}</td>
             <td>{{ $l->auditable_type }} {{ $l->auditable_id ? '#'.$l->auditable_id : '' }}</td>

@@ -1,7 +1,6 @@
 @extends('layouts.app')
 @section('title', 'System settings')
 @section('content')
-<h4 class="mb-3">System settings</h4>
 <form method="POST" action="{{ route('admin.settings.update') }}" class="card card-body">@csrf @method('PUT')
     @foreach($settings->groupBy('group') as $group => $items)
         <h6 class="text-uppercase text-muted mt-2">{{ $group }}</h6>

@@ -41,7 +41,7 @@ class TicketController extends Controller
     protected function listing(Request $r, $base, string $mode)
     {
         $u = auth()->user();
-        $q = $base->with(['department', 'category', 'subcategory', 'priority', 'status', 'assignee', 'requester', 'team']);
+        $q = $base->with(['department', 'category', 'subcategory', 'priority', 'status', 'assignee', 'requester', 'team', 'type']);
 
         if ($s = trim((string) $r->q)) {
             $q->where(function ($w) use ($s) {

@@ -21,50 +21,44 @@
 @endphp
 
 <form method="GET" id="attendanceFilter" class="card filter-card mb-3" data-max-months="{{ (int) config('itsm.attendance.max_months', 6) }}" data-today="{{ $today->format('Y-m-d') }}">
-    <div class="filter-head">
-        <x-icon name="search" :size="18"/>
-        <span>Search attendance</span>
-        <div class="range-chips ms-auto">
+    <div class="filter-chips">
+        <span class="chip-label">Quick range</span>
+        <div class="range-chips">
             @foreach($ranges as $label => $r)
                 <a href="{{ $chipUrl($r) }}" class="range-chip {{ $r === $current ? 'active' : '' }}">{{ $label }}</a>
             @endforeach
         </div>
     </div>
-
     <div class="filter-body">
-        <div class="row g-3">
-            <div class="col-sm-6 col-lg-{{ $mine ? 4 : 3 }}">
+        <div class="row g-2 align-items-end">
+            <div class="col-6 col-lg-2">
                 <label class="form-label">From date</label>
                 <input type="date" id="fromDate" name="from" value="{{ $from->format('Y-m-d') }}" min="{{ $to->copy()->subMonthsNoOverflow(6)->format('Y-m-d') }}" max="{{ $to->format('Y-m-d') }}" class="form-control" required>
             </div>
-            <div class="col-sm-6 col-lg-{{ $mine ? 4 : 3 }}">
+            <div class="col-6 col-lg-2">
                 <label class="form-label">To date</label>
                 <input type="date" id="toDate" name="to" value="{{ $to->format('Y-m-d') }}" min="{{ $from->format('Y-m-d') }}" max="{{ min($today, $from->copy()->addMonthsNoOverflow(6))->format('Y-m-d') }}" class="form-control" required>
             </div>
             @unless($mine)
-            <div class="col-sm-6 col-lg-3">
+            <div class="col-6 col-lg-3">
                 <label class="form-label">Employee</label>
                 <select name="employee_id" class="form-select"><option value="">All IT employees</option>
                     @foreach($everyone as $e)<option value="{{ $e->id }}" @selected($filters['employee_id'] == $e->id)>{{ $e->name }}</option>@endforeach
                 </select>
             </div>
             @endunless
-            <div class="col-sm-6 col-lg-{{ $mine ? 4 : 3 }}">
+            <div class="col-6 col-lg-2">
                 <label class="form-label">Status</label>
                 <select name="status" class="form-select"><option value="">All statuses</option>
                     @foreach(['Present', 'Absent', 'Weekend', 'Not in yet'] as $st)<option @selected($filters['status'] === $st)>{{ $st }}</option>@endforeach
                 </select>
             </div>
+            <div class="col-12 col-lg filter-btns">
+                <button class="btn btn-primary"><x-icon name="search" :size="15"/> Search</button>
+                <a href="{{ route($route) }}" class="btn btn-outline-secondary">Reset</a>
+                @if($canPdf)<a href="{{ $pdfUrl }}" class="btn btn-danger ms-lg-auto"><x-icon name="download" :size="15"/> Download PDF</a>@endif
+            </div>
         </div>
-    </div>
-
-    <div class="filter-actions">
-        <button class="btn btn-primary d-inline-flex align-items-center gap-2"><x-icon name="search" :size="16"/> Search</button>
-        <a href="{{ route($route) }}" class="btn btn-outline-secondary">Reset</a>
-
-        @if($canPdf)
-            <a href="{{ $pdfUrl }}" class="btn btn-danger ms-auto d-inline-flex align-items-center gap-2"><x-icon name="download" :size="16"/> Download PDF</a>
-        @endif
     </div>
 </form>
 

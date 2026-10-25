@@ -1,8 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Notifications')
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="mb-0">Notifications</h4>
+<div class="d-flex justify-content-end mb-2">
     <form method="POST" action="{{ route('notifications.readAll') }}">@csrf<button class="btn btn-sm btn-outline-secondary">Mark all read</button></form>
 </div>
 <div class="list-group">

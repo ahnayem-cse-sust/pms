@@ -20,7 +20,7 @@
         <div class="card mb-4 req-head">
             <div class="card-header d-flex align-items-center gap-2">
                 <a class="fold-toggle flex-grow-1 min-w-0" data-bs-toggle="collapse" href="#fold-top" role="button" aria-expanded="true">
-                    <span class="d-flex align-items-center gap-2 min-w-0"><span class="ticket-id">{{ $reqNo }}</span><span class="req-subject">{{ $ticket->subject }}</span></span>
+                    <span class="d-flex align-items-center gap-2 min-w-0"><span class="req-subject">{{ $ticket->subject }}</span></span>
                 </a>
                 <a href="{{ route('tickets.index') }}" class="btn btn-sm btn-outline-secondary flex-none">← Back</a>
             </div>
@@ -141,7 +141,7 @@
                             <li class="list-group-item px-0">
                                 <a href="{{ route('attachments.download', $a) }}" class="fw-semibold text-decoration-none">{{ $a->original_name }}</a>
                                 @if($a->is_internal)<span class="pill pill-warning ms-1">IT only</span>@endif
-                                <div class="ticket-sub">{{ number_format($a->size_bytes / 1024, 0) }} KB · {{ $a->uploader->name }} · {{ $a->created_at->format('d M H:i') }}</div>
+                                <div class="ticket-sub">{{ number_format($a->size_bytes / 1024, 0) }} KB · {{ $a->uploader->name }} · {{ $a->created_at->format('d M h:i A') }}</div>
                             </li>
                         @empty
                             <li class="list-group-item px-0 text-muted">No attachments.</li>
@@ -165,7 +165,7 @@
                     <ul class="list-unstyled timeline mb-0">
                         @foreach($history as $h)
                             <li>
-                                <span class="text-muted">{{ $h->created_at->format('d M H:i') }}</span>
+                                <span class="text-muted">{{ $h->created_at->format('d M h:i A') }}</span>
                                 <b>{{ $h->user->name ?? 'System' }}</b>
                                 @include('tickets._history_text', ['h' => $h])
                             </li>

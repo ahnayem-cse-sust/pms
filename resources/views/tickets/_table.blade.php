@@ -1,18 +1,18 @@
 @php($mine = ($mode ?? '') === 'mine')
+@php($showType = $mine || ($mode ?? '') === '')
 <div class="table-card">
 <div class="table-responsive">
 <table class="table table-hover align-middle">
     <thead>
-        <tr><th>Ticket</th><th>Department</th><th>Category</th>@unless($mine)<th>Primary</th>@endunless @if(($mode ?? '') === 'tasks')<th>My role</th>@endif @unless($mine)<th>Status</th>@endunless<th>Due</th><th>Created</th></tr>
+        <tr><th>Request ID</th><th>Subject</th>@if($showType)<th>Service type</th>@endif<th>Category</th>@unless($mine)<th>Primary</th>@endunless @if(($mode ?? '') === 'tasks')<th>My role</th>@endif @unless($mine)<th>Status</th>@endunless<th>Created</th></tr>
     </thead>
     <tbody>
     @forelse($tickets as $t)
-        <tr>
-            <td style="min-width:260px">
-                <a href="{{ route('tickets.show', ($mode ?? '') === 'mine' ? ['ticket' => $t, 'from' => 'mine'] : $t) }}" class="ticket-link">{{ $t->ticket_no }}</a>
-                <div class="ticket-sub">{{ \Illuminate\Support\Str::limit($t->subject, 64) }}</div>
-            </td>
-            <td>{{ $t->department->name ?? '' }}</td>
+        @php($href = route('tickets.show', $mine ? ['ticket' => $t, 'from' => 'mine'] : $t))
+        <tr class="row-link" data-href="{{ $href }}">
+            <td class="text-nowrap"><a href="{{ $href }}" class="ticket-link">{{ $t->ticket_no }}</a></td>
+            <td style="min-width:240px">{{ \Illuminate\Support\Str::limit($t->subject, 90) }}</td>
+            @if($showType)<td class="text-nowrap">{{ $t->type->name ?? '—' }}</td>@endif
             <td>{{ $t->category->name ?? '' }}@if($t->subcategory)<div class="ticket-sub">{{ $t->subcategory->name }}</div>@endif</td>
             @unless($mine)
             <td>
@@ -29,13 +29,25 @@
             @unless($mine)
                 <td><span class="pill pill-{{ $t->status->color ?? 'secondary' }}">{{ $t->status->name }}</span></td>
             @endunless
-            <td class="text-nowrap">{{ $t->due_date?->format('d M') ?? '—' }}</td>
-            <td class="text-nowrap text-muted">{{ $t->created_at->format('d M Y H:i') }}</td>
+            <td class="text-nowrap text-muted">{{ $t->created_at->format('d M Y h:i A') }}</td>
         </tr>
     @empty
-        <tr><td colspan="{{ $mine ? 4 : (($mode ?? '') === 'tasks' ? 8 : 7) }}" class="text-center text-muted py-5">No requests found.</td></tr>
+        <tr><td colspan="{{ 4 + ($showType ? 1 : 0) + ($mine ? 0 : 2) + (($mode ?? '') === 'tasks' ? 1 : 0) }}" class="text-center text-muted py-5">No requests found.</td></tr>
     @endforelse
     </tbody>
 </table>
 </div>
 </div>
+
+@once
+@push('scripts')
+<script>
+// Whole row opens the request; links/buttons inside the row keep their own behaviour.
+document.addEventListener('click', function (e) {
+    var tr = e.target.closest('tr[data-href]');
+    if (!tr || e.target.closest('a, button, input, select, textarea, label, form')) return;
+    if (e.ctrlKey || e.metaKey) window.open(tr.dataset.href, '_blank'); else window.location = tr.dataset.href;
+});
+</script>
+@endpush
+@endonce

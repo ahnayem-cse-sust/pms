@@ -26,7 +26,7 @@ class AuthController extends Controller
 
         if ($user && $user->locked_until && $user->locked_until->isFuture()) {
             $this->record($user, $cred['email'], false, $request);
-            return back()->withErrors(['email' => "Account locked. Try again after {$user->locked_until->format('H:i')}."])->onlyInput('email');
+            return back()->withErrors(['email' => "Account locked. Try again after {$user->locked_until->format('h:i A')}."])->onlyInput('email');
         }
 
         if ($user && $user->is_active && Auth::attempt($cred)) {

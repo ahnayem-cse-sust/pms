@@ -402,7 +402,7 @@ details.card > summary::-webkit-details-marker{ display:none; }
 @media (max-width: 767.98px){ .wl-summary{ width:100%; } .wl-summary > div{ flex:1; } .dash-hero{ padding:1rem; } }
 
 /* ---- Unified search panels (all pages) ---- */
-.filter-card{ border-top:3px solid var(--primary); }
+.filter-card{ border-top:1px solid var(--border); }
 .filter-card .form-control,.filter-card .form-select{ height:42px; background-color:color-mix(in srgb,var(--card) 70%,var(--bg)); }
 .filter-card .form-control:focus,.filter-card .form-select:focus{ background-color:var(--card); }
 .filter-card .btn{ height:42px; padding-inline:1.1rem; border-radius:10px; font-weight:600; }
@@ -416,3 +416,69 @@ details.card > summary::-webkit-details-marker{ display:none; }
 .filter-head{ min-height:50px; }
 .filter-actions{ padding:.85rem 1.3rem; }
 @media (max-width:575.98px){ .filter-body{ padding:1rem; } .filter-actions .btn{ flex:1; } }
+
+/* ======== Compact UI pass: smaller fonts, margins, padding ======== */
+body{ font-size:.85rem; }
+.content{ padding:1rem 1.25rem; }
+.topbar{ padding:.5rem 1.25rem; gap:.75rem; }
+.page-title{ font-size:1.05rem; }
+.app-footer{ padding:.55rem 1rem; font-size:.76rem; }
+#sidebar .nav-link{ padding:.4rem .65rem; font-size:.86rem; gap:.6rem; border-radius:8px; }
+.card{ --bs-card-spacer-y:.8rem; --bs-card-spacer-x:.95rem; border-radius:12px; }
+.card-header{ padding:.55rem .95rem; font-size:.88rem; }
+.card-body{ padding:.8rem .95rem; }
+.table > :not(caption) > * > *{ padding:.42rem .7rem; }
+.table thead th{ font-size:.68rem; }
+.btn{ --bs-btn-padding-y:.3rem; --bs-btn-padding-x:.75rem; --bs-btn-font-size:.84rem; }
+.btn-sm{ --bs-btn-padding-y:.2rem; --bs-btn-padding-x:.55rem; --bs-btn-font-size:.78rem; }
+.form-control,.form-select{ font-size:.85rem; padding:.35rem .65rem; }
+.form-label{ font-size:.78rem; margin-bottom:.2rem; }
+.pill{ font-size:.72rem; }
+.avatar{ width:26px; height:26px; font-size:.66rem; }
+.avatar-xl{ width:56px; height:56px; font-size:1.05rem; }
+.avatar-lg{ width:34px; height:34px; font-size:.78rem; }
+/* dashboard */
+.dash-section{ margin-bottom:1.25rem; }
+.section-head{ margin-bottom:.55rem; }
+.section-title{ font-size:1rem; } .section-sub{ font-size:.78rem; }
+.dash-hero{ padding:.6rem 1rem; margin-bottom:1rem; border-radius:12px; }
+.dash-date{ font-size:.82rem; margin:0; opacity:.95; }
+.hero-chip{ padding:.2rem .65rem; font-size:.76rem; }
+.stat-grid{ gap:.65rem; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); }
+.stat-card{ min-height:60px; padding:.6rem .8rem; gap:.65rem; border-radius:12px; }
+.stat-icon{ width:36px; height:36px; border-radius:10px; }
+.stat-label{ font-size:.72rem; margin-bottom:0; } .stat-value{ font-size:1.45rem; }
+.board{ gap:.75rem; padding-bottom:.6rem; }
+.board-col{ flex-basis:260px; }
+.board-head{ padding:.55rem .75rem; margin-bottom:.45rem; font-size:.86rem; }
+.board-list{ padding:0 .6rem .6rem; gap:.45rem; }
+.tcard{ padding:.5rem .6rem; } .tcard .subj{ font-size:.8rem; margin:.1rem 0 .25rem; } .tcard .meta{ font-size:.7rem; }
+.dash-table th, .dash-table td{ padding:.5rem .8rem; }
+.wl-table.dash-table th, .wl-table.dash-table td{ padding:.55rem .9rem; }
+.wl-person{ gap:.6rem; } .wl-person b{ font-size:.88rem; } .wl-person small{ font-size:.72rem; }
+.wl-num{ min-width:32px; height:26px; font-size:.86rem; border-radius:8px; }
+.wl-open{ font-size:1rem; } .loadbar-lg{ height:8px; } .load-pill{ font-size:.68rem; padding:.12rem .5rem; }
+.wl-summary > div{ min-width:80px; padding:.3rem .7rem; } .wl-summary b{ font-size:1.05rem; }
+.wl-table td:last-child{ min-width:240px; }
+/* request details */
+.req-title{ font-size:1.15rem; } .req-subject{ font-size:.95rem; }
+.info-table th,.info-table td{ padding:.4rem .9rem .4rem .5rem; }
+.side-section{ padding:.7rem .9rem; }
+/* search panels: one row where possible, two at most */
+.filter-card{ border-top:1px solid var(--border); }
+.filter-card .filter-body{ padding:.65rem .85rem .75rem; }
+.filter-card .form-label{ font-size:.64rem; margin-bottom:.15rem; }
+.filter-card .form-control,.filter-card .form-select{ height:34px; font-size:.82rem; padding:.25rem .6rem; border-radius:8px; }
+.filter-card .input-icon > .form-control{ padding-left:2.1rem; }
+.input-icon > svg{ left:.65rem; }
+.filter-card .btn{ height:34px; padding:0 .85rem; font-size:.82rem; border-radius:8px; display:inline-flex; align-items:center; gap:.4rem; white-space:nowrap; }
+.filter-btns{ display:flex; flex-wrap:wrap; gap:.4rem; align-items:center; }
+.filter-btns .filter-count{ margin-left:.15rem; font-size:.66rem; padding:.05rem .4rem; }
+.filter-chips{ display:flex; align-items:center; flex-wrap:wrap; gap:.6rem; padding:.4rem .85rem; border-bottom:1px solid var(--border); background:linear-gradient(90deg,var(--primary-soft),transparent 80%); }
+.chip-label{ font-size:.64rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+.range-chip{ padding:.12rem .65rem; font-size:.74rem; }
+
+.table tbody tr.row-link{ cursor:pointer; }
+.table tbody tr.row-link:hover .ticket-link{ text-decoration:underline; }
+.section-sub{ max-width:none; }
+.section-head > div:first-child{ flex:1 1 0; min-width:0; }

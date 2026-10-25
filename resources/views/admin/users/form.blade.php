@@ -7,7 +7,7 @@
 <form method="POST" action="{{ $user->exists ? route('admin.users.update', $user) : route('admin.users.store') }}" class="card">
     @csrf
     @if($user->exists) @method('PUT') @endif
-    <div class="card-header">{{ $user->exists ? 'Edit user' : 'New user' }}@if($req) <span class="text-muted fw-normal small">– all fields are mandatory</span>@endif</div>
+    @if($req)<div class="card-header small text-muted fw-normal">All fields are mandatory</div>@endif
     <div class="card-body">
     <div class="row g-3">
         <div class="col-md-4"><label class="form-label">Full name *</label><input name="name" value="{{ old('name', $user->name) }}" class="form-control" required></div>
