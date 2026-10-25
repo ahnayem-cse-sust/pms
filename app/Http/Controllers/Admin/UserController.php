@@ -22,7 +22,7 @@ class UserController extends Controller
                 ->orWhere('email', 'like', "%$s%")->orWhere('employee_id', 'like', "%$s%")))
             ->when($r->role_id, fn ($q, $v) => $q->whereHas('roles', fn ($x) => $x->where('roles.id', $v)))
             // Only a System Administrator can see System Administrator accounts
-            ->when(! $this->actorIsAdmin(), fn ($q) => $q->whereDoesntHave('roles', fn ($x) => $x->where('slug', 'admin')))
+            ->when(! $this->actorIsAdmin(), fn ($q) => $q->whereDoesntHave('roles', fn ($x) => $x->whereIn('roles.id', $this->privilegedRoleIds())))
             ->orderBy('name')->paginate(25)->withQueryString();
         return view('admin.users.index', ['users' => $users, 'roles' => $this->assignableRoles()]);
     }
@@ -43,6 +43,7 @@ class UserController extends Controller
         unset($d['role_ids']);
         $user = User::create($d + ['is_active' => $r->boolean('is_active'), 'is_department_head' => $r->boolean('is_department_head'), 'show_in_attendance' => $r->boolean('show_in_attendance')]);
         $user->roles()->sync($roleIds);
+        $this->saveOverrides($r, $user);
         AuditLog::record('user.created', $user, null, collect($d)->except('password')->all() + ['role_ids' => $roleIds]);
         return redirect()->route('admin.users.index')->with('ok', 'User created.');
     }
@@ -89,11 +90,35 @@ class UserController extends Controller
         $old = $user->only(array_keys(collect($d)->except('password', 'password_changed_at')->all()));
         $user->update($d);
         $user->roles()->sync($roleIds);
+        $oldOverrides = ['extra_permissions' => $user->extra_permissions, 'denied_permissions' => $user->denied_permissions];
+        $changed = $this->saveOverrides($r, $user, $self);
         if ($r->boolean('unlock')) {
             $user->update(['locked_until' => null, 'failed_logins' => 0]);
         }
-        AuditLog::record('user.updated', $user, $old + ['role_ids' => $oldRoleIds], collect($d)->except('password', 'password_changed_at')->all() + ['role_ids' => $roleIds]);
+        AuditLog::record('user.updated', $user, $old + ['role_ids' => $oldRoleIds] + ($changed ? $oldOverrides : []), collect($d)->except('password', 'password_changed_at')->all() + ['role_ids' => $roleIds] + ($changed ? ['extra_permissions' => $user->extra_permissions, 'denied_permissions' => $user->denied_permissions] : []));
         return redirect()->route('admin.users.index')->with('ok', 'User updated.');
+    }
+
+    /** Individual permissions (Inherit / Allow / Deny per permission). Only users who can manage roles may change them. */
+    protected function saveOverrides(Request $r, User $user, bool $self = false): bool
+    {
+        if (! auth()->user()->can('role.update') || $self || $user->isRole('admin') || ! $r->has('perm_form')) {
+            return false;
+        }
+        $valid = collect(config('itsm.permission_catalog'))->map(fn ($g) => array_keys($g))->flatten()->all();
+        $input = (array) $r->input('perm', []);
+        $allow = [];
+        $deny = [];
+        foreach ($valid as $key) {
+            $v = $input[$key] ?? '';
+            // Only a System Administrator may hand out role/settings/audit management to a single user
+            if ($v === 'allow' && ! $this->actorIsAdmin() && in_array($key, config('itsm.privileged_permissions', []), true)) continue;
+            if ($v === 'allow') $allow[] = $key;
+            if ($v === 'deny') $deny[] = $key;
+        }
+        $user->forceFill(['extra_permissions' => $allow ?: null, 'denied_permissions' => $deny ?: null])->save();
+
+        return true;
     }
 
     /** Every field is mandatory when creating a user; when editing, older users may have blanks. */
@@ -133,19 +158,31 @@ class UserController extends Controller
     /** Roles the current user may hand out (System Administrator is hidden from everyone else). */
     protected function assignableRoles()
     {
-        return Role::orderBy('name')
-            ->when(! $this->actorIsAdmin(), fn ($q) => $q->where('slug', '!=', 'admin'))->get();
+        return Role::orderBy('name')->get()
+            ->when(! $this->actorIsAdmin(), fn ($c) => $c->reject(fn ($role) => $this->isPrivileged($role)))->values();
+    }
+
+    /** The System Administrator role, or any role carrying a privileged permission (role/settings/audit management). */
+    protected function isPrivileged(Role $role): bool
+    {
+        return $role->slug === 'admin'
+            || count(array_intersect($role->permissions ?? [], config('itsm.privileged_permissions', []))) > 0;
+    }
+
+    protected function privilegedRoleIds(): array
+    {
+        return Role::get()->filter(fn ($r) => $this->isPrivileged($r))->pluck('id')->all();
     }
 
     protected function guardTarget(User $user): void
     {
-        abort_if(! $this->actorIsAdmin() && $user->isRole('admin'), 403, 'Only a System Administrator can manage this account.');
+        abort_if(! $this->actorIsAdmin() && $user->roles->contains(fn ($r) => $this->isPrivileged($r)), 403, 'Only a System Administrator can manage this account.');
     }
 
     protected function guardRoleIds(array $ids): void
     {
-        $adminId = Role::where('slug', 'admin')->value('id');
-        if (! $this->actorIsAdmin() && in_array((int) $adminId, array_map('intval', $ids), true)) {
+        $blocked = Role::whereIn('id', $ids)->get()->contains(fn ($role) => $this->isPrivileged($role));
+        if (! $this->actorIsAdmin() && $blocked) {
             throw ValidationException::withMessages(['role_ids' => 'You are not allowed to assign that role.']);
         }
     }

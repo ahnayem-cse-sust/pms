@@ -10,7 +10,8 @@ class RoleSeeder extends Seeder
     public function run(): void
     {
         foreach (config('itsm.roles') as $slug => $name) {
-            Role::updateOrCreate(['slug' => $slug], [
+            // Only create missing roles: permissions edited on the Roles screen must survive a re-seed.
+            Role::firstOrCreate(['slug' => $slug], [
                 'name' => $name,
                 'permissions' => config("itsm.permissions.$slug", []),
             ]);

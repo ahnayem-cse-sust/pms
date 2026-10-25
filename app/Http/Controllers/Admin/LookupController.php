@@ -63,10 +63,10 @@ class LookupController extends Controller
         })->all();
     }
 
-    protected function def(string $type): array
+    protected function def(string $type, bool $write = false): array
     {
         $d = $this->defs()[$type] ?? abort(404);
-        abort_if(($d['admin'] ?? false) && ! auth()->user()->can('settings.manage'), 403);
+        abort_if(($d['admin'] ?? false) && ! auth()->user()->can($write ? 'settings.update' : 'settings.view'), 403);
         return $d;
     }
 
@@ -75,13 +75,17 @@ class LookupController extends Controller
         $def = $this->def($type);
         $rows = $def['model']::query()->when($def['with'] ?? null, fn ($q, $w) => $q->with($w))->orderBy('id')->paginate(25)->withQueryString();
         $selects = ['categories' => TicketCategory::orderBy('name')->pluck('name', 'id')];
-        $tabs = collect($this->defs())->filter(fn ($d) => ! ($d['admin'] ?? false) || auth()->user()->can('settings.manage'))->map->label;
-        return view('admin.lookups', compact('type', 'def', 'rows', 'selects', 'tabs'));
+        $tabs = collect($this->defs())->filter(fn ($d) => ! ($d['admin'] ?? false) || auth()->user()->can('settings.view'))->map->label;
+        $u = auth()->user();
+        $writable = ! ($def['admin'] ?? false) || $u->can('settings.update');
+        $canAdd = $u->can('lookup.create') && $writable;
+        $canEdit = $u->can('lookup.update') && $writable;
+        return view('admin.lookups', compact('type', 'def', 'rows', 'selects', 'tabs', 'canAdd', 'canEdit'));
     }
 
     public function store(Request $r, string $type)
     {
-        $def = $this->def($type);
+        $def = $this->def($type, true);
         $d = $r->validate($this->rules($def));
         $row = $def['model']::create($d);
         AuditLog::record("lookup.$type.created", $row, null, $d);
@@ -90,7 +94,7 @@ class LookupController extends Controller
 
     public function update(Request $r, string $type, int $id)
     {
-        $def = $this->def($type);
+        $def = $this->def($type, true);
         $row = $def['model']::findOrFail($id);
         $d = $r->validate($this->rules($def, $id));
         $d['is_active'] = $r->boolean('is_active');

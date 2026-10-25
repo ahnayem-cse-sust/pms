@@ -76,19 +76,19 @@ Legend: ● = yes, ◐ = limited (see note), blank = no.
 | attendance.view (IT attendance page + PDF) | ● | | | | | ● |
 | attendance.own (My Attendance) | | | ● | | | |
 | report.view | ● | ● | | | ◐ | ● |
-| user.manage (create/edit users) | ● | ◐ | | | | |
-| lookup.manage (categories, priorities, statuses) | ● | ◐ | | | | |
-| settings.manage | ● | | | | | |
+| user.view / user.create / user.update | ● | ◐ | | | | |
+| lookup.view / lookup.create / lookup.update (categories, departments ...) | ● | ◐ | | | | |
+| settings.view / settings.update (system settings, priorities & SLA) | ● | | | | | |
 | audit.view / loginhistory.view | ● | | | | | |
 
 Notes on ◐:
 - **IT Member** can change priority/category only if the Officer enables it; `ticket.work` applies only to tickets where `assigned_to` = self.
-- **IT Admin user.manage**: can create and edit users and assign any role except System Administrator. System Administrator accounts and that role are hidden from them, and the server rejects attempts to edit such an account or grant the role.
+- **IT Admin user.view/create/update**: can create and edit users and assign any role except System Administrator. System Administrator accounts and that role are hidden from them, and the server rejects attempts to edit such an account or grant the role.
 - **Dept Head ticket.create.behalf**: may file requests only for users of their own department. Admin, IT Admin and IT Team Member may file for any user (System Administrator accounts are hidden from non-admins).
 - **IT Team Member ticket.escalate**: only on requests where they are the primary responsible employee. Escalation is available from any open working state (New through Reopened) and needs a comment.
 - **Dept User / Dept Head** `confirm`, `reopen`, `cancel` apply only to their own (Head: own department's) tickets and only from the valid states above.
 - **Dept Head report.view** is limited to own department.
-- **IT Admin lookup.manage** is limited to categories/sub-categories; priorities and SLA values stay Admin-only.
+- **IT Admin lookup.*** is limited to categories/sub-categories; priorities and SLA values stay Admin-only.
 - **Audit log and login history** are visible to the System Administrator role only.
 
 ## 4. Business rules enforced in code (not just UI)

@@ -54,7 +54,61 @@
             @if($user->exists)<div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" name="unlock" value="1" id="unl"><label for="unl" class="form-check-label">Unlock account</label></div>@endif
         </div>
     </div>
-    <div class="mt-4"><button class="btn btn-primary">Save</button> <a href="{{ route('admin.users.index') }}" class="btn btn-link">Cancel</a></div>
     </div>
+
+@can('role.update')
+@if($user->exists && ! $user->isRole('admin') && $user->id !== auth()->id())
+@php($fromRoles = $user->rolePermissions())
+<div class="card mt-3">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span>Individual permissions <span class="text-muted fw-normal small">&ndash; on top of the roles above. <b>Inherit</b> follows the roles, <b>Allow</b> adds a permission, <b>Deny</b> removes it for this user only.</span></span>
+        <div class="d-flex gap-2 align-items-center">
+            <input type="search" id="userPermSearch" class="form-control form-control-sm" placeholder="Find a permission…" style="width:190px">
+            <span class="pill pill-warning" id="permOverrides">0 overrides</span>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="permReset">Reset all to Inherit</button>
+        </div>
+    </div>
+    <div class="card-body">
+        <input type="hidden" name="perm_form" value="1">
+        <div class="row g-3">
+        @foreach(config('itsm.permission_catalog') as $group => $items)
+            <div class="col-md-6 col-xl-4">
+                <div class="fw-semibold small text-uppercase text-muted mb-1">{{ $group }}</div>
+                @foreach($items as $key => $label)
+                    @continue(! auth()->user()->isRole('admin') && in_array($key, config('itsm.privileged_permissions', []), true))
+                    @php($oldPerm = old('perm'))
+                    @php($cur = is_array($oldPerm) ? ($oldPerm[$key] ?? '') : $user->permissionOverride($key))
+                    @php($ik = md5($key))
+                    <div class="d-flex justify-content-between align-items-center gap-2 py-1 border-bottom perm-row" data-text="{{ strtolower($label.' '.$key) }}">
+                        <span class="small">{{ $label }}@if(in_array($key, $fromRoles))<span class="pill pill-primary ms-1" title="Granted by the user's saved roles">role</span>@endif</span>
+                        <div class="btn-group btn-group-sm flex-shrink-0" role="group">
+                            <input type="radio" class="btn-check" name="perm[{{ $key }}]" value="" id="pi{{ $ik }}" @checked($cur === '')><label class="btn btn-outline-secondary" for="pi{{ $ik }}">Inherit</label>
+                            <input type="radio" class="btn-check" name="perm[{{ $key }}]" value="allow" id="pa{{ $ik }}" @checked($cur === 'allow')><label class="btn btn-outline-success" for="pa{{ $ik }}">Allow</label>
+                            <input type="radio" class="btn-check" name="perm[{{ $key }}]" value="deny" id="pd{{ $ik }}" @checked($cur === 'deny')><label class="btn btn-outline-danger" for="pd{{ $ik }}">Deny</label>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        @endforeach
+        </div>
+    </div>
+</div>
+@push('scripts')
+<script>
+(function () {
+    function count() { document.getElementById('permOverrides').textContent = document.querySelectorAll('input[name^="perm["][value="allow"]:checked, input[name^="perm["][value="deny"]:checked').length + ' overrides'; }
+    document.getElementById('permReset').addEventListener('click', function () { document.querySelectorAll('input[name^="perm["][value=""]').forEach(function (r) { r.checked = true; }); count(); });
+    document.querySelectorAll('input[name^="perm["]').forEach(function (r) { r.addEventListener('change', count); });
+    document.getElementById('userPermSearch').addEventListener('input', function () {
+        var q = this.value.trim().toLowerCase();
+        document.querySelectorAll('.perm-row').forEach(function (r) { r.style.display = r.dataset.text.indexOf(q) > -1 ? '' : 'none'; });
+    });
+    count();
+})();
+</script>
+@endpush
+@endif
+@endcan
+    <div class="card-body pt-0"><div class="mt-2"><button class="btn btn-primary">Save</button> <a href="{{ route('admin.users.index') }}" class="btn btn-link">Cancel</a></div></div>
 </form>
 @endsection

@@ -482,3 +482,19 @@ body{ font-size:.85rem; }
 .table tbody tr.row-link:hover .ticket-link{ text-decoration:underline; }
 .section-sub{ max-width:none; }
 .section-head > div:first-child{ flex:1 1 0; min-width:0; }
+
+/* assignment board: supporting work */
+.board-head .counts{ margin-left:auto; display:flex; gap:.35rem; align-items:center; }
+.board-head .counts .n{ margin-left:0; }
+.board-head .n-support{ background:#ccfbf1; border-color:#99f6e4; color:#0f766e; }
+[data-bs-theme=dark] .board-head .n-support{ background:#134e4a; border-color:#115e59; color:#99f6e4; }
+.tcard.support{ border-left-color:#14b8a6; background:color-mix(in srgb,#ccfbf1 28%,var(--card)); cursor:default; }
+[data-bs-theme=dark] .tcard.support{ background:color-mix(in srgb,#134e4a 35%,var(--card)); }
+.support-tag{ font-size:.62rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; padding:.08rem .45rem; border-radius:999px; background:#14b8a6; color:#fff; }
+
+/* assignment board: primary responsibility */
+.board-head .n-primary{ background:#e0e7ff; border-color:#c7d2fe; color:#3730a3; }
+[data-bs-theme=dark] .board-head .n-primary{ background:#312e81; border-color:#3730a3; color:#c7d2fe; }
+.tcard.primary{ border-left-color:#4f46e5; background:color-mix(in srgb,#e0e7ff 38%,var(--card)); }
+[data-bs-theme=dark] .tcard.primary{ background:color-mix(in srgb,#312e81 40%,var(--card)); }
+.primary-tag{ font-size:.62rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; padding:.08rem .45rem; border-radius:999px; background:#4f46e5; color:#fff; }

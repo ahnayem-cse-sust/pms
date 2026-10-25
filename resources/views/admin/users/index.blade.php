@@ -16,7 +16,7 @@
             <div class="col-12 col-md filter-btns">
                 <button class="btn btn-primary"><x-icon name="search" :size="15"/> Search</button>
                 <a href="{{ url()->current() }}" class="btn btn-outline-secondary">Reset</a>
-                <a href="{{ route('admin.users.create') }}" class="btn btn-success ms-md-auto">+ New user</a>
+                @can('user.create')<a href="{{ route('admin.users.create') }}" class="btn btn-success ms-md-auto">+ New user</a>@endcan
             </div>
         </div>
     </div>
@@ -29,7 +29,8 @@
             <td>{{ $u->name }}@if($u->is_department_head) <span class="badge text-bg-info">Head</span>@endif</td>
             <td>{{ $u->employee_id }}</td>
             <td>{{ $u->email }}</td>
-            <td>@foreach($u->roles as $ro)<span class="pill pill-primary me-1 mb-1">{{ $ro->name }}</span>@endforeach</td>
+            <td>@foreach($u->roles as $ro)<span class="pill pill-primary me-1 mb-1">{{ $ro->name }}</span>@endforeach
+                @if($u->hasCustomPermissions())<span class="pill pill-warning me-1 mb-1" title="Has individual permissions">+ custom</span>@endif</td>
             <td>{{ $u->department?->name }}</td>
             <td>{{ $u->last_login_at?->format('d M Y h:i A') }}</td>
             <td>
@@ -37,7 +38,7 @@
                 @elseif($u->locked_until && $u->locked_until->isFuture())<span class="badge text-bg-danger">Locked</span>
                 @else<span class="badge text-bg-success">Active</span>@endif
             </td>
-            <td><a href="{{ route('admin.users.edit', $u) }}" class="btn btn-sm btn-outline-primary">Edit</a></td>
+            <td>@can('user.update')<a href="{{ route('admin.users.edit', $u) }}" class="btn btn-sm btn-outline-primary">Edit</a>@endcan</td>
         </tr>
     @endforeach
     </tbody>

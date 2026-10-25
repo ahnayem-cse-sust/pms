@@ -65,32 +65,6 @@ class DashboardController extends Controller
             ];
         });
 
-        // Kanban-style assignment board: unassigned column + one column per IT member
-        $memberList = User::active()->assignable()->orderBy('name')->get();
-        $openTickets = Ticket::open()->with(['department', 'team'])->orderBy('created_at')->limit(400)->get();
-        $card = fn ($t) => [
-            'id' => $t->id, 'no' => $t->ticket_no, 'subject' => $t->subject,
-            'dept' => $t->department->name,
-            'due' => $t->due_date?->format('d M'),
-            'url' => route('tickets.show', $t),
-            'support' => $t->team->where('role', 'SUPPORT')->map(fn ($m) => $m->employee->name)->values()->all(),
-        ];
-        $columns = [[
-            'id' => null, 'name' => 'Unassigned',
-            'tickets' => $openTickets->whereNull('assigned_to')->map($card)->values()->all(),
-        ]];
-        foreach ($memberList as $m) {
-            $columns[] = [
-                'id' => $m->id, 'name' => $m->name,
-                'tickets' => $openTickets->where('assigned_to', $m->id)->map($card)->values()->all(),
-            ];
-        }
-        $board = [
-            'columns' => $columns,
-            'canAssign' => auth()->user()->can('ticket.assign'),
-            'assignUrl' => route('tickets.assign', ['ticket' => '__ID__']),
-        ];
-
         $byDept = Ticket::join('departments as d', 'd.id', '=', 'tickets.department_id')
             ->whereNull('tickets.deleted_at')->select('d.name', DB::raw('count(*) as c'))->groupBy('d.name')->pluck('c', 'name');
         $byCat = Ticket::join('ticket_categories as c', 'c.id', '=', 'tickets.category_id')
@@ -102,7 +76,46 @@ class DashboardController extends Controller
         $months = collect(range(5, 0))->map(fn ($i) => now()->startOfMonth()->subMonths($i)->format('Y-m'));
         $trend = $months->mapWithKeys(fn ($m) => [$m => $trend[$m] ?? 0]);
 
-        return view('dashboard.officer', compact('stats', 'team', 'board', 'byDept', 'byCat', 'trend'));
+        return view('dashboard.officer', compact('stats', 'team', 'byDept', 'byCat', 'trend'));
+    }
+
+    /** Assignment board (own menu item): unassigned column + one column per IT employee, primary and supporting work. */
+    public function board()
+    {
+        $memberList = User::active()->assignable()->orderBy('name')->get();
+        $openTickets = Ticket::open()->with(['department', 'team.employee', 'assignee'])->orderBy('created_at')->limit(400)->get();
+        $card = fn ($t) => [
+            'id' => $t->id, 'no' => $t->ticket_no, 'subject' => $t->subject,
+            'dept' => $t->department->name,
+            'due' => $t->due_date?->format('d M'),
+            'url' => route('tickets.show', $t),
+            'support' => $t->team->where('role', 'SUPPORT')->map(fn ($m) => $m->employee->name)->values()->all(),
+            'role' => 'primary',
+            'primary' => $t->assignee?->name,
+        ];
+        $columns = [[
+            'id' => null, 'name' => 'Unassigned',
+            'tickets' => $openTickets->whereNull('assigned_to')->map($card)->values()->all(),
+        ]];
+        foreach ($memberList as $m) {
+            $primary = $openTickets->where('assigned_to', $m->id)->map($card)->values()->all();
+            // Requests where this employee is a supporting (not primary) team member
+            $support = $openTickets->filter(fn ($t) => (int) $t->assigned_to !== (int) $m->id
+                    && $t->team->contains(fn ($x) => (int) $x->employee_id === (int) $m->id && $x->role === 'SUPPORT'))
+                ->map(fn ($t) => array_merge($card($t), ['role' => 'support']))->values()->all();
+            $columns[] = [
+                'id' => $m->id, 'name' => $m->name,
+                'avatar' => $m->avatar_path ? route('avatar.show', $m).'?v='.optional($m->updated_at)->timestamp : null,
+                'tickets' => array_merge($primary, $support),
+            ];
+        }
+        $board = [
+            'columns' => $columns,
+            'canAssign' => auth()->user()->can('ticket.assign'),
+            'assignUrl' => route('tickets.assign', ['ticket' => '__ID__']),
+        ];
+
+        return view('dashboard.board', compact('board'));
     }
 
     protected function member(User $u)

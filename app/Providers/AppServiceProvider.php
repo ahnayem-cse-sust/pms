@@ -25,7 +25,8 @@ class AppServiceProvider extends ServiceProvider
         Paginator::useBootstrapFive();
 
         // Every permission name becomes a Gate: @can('ticket.assign'), middleware('can:ticket.assign')
-        $all = collect(config('itsm.permissions'))->flatten()->unique();
+        $all = collect(config('itsm.permissions'))->flatten()
+            ->merge(collect(config('itsm.permission_catalog'))->map(fn ($g) => array_keys($g))->flatten())->unique();
         foreach ($all as $permission) {
             Gate::define($permission, fn ($user) => $user->hasPermission($permission));
         }

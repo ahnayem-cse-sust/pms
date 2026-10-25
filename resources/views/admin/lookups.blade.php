@@ -24,6 +24,7 @@
     @endforeach
 </ul>
 
+@if($canAdd)
 <div class="card mb-3"><div class="card-body">
     <form method="POST" action="{{ route('admin.lookups.store', $type) }}" class="row g-2 align-items-end">@csrf
         @foreach($def['fields'] as $name => $meta)
@@ -32,6 +33,7 @@
         <div class="col-auto"><button class="btn btn-primary btn-sm">Add</button></div>
     </form>
 </div></div>
+@endif
 
 <table class="table table-sm bg-white align-middle">
     <thead class="table-light"><tr>@foreach($def['fields'] as $name => $meta)<th>{{ ucwords(str_replace('_', ' ', $name)) }}</th>@endforeach<th>Active</th><th></th></tr></thead>
@@ -45,7 +47,7 @@
             <td><input type="checkbox" name="is_active" value="1" class="form-check-input" form="{{ $fid }}" @checked($row->is_active)></td>
             <td>
                 <form id="{{ $fid }}" method="POST" action="{{ route('admin.lookups.update', [$type, $row->id]) }}">@csrf @method('PUT')
-                    <button class="btn btn-sm btn-outline-primary">Save</button>
+                    @if($canEdit)<button class="btn btn-sm btn-outline-primary">Save</button>@endif
                 </form>
             </td>
         </tr>

@@ -12,7 +12,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name', 'email', 'password', 'employee_id', 'department_id', 'designation_id',
         'location_id', 'whatsapp', 'avatar_path', 'is_active', 'is_department_head', 'show_in_attendance',
-        'failed_logins', 'locked_until', 'last_login_at', 'last_login_ip', 'password_changed_at',
+        'extra_permissions', 'denied_permissions', 'failed_logins', 'locked_until', 'last_login_at', 'last_login_ip', 'password_changed_at',
     ];
 
     protected $hidden = ['password', 'remember_token'];
@@ -29,6 +29,8 @@ class User extends Authenticatable
     {
         return [
             'password' => 'hashed',
+            'extra_permissions' => 'array',
+            'denied_permissions' => 'array',
             'is_active' => 'boolean',
             'is_department_head' => 'boolean',
             'show_in_attendance' => 'boolean',
@@ -45,11 +47,38 @@ class User extends Authenticatable
     public function designation() { return $this->belongsTo(Designation::class); }
     public function location() { return $this->belongsTo(Location::class); }
 
+    /** Permissions coming from the user's roles only. */
+    public function rolePermissions(): array
+    {
+        return $this->roles->pluck('permissions')->flatten()->unique()->values()->all();
+    }
+
     public function hasPermission(string $permission): bool
     {
-        // Union of the permissions of every role the user holds (cached per request)
-        $this->permissionCache ??= $this->roles->pluck('permissions')->flatten()->unique()->all();
+        // Roles' permissions, plus permissions granted to this user, minus permissions denied to this user.
+        // A System Administrator always keeps the full permissions of the role (individual denies are ignored).
+        $this->permissionCache ??= (function () {
+            $perms = $this->rolePermissions();
+            if ($this->isRole('admin')) {
+                return array_values(array_unique(array_merge($perms, (array) $this->extra_permissions)));
+            }
+            $perms = array_merge($perms, (array) $this->extra_permissions);
+            return array_values(array_diff(array_unique($perms), (array) $this->denied_permissions));
+        })();
         return in_array($permission, $this->permissionCache, true);
+    }
+
+    /** 'allow', 'deny' or '' (inherit from roles) – for the individual-permissions screen. */
+    public function permissionOverride(string $permission): string
+    {
+        if (in_array($permission, (array) $this->denied_permissions, true)) return 'deny';
+        if (in_array($permission, (array) $this->extra_permissions, true)) return 'allow';
+        return '';
+    }
+
+    public function hasCustomPermissions(): bool
+    {
+        return ! empty($this->extra_permissions) || ! empty($this->denied_permissions);
     }
 
     public function isRole(string $slug): bool
@@ -62,7 +91,8 @@ class User extends Authenticatable
     /** Staff who can be assigned tickets: IT Team Members and IT Admins (config itsm.assignable_roles). */
     public function scopeAssignable($q)
     {
-        return $q->whereHas('roles', fn ($r) => $r->whereIn('slug', config('itsm.assignable_roles', ['it_member'])));
+        return $q->whereHas('roles', fn ($r) => $r->whereIn('slug', config('itsm.assignable_roles', ['it_member']))
+            ->orWhereJsonContains('roles.permissions', 'ticket.work'));
     }
 
     public function scopeWithRole($q, string $slug)

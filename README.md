@@ -121,3 +121,26 @@ Asset module (and asset/IP search), approval workflows, knowledge base, email/SM
 3. Back up the database and `storage/app/private` (attachments) on a schedule.
 4. Run the tests against a MySQL test database: `php artisan test` (`tests/Feature/TicketWorkflowTest.php`).
 5. Run UAT using the workflow table in `WORKFLOW.md`.
+
+## Roles and permissions (System Administrator)
+
+**Administration → Roles & Permissions** lists every role. **+ New role** creates a custom role: give it a name and tick the permissions (grouped, with an *All* switch per group). Built-in roles can be edited too, except System Administrator, which is fixed so administrators can never be locked out. A role can only be deleted when it is custom and no user holds it. Changes apply to users on their next page load, and every change is written to the audit log.
+
+On **Users → Edit**, a System Administrator also sees **Individual permissions**: for each permission choose *Inherit* (follow the user's roles), *Allow* (add it for this user) or *Deny* (remove it for this user only). Users with individual permissions show a "+ custom" tag in the user list. Administrators cannot edit their own individual permissions, and individual denies never apply to System Administrators.
+
+Notes:
+- Run `php artisan migrate` to add the new columns and the `role.manage` permission. Re-running the seeder no longer resets permissions you edited.
+- Only a System Administrator can see or assign roles that carry `role.manage`, `settings.manage` or `audit.view` (configurable as `privileged_permissions` in `config/itsm.php`); IT Admin cannot hand them out or edit users who hold them.
+- Any role that has the **Work on requests** permission (`ticket.work`) appears in the assignable-employee lists, team workload and assignment board.
+- Some screens still depend on the built-in role names (the attendance list uses `itsm.attendance.roles`); permissions of a custom role control menus, pages and actions.
+
+## Assignment board
+
+The board has its own menu item, **Assignment Board** (shown to everyone who can see the officer dashboard; only users with the assign permission can drag). Each IT employee's column lists the requests they are primarily responsible for, followed by the requests where they are a **supporting** team member (teal cards tagged *Support*, naming the primary employee). Support cards cannot be dragged: change the team on the request page, or drag the primary card of that request.
+
+## v36 changes
+
+- **Assignment board:** cards where the employee is the primary now carry a blue **Primary** tag and blue accent (supporting cards stay teal with the **Support** tag); the column header count for primary work is blue too.
+- **Role create/edit screen:** a module-wise matrix with **Read / Add / Update / Delete** checkboxes per module (requests by scope, attachments, dashboards, reports & attendance, users, roles, configuration lists, system settings, audit). Row and column "select all", search, live counter, and a *Duplicate* shortcut on the role list. Workflow actions that are not CRUD (acknowledge, assign, work, escalate, close, reopen, confirm, public comments, internal notes) are listed under the matrix. Add / Update / Delete automatically switch on Read for the same module; other dependencies are in `permission_requires` and the matrix rows in `permission_matrix` (`config/itsm.php`).
+- **Granular admin permissions (real enforcement):** the old `user.manage`, `role.manage`, `lookup.manage` and `settings.manage` are replaced by `user.view/create/update`, `role.view/create/update/delete`, `lookup.view/create/update` and `settings.view/update`. Routes, menus, buttons and controllers check them individually (e.g. a user with only *Read* on Users sees the list without Edit/New buttons). Run `php artisan migrate`: migration `000020` converts existing roles and users' individual Allow/Deny entries (a former `*.manage` becomes the full set), and is reversible. Users and configuration lists have no delete action in the app, so their Delete cell is shown as "–".
+- Only a System Administrator can see or grant the role, settings and audit permissions (also for individual user overrides). Built-in role names are locked. The user form's individual permissions have a search box and an overrides counter. The role list no longer shows an access-by-area column.

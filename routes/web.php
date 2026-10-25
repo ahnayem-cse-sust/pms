@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AuditController;
 use App\Http\Controllers\Admin\LookupController;
+use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AttendanceController;
@@ -21,6 +22,7 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/assignment-board', [DashboardController::class, 'board'])->middleware('can:dashboard.officer')->name('board.index');
 
     // Own account
     Route::get('/profile/password', [ProfileController::class, 'editPassword'])->name('profile.password');
@@ -69,18 +71,29 @@ Route::middleware('auth')->group(function () {
 
     // Administration
     Route::prefix('admin')->name('admin.')->group(function () {
-        Route::middleware('can:user.manage')->group(function () {
-            Route::resource('users', UserController::class)->except(['show', 'destroy']);
-        });
-        Route::middleware('can:settings.manage')->group(function () {
-            Route::get('settings', [SettingController::class, 'index'])->name('settings');
-            Route::put('settings', [SettingController::class, 'update'])->name('settings.update');
-        });
-        Route::middleware('can:lookup.manage')->group(function () {
-            Route::get('lookups/{type}', [LookupController::class, 'index'])->name('lookups');
-            Route::post('lookups/{type}', [LookupController::class, 'store'])->name('lookups.store');
-            Route::put('lookups/{type}/{id}', [LookupController::class, 'update'])->name('lookups.update');
-        });
+        // Users: Read / Add / Update
+        Route::get('users', [UserController::class, 'index'])->middleware('can:user.view')->name('users.index');
+        Route::get('users/create', [UserController::class, 'create'])->middleware('can:user.create')->name('users.create');
+        Route::post('users', [UserController::class, 'store'])->middleware('can:user.create')->name('users.store');
+        Route::get('users/{user}/edit', [UserController::class, 'edit'])->middleware('can:user.update')->name('users.edit');
+        Route::match(['put', 'patch'], 'users/{user}', [UserController::class, 'update'])->middleware('can:user.update')->name('users.update');
+
+        // Roles: Read / Add / Update / Delete
+        Route::get('roles', [RoleController::class, 'index'])->middleware('can:role.view')->name('roles.index');
+        Route::get('roles/create', [RoleController::class, 'create'])->middleware('can:role.create')->name('roles.create');
+        Route::post('roles', [RoleController::class, 'store'])->middleware('can:role.create')->name('roles.store');
+        Route::get('roles/{role}/edit', [RoleController::class, 'edit'])->middleware('can:role.view')->name('roles.edit');
+        Route::match(['put', 'patch'], 'roles/{role}', [RoleController::class, 'update'])->middleware('can:role.update')->name('roles.update');
+        Route::delete('roles/{role}', [RoleController::class, 'destroy'])->middleware('can:role.delete')->name('roles.destroy');
+
+        // System settings
+        Route::get('settings', [SettingController::class, 'index'])->middleware('can:settings.view')->name('settings');
+        Route::put('settings', [SettingController::class, 'update'])->middleware('can:settings.update')->name('settings.update');
+
+        // Configuration lists: Read / Add / Update
+        Route::get('lookups/{type}', [LookupController::class, 'index'])->middleware('can:lookup.view')->name('lookups');
+        Route::post('lookups/{type}', [LookupController::class, 'store'])->middleware('can:lookup.create')->name('lookups.store');
+        Route::put('lookups/{type}/{id}', [LookupController::class, 'update'])->middleware('can:lookup.update')->name('lookups.update');
         Route::middleware('can:audit.view')->group(function () {
             Route::get('audit', [AuditController::class, 'logs'])->name('audit');
             Route::get('logins', [AuditController::class, 'logins'])->name('logins');

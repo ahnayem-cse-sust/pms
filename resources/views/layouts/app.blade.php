@@ -49,6 +49,9 @@
             @can('ticket.assign')
                 <li><a class="nav-link {{ request()->has('unassigned') ? 'active' : '' }}" href="{{ route('tickets.index', ['unassigned' => 1]) }}"><x-icon name="inbox"/> Unassigned Queue</a></li>
             @endcan
+            @can('dashboard.officer')
+                <li><a class="nav-link {{ request()->routeIs('board.index') ? 'active' : '' }}" href="{{ route('board.index') }}"><x-icon name="users"/> Assignment Board</a></li>
+            @endcan
             @can('attendance.own')
                 <li><a class="nav-link {{ request()->routeIs('attendance.mine') ? 'active' : '' }}" href="{{ route('attendance.mine') }}"><x-icon name="clock"/> My Attendance</a></li>
             @endcan
@@ -65,15 +68,18 @@
                 @endcan
             @endcanany
 
-            @canany(['user.manage', 'lookup.manage', 'audit.view'])
+            @canany(['user.view', 'role.view', 'lookup.view', 'settings.view', 'audit.view'])
                 <li class="nav-section">Administration</li>
-                @can('user.manage')
+                @can('user.view')
                     <li><a class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}" href="{{ route('admin.users.index') }}"><x-icon name="users"/> Users</a></li>
                 @endcan
-                @can('settings.manage')
+                @can('role.view')
+                    <li><a class="nav-link {{ request()->routeIs('admin.roles.*') ? 'active' : '' }}" href="{{ route('admin.roles.index') }}"><x-icon name="key"/> Roles &amp; Permissions</a></li>
+                @endcan
+                @can('settings.view')
                     <li><a class="nav-link {{ request()->routeIs('admin.settings*') ? 'active' : '' }}" href="{{ route('admin.settings') }}"><x-icon name="sliders"/> System Settings</a></li>
                 @endcan
-                @can('lookup.manage')
+                @can('lookup.view')
                     @php($cfgActive = request()->routeIs('admin.lookups'))
                     <li>
                         <a class="nav-link {{ $cfgActive ? 'active' : '' }}" data-bs-toggle="collapse" href="#cfgMenu" role="button" aria-expanded="{{ $cfgActive ? 'true' : 'false' }}">
@@ -83,7 +89,7 @@
                             @foreach(['service_types' => 'Service Types', 'categories' => 'Categories', 'subcategories' => 'Sub-categories', 'departments' => 'Departments', 'designations' => 'Designations', 'locations' => 'Locations'] as $key => $label)
                                 <li><a class="nav-link {{ request()->is('admin/lookups/'.$key) ? 'active' : '' }}" href="{{ route('admin.lookups', $key) }}">{{ $label }}</a></li>
                             @endforeach
-                            @can('settings.manage')
+                            @can('settings.view')
                                 <li><a class="nav-link {{ request()->is('admin/lookups/priorities') ? 'active' : '' }}" href="{{ route('admin.lookups', 'priorities') }}">Priorities &amp; SLA</a></li>
                             @endcan
                         </ul>

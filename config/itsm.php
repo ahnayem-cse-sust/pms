@@ -49,15 +49,18 @@ return [
         'admin' => [
             'ticket.create', 'ticket.create.behalf', 'ticket.view.own', 'ticket.view.all', 'ticket.comment.public',
             'ticket.note.internal', 'attachment.upload', 'attachment.download.internal',
-            'dashboard.officer', 'report.view', 'attendance.view', 'user.manage', 'lookup.manage',
-            'settings.manage', 'audit.view',
+            'dashboard.officer', 'report.view', 'attendance.view', 'user.view', 'user.create', 'user.update',
+            'role.view', 'role.create', 'role.update', 'role.delete',
+            'lookup.view', 'lookup.create', 'lookup.update',
+            'settings.view', 'settings.update', 'audit.view',
         ],
         'it_officer' => [
             'ticket.create', 'ticket.create.behalf', 'ticket.view.own', 'ticket.view.all', 'ticket.acknowledge',
             'ticket.assign', 'ticket.edit', 'ticket.work', 'ticket.comment.public',
             'ticket.note.internal', 'ticket.close', 'ticket.reopen', 'ticket.escalate',
             'ticket.cancel', 'attachment.upload', 'attachment.download.internal',
-            'dashboard.officer', 'report.view', 'lookup.manage', 'user.manage',
+            'dashboard.officer', 'report.view', 'lookup.view', 'lookup.create', 'lookup.update',
+            'user.view', 'user.create', 'user.update',
         ],
         'it_member' => [
             'ticket.create', 'ticket.create.behalf', 'ticket.view.own', 'ticket.view.assigned', 'ticket.work',
@@ -75,6 +78,117 @@ return [
         ],
         'management' => [
             'ticket.view.all', 'dashboard.officer', 'report.view', 'attendance.view',
+        ],
+    ],
+
+    // Permissions that only a System Administrator may hand out (to a user through a role).
+    'privileged_permissions' => ['role.view', 'role.create', 'role.update', 'role.delete', 'settings.view', 'settings.update', 'audit.view'],
+
+    // Picking a permission automatically adds the ones it cannot work without (applied in the role form and on save).
+    'permission_requires' => [
+        'ticket.create.behalf' => ['ticket.create'],
+        'ticket.create.behalf.dept' => ['ticket.create'],
+        'ticket.assign' => ['ticket.view.all'],
+        'ticket.edit' => ['ticket.view.all'],
+        'ticket.acknowledge' => ['ticket.view.all'],
+        'ticket.close' => ['ticket.view.all'],
+        'ticket.cancel' => ['ticket.view.own'],
+        'ticket.reopen' => ['ticket.view.own'],
+        'ticket.confirm' => ['ticket.view.own'],
+        'ticket.work' => ['ticket.view.assigned'],
+        'ticket.comment.public' => ['ticket.view.own'],
+        'dashboard.officer' => ['ticket.view.all'],
+        'attendance.view' => ['report.view'],
+        'user.create' => ['user.view'], 'user.update' => ['user.view'],
+        'role.create' => ['role.view'], 'role.update' => ['role.view'], 'role.delete' => ['role.view'],
+        'lookup.create' => ['lookup.view'], 'lookup.update' => ['lookup.view'],
+        'settings.update' => ['settings.view'],
+    ],
+
+    // Module-wise access matrix on the role screen: one row per module, one checkbox per Read / Add / Update / Delete.
+    // A null cell means the module has no such action. Permissions that are not in the matrix (workflow actions such as
+    // assign, escalate, close, internal notes ...) are listed below the matrix, grouped as in permission_catalog.
+    'permission_matrix' => [
+        'Requests' => [
+            ['label' => 'Own requests', 'note' => 'Delete = cancel a request', 'read' => 'ticket.view.own', 'add' => 'ticket.create', 'update' => null, 'delete' => 'ticket.cancel'],
+            ['label' => 'Requests assigned to them', 'read' => 'ticket.view.assigned', 'add' => null, 'update' => null, 'delete' => null],
+            ['label' => 'Own department requests', 'note' => 'Add = file a request for department users', 'read' => 'ticket.view.department', 'add' => 'ticket.create.behalf.dept', 'update' => null, 'delete' => null],
+            ['label' => 'All requests', 'note' => 'Add = file for any user; Update = edit request details', 'read' => 'ticket.view.all', 'add' => 'ticket.create.behalf', 'update' => 'ticket.edit', 'delete' => null],
+        ],
+        'Files' => [
+            ['label' => 'Attachments', 'note' => 'Read = download internal attachments; Add = upload', 'read' => 'attachment.download.internal', 'add' => 'attachment.upload', 'update' => null, 'delete' => null],
+        ],
+        'Dashboards' => [
+            ['label' => 'Officer dashboard', 'note' => 'Assignment board and team workload', 'read' => 'dashboard.officer', 'add' => null, 'update' => null, 'delete' => null],
+            ['label' => 'IT team member dashboard', 'read' => 'dashboard.member', 'add' => null, 'update' => null, 'delete' => null],
+            ['label' => 'Department dashboard', 'read' => 'dashboard.department', 'add' => null, 'update' => null, 'delete' => null],
+        ],
+        'Reports & attendance' => [
+            ['label' => 'Reports', 'read' => 'report.view', 'add' => null, 'update' => null, 'delete' => null],
+            ['label' => 'Attendance of all IT employees', 'read' => 'attendance.view', 'add' => null, 'update' => null, 'delete' => null],
+            ['label' => 'Own attendance', 'read' => 'attendance.own', 'add' => null, 'update' => null, 'delete' => null],
+        ],
+        'Administration' => [
+            ['label' => 'Users', 'read' => 'user.view', 'add' => 'user.create', 'update' => 'user.update', 'delete' => null],
+            ['label' => 'Roles & permissions', 'note' => 'Update also covers users\' individual permissions', 'read' => 'role.view', 'add' => 'role.create', 'update' => 'role.update', 'delete' => 'role.delete'],
+            ['label' => 'Configuration lists', 'note' => 'Categories, departments, designations, locations ...', 'read' => 'lookup.view', 'add' => 'lookup.create', 'update' => 'lookup.update', 'delete' => null],
+            ['label' => 'System settings & SLA', 'read' => 'settings.view', 'add' => null, 'update' => 'settings.update', 'delete' => null],
+            ['label' => 'Audit log & login history', 'read' => 'audit.view', 'add' => null, 'update' => null, 'delete' => null],
+        ],
+    ],
+
+    // Every permission an administrator can tick on a role or on a single user, grouped for the screens.
+    'permission_catalog' => [
+        'Requests' => [
+            'ticket.create' => 'Create requests',
+            'ticket.create.behalf' => 'Create a request on behalf of any user',
+            'ticket.create.behalf.dept' => 'Create a request on behalf of department users',
+            'ticket.view.own' => 'View own requests',
+            'ticket.view.assigned' => 'View requests assigned to them',
+            'ticket.view.department' => 'View all requests of own department',
+            'ticket.view.all' => 'View all requests',
+        ],
+        'Request handling' => [
+            'ticket.acknowledge' => 'Acknowledge requests',
+            'ticket.assign' => 'Assign requests to IT employees',
+            'ticket.edit' => 'Edit request details',
+            'ticket.work' => 'Work on requests (appears as an assignable IT employee)',
+            'ticket.escalate' => 'Escalate requests',
+            'ticket.close' => 'Close requests',
+            'ticket.reopen' => 'Reopen requests',
+            'ticket.cancel' => 'Cancel requests',
+            'ticket.confirm' => 'Confirm resolution',
+        ],
+        'Comments & files' => [
+            'ticket.comment.public' => 'Post public comments',
+            'ticket.note.internal' => 'Write and read internal notes',
+            'attachment.upload' => 'Upload attachments',
+            'attachment.download.internal' => 'Download internal attachments',
+        ],
+        'Dashboards' => [
+            'dashboard.officer' => 'Officer dashboard (assignment board, team workload)',
+            'dashboard.member' => 'IT team member dashboard',
+            'dashboard.department' => 'Department dashboard',
+        ],
+        'Reports & attendance' => [
+            'report.view' => 'View reports',
+            'attendance.view' => 'View attendance of all IT employees',
+            'attendance.own' => 'View own attendance',
+        ],
+        'Administration' => [
+            'user.view' => 'View users',
+            'user.create' => 'Create users',
+            'user.update' => 'Edit users',
+            'role.view' => 'View roles and permissions',
+            'role.create' => 'Create roles',
+            'role.update' => 'Edit roles and users\' individual permissions',
+            'role.delete' => 'Delete roles',
+            'lookup.view' => 'View configuration lists',
+            'lookup.create' => 'Add to configuration lists',
+            'lookup.update' => 'Edit configuration lists',
+            'settings.view' => 'View system settings and SLA',
+            'settings.update' => 'Change system settings and SLA',
+            'audit.view' => 'View audit log and login history',
         ],
     ],
 ];

@@ -13,45 +13,6 @@
 <section class="dash-section">
 <div class="section-head">
     <div>
-        <h5 class="section-title"><span class="title-bar"></span>Assignment board</h5>
-        <div class="section-sub">@if($board['canAssign'])Drag a ticket onto an IT employee to make them the primary responsible employee (supporting employees stay; use the ticket page to change the team). @endif Open tickets, oldest first.</div>
-    </div>
-</div>
-
-<div id="board" v-cloak>
-    <div class="board">
-        <div v-for="col in cols" :key="col.id === null ? 'u' : col.id"
-             class="board-col" :class="{ over: overCol === col.id && col.id !== null, unassigned: col.id === null }"
-             v-on:dragover.prevent="col.id !== null && canAssign && (overCol = col.id)"
-             v-on:dragleave="overCol = null"
-             v-on:drop.prevent="dropOn(col)">
-            <div class="board-head">
-                <span v-if="col.id !== null" class="avatar" :style="{ '--h': hue(col.name) }">[[ initials(col.name) ]]</span>
-                <span>[[ col.name ]]</span>
-                <span class="n">[[ col.tickets.length ]]</span>
-            </div>
-            <div class="board-list">
-                <div v-for="t in col.tickets" :key="t.id" class="tcard"
-                     :class="{ dragging: dragging && dragging.t.id === t.id }"
-                     :draggable="canAssign" v-on:dragstart="onDragStart(t, col)" v-on:dragend="dragging = null; overCol = null">
-                    <a :href="t.url" class="no">[[ t.no ]]</a>
-                    <div class="subj">[[ t.subject ]]</div>
-                    <div v-if="t.support && t.support.length" class="ticket-sub mb-1">+ support: [[ t.support.join(', ') ]]</div>
-                    <div class="meta">
-                        <span>[[ t.dept ]]<template v-if="t.due"> · due [[ t.due ]]</template></span>
-                        <button v-if="canAssign && col.id === null" class="auto" type="button" title="Assign to the member with the fewest open tickets" v-on:click="autoAssign(t, col)">Auto</button>
-                    </div>
-                </div>
-                <div v-if="!col.tickets.length" class="empty-hint">[[ col.id === null ? 'Nothing waiting 🎉' : 'No open tickets' ]]</div>
-            </div>
-        </div>
-    </div>
-</div>
-</section>
-
-<section class="dash-section">
-<div class="section-head">
-    <div>
         <h5 class="section-title"><span class="title-bar teal"></span>Team workload</h5>
         <div class="section-sub">Live view of what each IT team member is carrying. Click a name to see their requests.</div>
     </div>
@@ -129,7 +90,6 @@
     tick(); setInterval(tick, 30000);
 })();
 </script>
-<style>[v-cloak]{display:none}</style>
 <script src="{{ asset('vendor/js/chart.umd.js') }}"></script>
 <script>
 (function () {
@@ -147,43 +107,5 @@
     mk('cat', 'bar', @json($byCat->keys()), @json($byCat->values()));
 })();
 
-const BOARD = @json($board);
-Vue.createApp({
-    delimiters: ['[[', ']]'],
-    data() { return { cols: BOARD.columns, canAssign: BOARD.canAssign, dragging: null, overCol: null }; },
-    methods: {
-        initials(n) { var p = n.trim().split(/\s+/); return (p[0][0] + (p[1] ? p[1][0] : '')).toUpperCase(); },
-        hue(n) { var h = 0; for (var i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) % 360; return h; },
-        onDragStart(t, from) { if (this.canAssign) this.dragging = { t: t, from: from }; },
-        dropOn(col) {
-            var d = this.dragging; this.dragging = null; this.overCol = null;
-            if (!d || !this.canAssign || col.id === null || col.id === d.from.id) return;
-            this.send(d.t, d.from, { assignee_id: col.id });
-        },
-        autoAssign(t, from) { this.send(t, from, { auto: 1 }); },
-        async send(t, from, payload) {
-            try {
-                var res = await fetch(BOARD.assignUrl.replace('__ID__', t.id), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json',
-                               'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content },
-                    body: JSON.stringify(payload)
-                });
-                var data = await res.json().catch(function () { return {}; });
-                if (!res.ok) {
-                    var first = data.errors ? Object.values(data.errors)[0][0] : null;
-                    window.toast(first || data.message || 'Could not assign this ticket.', 'danger');
-                    return;
-                }
-                var to = this.cols.find(function (c) { return c.id === data.assignee_id; });
-                from.tickets = from.tickets.filter(function (x) { return x.id !== t.id; });
-                if (to) to.tickets.push(t);
-                window.toast(t.no + ' assigned to ' + data.assignee_name);
-            } catch (e) {
-                window.toast('Network error – nothing was changed.', 'danger');
-            }
-        }
-    }
-}).mount('#board');
 </script>
 @endpush
