@@ -23,6 +23,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/assignment-board', [DashboardController::class, 'board'])->middleware('can:dashboard.officer')->name('board.index');
+    Route::post('/assignment-board/order', [DashboardController::class, 'boardOrder'])->middleware('can:ticket.assign')->name('board.order');
 
     // Own account
     Route::get('/profile/password', [ProfileController::class, 'editPassword'])->name('profile.password');

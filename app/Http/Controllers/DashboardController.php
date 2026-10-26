@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Ticket;
+use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -91,7 +92,8 @@ class DashboardController extends Controller
     /** Assignment board (own menu item): unassigned column + one column per IT employee, primary and supporting work. */
     public function board()
     {
-        $memberList = User::active()->assignable()->orderBy('name')->get();
+        // Column order = the saved board position (drag a column header to change it), then name for anyone not placed yet
+        $memberList = User::active()->assignable()->orderByRaw('board_position is null')->orderBy('board_position')->orderBy('name')->get();
         $openTickets = Ticket::open()->with(['department', 'team.employee', 'assignee'])->orderBy('created_at')->limit(400)->get();
         $card = fn ($t) => [
             'id' => $t->id, 'no' => $t->ticket_no, 'subject' => $t->subject,
@@ -121,10 +123,22 @@ class DashboardController extends Controller
         $board = [
             'columns' => $columns,
             'canAssign' => auth()->user()->can('ticket.assign'),
-            'assignUrl' => route('tickets.assign', ['ticket' => '__ID__']),
+            'orderUrl' => route('board.order'),
         ];
 
         return view('dashboard.board', compact('board'));
+    }
+
+    /** Save the order of the employee columns (drag and drop on the board). */
+    public function boardOrder(Request $r)
+    {
+        abort_unless($r->user()->can('ticket.assign'), 403);
+        $ids = $r->validate(['ids' => 'required|array|min:1', 'ids.*' => 'integer'])['ids'];
+        foreach (array_values($ids) as $i => $id) {
+            User::whereKey($id)->update(['board_position' => $i + 1]);
+        }
+
+        return response()->json(['ok' => true]);
     }
 
     protected function member(User $u)

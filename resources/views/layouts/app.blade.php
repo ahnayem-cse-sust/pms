@@ -49,17 +49,17 @@
             @can('ticket.assign')
                 <li><a class="nav-link {{ request()->has('unassigned') ? 'active' : '' }}" href="{{ route('tickets.index', ['unassigned' => 1]) }}"><x-icon name="inbox"/> Unassigned Queue</a></li>
             @endcan
-            @can('dashboard.officer')
-                <li><a class="nav-link {{ request()->routeIs('board.index') ? 'active' : '' }}" href="{{ route('board.index') }}"><x-icon name="users"/> Assignment Board</a></li>
-            @endcan
             @can('attendance.own')
                 <li><a class="nav-link {{ request()->routeIs('attendance.mine') ? 'active' : '' }}" href="{{ route('attendance.mine') }}"><x-icon name="clock"/> My Attendance</a></li>
             @endcan
             <li><a class="nav-link {{ request()->routeIs('notifications.*') ? 'active' : '' }}" href="{{ route('notifications.index') }}">
                 <x-icon name="bell"/> Notifications @if($unread)<span class="badge bg-danger count">{{ $unread }}</span>@endif</a></li>
 
-            @canany(['report.view', 'attendance.view'])
+            @canany(['dashboard.officer', 'report.view', 'attendance.view'])
                 <li class="nav-section">Management</li>
+                @can('dashboard.officer')
+                    <li><a class="nav-link {{ request()->routeIs('board.index') ? 'active' : '' }}" href="{{ route('board.index') }}"><x-icon name="users"/> Assignment Board</a></li>
+                @endcan
                 @can('attendance.view')
                     <li><a class="nav-link {{ request()->routeIs('attendance.index', 'attendance.pdf') ? 'active' : '' }}" href="{{ route('attendance.index') }}"><x-icon name="clock"/> IT Attendance</a></li>
                 @endcan
