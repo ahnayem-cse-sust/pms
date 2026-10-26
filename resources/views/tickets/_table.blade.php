@@ -5,7 +5,7 @@
 <div class="table-responsive">
 <table class="table table-hover align-middle">
     <thead>
-        <tr><th>Request ID</th><th>Subject</th>@if($showType)<th>Service type</th>@endif<th>Category</th>@unless($mine)<th>Primary</th>@endunless @if($showRole)<th>My role</th>@endif @unless($mine)<th>Status</th>@endunless<th>Created</th></tr>
+        <tr><th>Request ID</th><th>Subject</th>@if($showType)<th>Service type</th>@endif<th>Category</th>@unless($mine)<th>Primary</th>@endunless @if($showRole)<th>My role</th>@endif @unless($mine)<th>Status</th>@endunless<th>{{ ($mode ?? '') === 'completed' ? 'Completed' : 'Created' }}</th></tr>
     </thead>
     <tbody>
     @forelse($tickets as $t)
@@ -30,7 +30,7 @@
             @unless($mine)
                 <td><span class="pill pill-{{ $t->status->color ?? 'secondary' }}">{{ $t->status->name }}</span></td>
             @endunless
-            <td class="text-nowrap text-muted">{{ $t->created_at->format('d M Y h:i A') }}</td>
+            <td class="text-nowrap text-muted">{{ (($mode ?? '') === 'completed' ? ($t->resolved_at ?? $t->closed_at ?? $t->updated_at) : $t->created_at)->format('d M Y h:i A') }}</td>
         </tr>
     @empty
         <tr><td colspan="{{ 4 + ($showType ? 1 : 0) + ($mine ? 0 : 2) + ($showRole ? 1 : 0) }}" class="text-center text-muted py-5">No requests found.</td></tr>

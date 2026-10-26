@@ -35,14 +35,13 @@ class TicketController extends Controller
     /** My Tasks (IT staff): every request the user is on the team of, as the primary responsible employee or in support. */
     public function tasks(Request $r)
     {
-        return $this->listing($r, Ticket::involving(auth()->user()), 'tasks');
+        return $this->listing($r, Ticket::involving(auth()->user())->activeTask(), 'tasks');
     }
 
     /** Requests the user worked on (primary or supporting) that are now resolved, awaiting confirmation or closed. */
     public function completedTasks(Request $r)
     {
-        $base = Ticket::involving(auth()->user())
-            ->whereHas('status', fn ($s) => $s->whereIn('code', ['RESOLVED', 'USER_CONFIRMATION', 'CLOSED']));
+        $base = Ticket::involving(auth()->user())->completedTask();
 
         return $this->listing($r, $base, 'completed');
     }
@@ -69,11 +68,19 @@ class TicketController extends Controller
         if ($r->filled('unassigned')) {
             $q->whereNull('assigned_to');
         }
+        // My Tasks / Completed Tasks: filter by the user's own role on the request
+        if (in_array($mode, ['tasks', 'completed'], true) && in_array($r->input('role'), ['primary', 'support'], true)) {
+            $r->input('role') === 'primary'
+                ? $q->where('tickets.assigned_to', $u->id)
+                : $q->where(fn ($w) => $w->whereNull('tickets.assigned_to')->orWhere('tickets.assigned_to', '!=', $u->id));
+        }
+        // Completed Tasks are dated by when they were completed; every other list by when they were created
+        $dateCol = $mode === 'completed' ? \Illuminate\Support\Facades\DB::raw('coalesce(tickets.resolved_at, tickets.closed_at)') : 'tickets.created_at';
         if ($r->filled('from')) {
-            $q->whereDate('created_at', '>=', $r->from);
+            $q->whereDate($dateCol, '>=', $r->from);
         }
         if ($r->filled('to')) {
-            $q->whereDate('created_at', '<=', $r->to);
+            $q->whereDate($dateCol, '<=', $r->to);
         }
 
         $tickets = $q->latest()->paginate(20)->withQueryString();
@@ -83,7 +90,10 @@ class TicketController extends Controller
             'tickets' => $tickets,
             'departments' => Department::orderBy('name')->get(),
             'categories' => TicketCategory::orderBy('name')->get(),
-            'statuses' => TicketStatus::orderBy('sort_order')->get(),
+            'statuses' => TicketStatus::orderBy('sort_order')
+                ->when($mode === 'tasks', fn ($x) => $x->where('is_open', true)->whereNotIn('code', ['RESOLVED', 'USER_CONFIRMATION', 'CLOSED']))
+                ->when($mode === 'completed', fn ($x) => $x->whereIn('code', ['RESOLVED', 'USER_CONFIRMATION', 'CLOSED']))
+                ->get(),
             'types' => TicketType::all(),
             'members' => ($mode === 'all' && $u->hasPermission('ticket.view.all')) ? User::active()->assignable()->orderBy('name')->get() : collect(),
         ]);

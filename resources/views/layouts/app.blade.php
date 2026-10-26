@@ -32,80 +32,49 @@
             @php
                 $authUser = auth()->user();
                 $canWork = $authUser->hasPermission('ticket.work');
-                $deskOpen = request()->routeIs('tickets.create', 'tickets.index', 'tickets.mine', 'tickets.show');
-                $taskOpen = request()->routeIs('tasks.*', 'board.index');
-                $attOpen = request()->routeIs('attendance.*');
-                $adminOpen = request()->routeIs('admin.users.*', 'admin.roles.*', 'admin.settings*');
+                $mgmtOpen = request()->has('unassigned') || request()->routeIs('board.index', 'attendance.index', 'attendance.pdf', 'reports.*');
                 $cfgOpen = request()->routeIs('admin.lookups');
-                $monOpen = request()->routeIs('admin.audit', 'admin.logins');
+                $adminOpen = request()->routeIs('admin.users.*', 'admin.roles.*', 'admin.settings*', 'admin.audit', 'admin.logins');
             @endphp
 
             <li><a class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" href="{{ route('dashboard') }}"><x-icon name="home"/> Dashboard</a></li>
 
-            {{-- Service Desk --}}
-            <x-nav-group id="desk" icon="inbox" label="Service Desk" :open="$deskOpen">
-                @can('ticket.create')
-                    <li><a class="nav-link {{ request()->routeIs('tickets.create') ? 'active' : '' }}" href="{{ route('tickets.create') }}"><x-icon name="plus"/> New Request</a></li>
+            @can('ticket.create')
+                <li><a class="nav-link {{ request()->routeIs('tickets.create') ? 'active' : '' }}" href="{{ route('tickets.create') }}"><x-icon name="plus"/> New Request</a></li>
+            @endcan
+            @if($canWork)
+                @can('ticket.view.all')
+                    <li><a class="nav-link {{ request()->routeIs('tickets.index') && ! request()->has('unassigned') ? 'active' : '' }}" href="{{ route('tickets.index') }}"><x-icon name="list"/> All Requests</a></li>
                 @endcan
-                @if($canWork)
-                    @can('ticket.view.all')
-                        <li><a class="nav-link {{ request()->routeIs('tickets.index') && ! request()->has('unassigned') ? 'active' : '' }}" href="{{ route('tickets.index') }}"><x-icon name="list"/> All Requests</a></li>
-                    @endcan
-                    <li><a class="nav-link {{ request()->routeIs('tickets.mine') ? 'active' : '' }}" href="{{ route('tickets.mine') }}"><x-icon name="user"/> My Requests</a></li>
-                @else
-                    <li><a class="nav-link {{ request()->routeIs('tickets.index', 'tickets.show') && ! request()->has('unassigned') ? 'active' : '' }}" href="{{ route('tickets.index') }}">
-                        <x-icon name="list"/> {{ $authUser->hasPermission('ticket.view.all') ? 'All Requests' : 'My Requests' }}</a></li>
-                @endif
-                @can('ticket.assign')
-                    <li><a class="nav-link {{ request()->has('unassigned') ? 'active' : '' }}" href="{{ route('tickets.index', ['unassigned' => 1]) }}"><x-icon name="inbox"/> Unassigned Queue</a></li>
-                @endcan
-            </x-nav-group>
-
-            {{-- Task Management --}}
-            @canany(['ticket.work', 'dashboard.officer'])
-                <x-nav-group id="tasks" icon="check" label="Task Management" :open="$taskOpen">
-                    @if($canWork)
-                        @php($openTasks = \App\Models\Ticket::involving($authUser)->open()->count())
-                        <li><a class="nav-link {{ request()->routeIs('tasks.index') ? 'active' : '' }}" href="{{ route('tasks.index') }}">
-                            <x-icon name="check"/> My Tasks @if($openTasks)<span class="badge bg-primary count">{{ $openTasks }}</span>@endif</a></li>
-                        <li><a class="nav-link {{ request()->routeIs('tasks.completed') ? 'active' : '' }}" href="{{ route('tasks.completed') }}"><x-icon name="check"/> Completed Tasks</a></li>
-                    @endif
-                    @can('dashboard.officer')
-                        <li><a class="nav-link {{ request()->routeIs('board.index') ? 'active' : '' }}" href="{{ route('board.index') }}"><x-icon name="users"/> Assignment Board</a></li>
-                    @endcan
-                </x-nav-group>
-            @endcanany
-
+                <li><a class="nav-link {{ request()->routeIs('tickets.mine') ? 'active' : '' }}" href="{{ route('tickets.mine') }}"><x-icon name="user"/> My Requests</a></li>
+                @php($openTasks = \App\Models\Ticket::involving($authUser)->activeTask()->count())
+                <li><a class="nav-link {{ request()->routeIs('tasks.index') ? 'active' : '' }}" href="{{ route('tasks.index') }}">
+                    <x-icon name="clipboard"/> My Tasks @if($openTasks)<span class="badge bg-primary count">{{ $openTasks }}</span>@endif</a></li>
+                <li><a class="nav-link {{ request()->routeIs('tasks.completed') ? 'active' : '' }}" href="{{ route('tasks.completed') }}"><x-icon name="check-circle"/> Completed Tasks</a></li>
+            @else
+                <li><a class="nav-link {{ request()->routeIs('tickets.index', 'tickets.show') && ! request()->has('unassigned') ? 'active' : '' }}" href="{{ route('tickets.index') }}">
+                    <x-icon name="list"/> {{ $authUser->hasPermission('ticket.view.all') ? 'All Requests' : 'My Requests' }}</a></li>
+            @endif
+            @can('attendance.own')
+                <li><a class="nav-link {{ request()->routeIs('attendance.mine') ? 'active' : '' }}" href="{{ route('attendance.mine') }}"><x-icon name="clock"/> My Attendance</a></li>
+            @endcan
             <li><a class="nav-link {{ request()->routeIs('notifications.*') ? 'active' : '' }}" href="{{ route('notifications.index') }}">
                 <x-icon name="bell"/> Notifications @if($unread)<span class="badge bg-danger count">{{ $unread }}</span>@endif</a></li>
 
-            {{-- Attendance --}}
-            @canany(['attendance.own', 'attendance.view'])
-                <x-nav-group id="att" icon="clock" label="Attendance" :open="$attOpen">
-                    @can('attendance.own')
-                        <li><a class="nav-link {{ request()->routeIs('attendance.mine') ? 'active' : '' }}" href="{{ route('attendance.mine') }}"><x-icon name="clock"/> My Attendance</a></li>
+            {{-- Management --}}
+            @canany(['ticket.assign', 'dashboard.officer', 'attendance.view', 'report.view'])
+                <x-nav-group id="mgmt" icon="shield" label="Management" :open="$mgmtOpen">
+                    @can('ticket.assign')
+                        <li><a class="nav-link {{ request()->has('unassigned') ? 'active' : '' }}" href="{{ route('tickets.index', ['unassigned' => 1]) }}"><x-icon name="inbox"/> Unassigned Queue</a></li>
+                    @endcan
+                    @can('dashboard.officer')
+                        <li><a class="nav-link {{ request()->routeIs('board.index') ? 'active' : '' }}" href="{{ route('board.index') }}"><x-icon name="users"/> Assignment Board</a></li>
                     @endcan
                     @can('attendance.view')
                         <li><a class="nav-link {{ request()->routeIs('attendance.index', 'attendance.pdf') ? 'active' : '' }}" href="{{ route('attendance.index') }}"><x-icon name="clock"/> IT Attendance</a></li>
                     @endcan
-                </x-nav-group>
-            @endcanany
-
-            @can('report.view')
-                <li><a class="nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}" href="{{ route('reports.index') }}"><x-icon name="chart"/> Reports</a></li>
-            @endcan
-
-            {{-- Administration --}}
-            @canany(['user.view', 'role.view', 'settings.view'])
-                <x-nav-group id="admin" icon="users" label="Administration" :open="$adminOpen">
-                    @can('user.view')
-                        <li><a class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}" href="{{ route('admin.users.index') }}"><x-icon name="users"/> Users</a></li>
-                    @endcan
-                    @can('role.view')
-                        <li><a class="nav-link {{ request()->routeIs('admin.roles.*') ? 'active' : '' }}" href="{{ route('admin.roles.index') }}"><x-icon name="key"/> Roles &amp; Permissions</a></li>
-                    @endcan
-                    @can('settings.view')
-                        <li><a class="nav-link {{ request()->routeIs('admin.settings*') ? 'active' : '' }}" href="{{ route('admin.settings') }}"><x-icon name="sliders"/> System Settings</a></li>
+                    @can('report.view')
+                        <li><a class="nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}" href="{{ route('reports.index') }}"><x-icon name="chart"/> Reports</a></li>
                     @endcan
                 </x-nav-group>
             @endcanany
@@ -122,13 +91,24 @@
                 </x-nav-group>
             @endcan
 
-            {{-- System Monitoring & Audit --}}
-            @can('audit.view')
-                <x-nav-group id="mon" icon="activity" label="System Monitoring & Audit" :open="$monOpen">
-                    <li><a class="nav-link {{ request()->routeIs('admin.audit') ? 'active' : '' }}" href="{{ route('admin.audit') }}"><x-icon name="activity"/> Audit Log</a></li>
-                    <li><a class="nav-link {{ request()->routeIs('admin.logins') ? 'active' : '' }}" href="{{ route('admin.logins') }}"><x-icon name="shield"/> Login History</a></li>
+            {{-- Administration --}}
+            @canany(['user.view', 'role.view', 'settings.view', 'audit.view'])
+                <x-nav-group id="admin" icon="users" label="Administration" :open="$adminOpen">
+                    @can('user.view')
+                        <li><a class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}" href="{{ route('admin.users.index') }}"><x-icon name="users"/> Users</a></li>
+                    @endcan
+                    @can('role.view')
+                        <li><a class="nav-link {{ request()->routeIs('admin.roles.*') ? 'active' : '' }}" href="{{ route('admin.roles.index') }}"><x-icon name="key"/> Roles &amp; Permissions</a></li>
+                    @endcan
+                    @can('settings.view')
+                        <li><a class="nav-link {{ request()->routeIs('admin.settings*') ? 'active' : '' }}" href="{{ route('admin.settings') }}"><x-icon name="sliders"/> System Settings</a></li>
+                    @endcan
+                    @can('audit.view')
+                        <li><a class="nav-link {{ request()->routeIs('admin.audit') ? 'active' : '' }}" href="{{ route('admin.audit') }}"><x-icon name="activity"/> Audit Log</a></li>
+                        <li><a class="nav-link {{ request()->routeIs('admin.logins') ? 'active' : '' }}" href="{{ route('admin.logins') }}"><x-icon name="shield"/> Login History</a></li>
+                    @endcan
                 </x-nav-group>
-            @endcan
+            @endcanany
         </ul>
 
     </div>

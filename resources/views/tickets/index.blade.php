@@ -6,7 +6,7 @@
 @endphp
 @section('title', $titles[$mode])
 @section('content')
-@php($activeFilters = collect(request()->only(['q','department_id','category_id','status_id','ticket_type_id','assigned_to','from','to']))->filter(fn ($v) => $v !== null && $v !== '')->count())
+@php($activeFilters = collect(request()->only(['q','department_id','category_id','status_id','ticket_type_id','assigned_to','role','from','to']))->filter(fn ($v) => $v !== null && $v !== '')->count())
 @isset($notes[$mode])<div class="text-muted small mb-2">{{ $notes[$mode] }}</div>@endisset
 <form method="GET" class="card filter-card mb-3">
     <div class="filter-body">
@@ -32,7 +32,7 @@
             @if($mode !== 'mine')
             <div class="col-6 col-md-4 col-xl-2">
                 <label class="form-label">Status</label>
-                <select name="status_id" class="form-select"><option value="">All</option>
+                <select name="status_id" class="form-select"><option value="">{{ $mode === 'tasks' ? 'All active' : 'All' }}</option>
                     @foreach($statuses as $s)<option value="{{ $s->id }}" @selected(request('status_id') == $s->id)>{{ $s->name }}</option>@endforeach
                 </select>
             </div>
@@ -51,12 +51,21 @@
                 </select>
             </div>
             @endif
+            @if(in_array($mode, ['tasks', 'completed']))
             <div class="col-6 col-md-4 col-xl-2">
-                <label class="form-label">From</label>
+                <label class="form-label">My role</label>
+                <select name="role" class="form-select"><option value="">Primary &amp; supporting</option>
+                    <option value="primary" @selected(request('role') === 'primary')>Primary only</option>
+                    <option value="support" @selected(request('role') === 'support')>Supporting only</option>
+                </select>
+            </div>
+            @endif
+            <div class="col-6 col-md-4 col-xl-2">
+                <label class="form-label">{{ $mode === 'completed' ? 'Completed from' : 'From' }}</label>
                 <input type="date" name="from" value="{{ request('from') }}" class="form-control">
             </div>
             <div class="col-6 col-md-4 col-xl-2">
-                <label class="form-label">To</label>
+                <label class="form-label">{{ $mode === 'completed' ? 'Completed to' : 'To' }}</label>
                 <input type="date" name="to" value="{{ request('to') }}" class="form-control">
             </div>
             <div class="col-12 col-xl filter-btns">

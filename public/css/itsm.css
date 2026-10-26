@@ -526,3 +526,13 @@ a.tcard:hover .no{ text-decoration:underline; }
 #sidebar .sub{ margin:.15rem 0 .3rem 1.15rem; padding-left:.2rem; border-left:1px solid rgba(255,255,255,.18); gap:.1rem; }
 #sidebar .sub .nav-link{ padding:.38rem .65rem; font-size:.86rem; gap:.55rem; font-weight:500; }
 #sidebar .sub .nav-link svg{ width:15px; height:15px; opacity:.85; }
+
+/* ---- Smooth expand / collapse of sidebar parent menus ---- */
+#sidebar .sub-wrap.collapsing{ transition:height .3s cubic-bezier(.4,0,.2,1); }
+#sidebar .sub-wrap.collapse:not(.show) .sub .nav-link{ opacity:0; }
+#sidebar .sub .nav-link{ transition:background .15s, color .15s, opacity .25s ease .05s; }
+#sidebar .nav-parent{ transition:background .2s, color .2s; }
+#sidebar .nav-parent::after{ transition:transform .3s cubic-bezier(.4,0,.2,1); }
+@media (prefers-reduced-motion:reduce){
+    #sidebar .sub-wrap.collapsing{ transition:height .3s ease !important; }
+}

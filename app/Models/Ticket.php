@@ -77,6 +77,18 @@ class Ticket extends Model
         });
     }
 
+    /** Work still to do: open and not yet resolved / awaiting confirmation / closed. Used by My Tasks. */
+    public function scopeActiveTask($q)
+    {
+        return $q->open()->whereHas('status', fn ($s) => $s->whereNotIn('code', ['RESOLVED', 'USER_CONFIRMATION', 'CLOSED']));
+    }
+
+    /** Finished work: resolved, awaiting confirmation or closed. Used by Completed Tasks. */
+    public function scopeCompletedTask($q)
+    {
+        return $q->whereHas('status', fn ($s) => $s->whereIn('code', ['RESOLVED', 'USER_CONFIRMATION', 'CLOSED']));
+    }
+
     public function scopeOpen($q)
     {
         return $q->whereHas('status', fn ($s) => $s->where('is_open', true));
