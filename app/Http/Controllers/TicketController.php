@@ -38,6 +38,15 @@ class TicketController extends Controller
         return $this->listing($r, Ticket::involving(auth()->user()), 'tasks');
     }
 
+    /** Requests the user worked on (primary or supporting) that are now resolved, awaiting confirmation or closed. */
+    public function completedTasks(Request $r)
+    {
+        $base = Ticket::involving(auth()->user())
+            ->whereHas('status', fn ($s) => $s->whereIn('code', ['RESOLVED', 'USER_CONFIRMATION', 'CLOSED']));
+
+        return $this->listing($r, $base, 'completed');
+    }
+
     protected function listing(Request $r, $base, string $mode)
     {
         $u = auth()->user();

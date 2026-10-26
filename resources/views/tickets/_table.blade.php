@@ -1,10 +1,11 @@
 @php($mine = ($mode ?? '') === 'mine')
 @php($showType = $mine || ($mode ?? '') === '')
+@php($showRole = in_array($mode ?? '', ['tasks', 'completed'], true))
 <div class="table-card">
 <div class="table-responsive">
 <table class="table table-hover align-middle">
     <thead>
-        <tr><th>Request ID</th><th>Subject</th>@if($showType)<th>Service type</th>@endif<th>Category</th>@unless($mine)<th>Primary</th>@endunless @if(($mode ?? '') === 'tasks')<th>My role</th>@endif @unless($mine)<th>Status</th>@endunless<th>Created</th></tr>
+        <tr><th>Request ID</th><th>Subject</th>@if($showType)<th>Service type</th>@endif<th>Category</th>@unless($mine)<th>Primary</th>@endunless @if($showRole)<th>My role</th>@endif @unless($mine)<th>Status</th>@endunless<th>Created</th></tr>
     </thead>
     <tbody>
     @forelse($tickets as $t)
@@ -23,7 +24,7 @@
                 @else <span class="text-muted">Unassigned</span> @endif
             </td>
             @endunless
-            @if(($mode ?? '') === 'tasks')
+            @if($showRole)
                 <td><span class="pill pill-{{ $t->assigned_to === auth()->id() ? 'primary' : 'secondary' }}">{{ $t->assigned_to === auth()->id() ? 'Primary' : 'Support' }}</span></td>
             @endif
             @unless($mine)
@@ -32,7 +33,7 @@
             <td class="text-nowrap text-muted">{{ $t->created_at->format('d M Y h:i A') }}</td>
         </tr>
     @empty
-        <tr><td colspan="{{ 4 + ($showType ? 1 : 0) + ($mine ? 0 : 2) + (($mode ?? '') === 'tasks' ? 1 : 0) }}" class="text-center text-muted py-5">No requests found.</td></tr>
+        <tr><td colspan="{{ 4 + ($showType ? 1 : 0) + ($mine ? 0 : 2) + ($showRole ? 1 : 0) }}" class="text-center text-muted py-5">No requests found.</td></tr>
     @endforelse
     </tbody>
 </table>

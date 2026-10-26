@@ -1,8 +1,8 @@
 @extends('layouts.app')
 @php
-    $titles = ['all' => 'Requests', 'mine' => 'My Requests', 'tasks' => 'My Tasks'];
-    $notes = ['mine' => 'Requests you submitted, or that someone submitted on your behalf.', 'tasks' => 'Every request assigned to you.'];
-    $self = ['all' => 'tickets.index', 'mine' => 'tickets.mine', 'tasks' => 'tasks.index'][$mode];
+    $titles = ['all' => 'Requests', 'mine' => 'My Requests', 'tasks' => 'My Tasks', 'completed' => 'Completed Tasks'];
+    $notes = ['mine' => 'Requests you submitted, or that someone submitted on your behalf.', 'tasks' => 'Every request assigned to you.', 'completed' => 'Resolved and closed requests you worked on, as primary or supporting employee.'];
+    $self = ['all' => 'tickets.index', 'mine' => 'tickets.mine', 'tasks' => 'tasks.index', 'completed' => 'tasks.completed'][$mode];
 @endphp
 @section('title', $titles[$mode])
 @section('content')

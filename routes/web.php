@@ -36,6 +36,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/tickets', [TicketController::class, 'index'])->name('tickets.index');
     Route::get('/my-requests', [TicketController::class, 'mine'])->middleware('can:ticket.work')->name('tickets.mine');
     Route::get('/my-tasks', [TicketController::class, 'tasks'])->middleware('can:ticket.work')->name('tasks.index');
+    Route::get('/my-tasks/completed', [TicketController::class, 'completedTasks'])->middleware('can:ticket.work')->name('tasks.completed');
     Route::get('/tickets/create', [TicketController::class, 'create'])->middleware('can:ticket.create')->name('tickets.create');
     Route::post('/tickets', [TicketController::class, 'store'])->middleware('can:ticket.create')->name('tickets.store');
     Route::get('/tickets/{ticket}', [TicketController::class, 'show'])->name('tickets.show');
