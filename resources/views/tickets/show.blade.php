@@ -22,6 +22,9 @@
                 <a class="fold-toggle flex-grow-1 min-w-0" data-bs-toggle="collapse" href="#fold-top" role="button" aria-expanded="true">
                     <span class="d-flex align-items-center gap-2 min-w-0"><span class="req-subject">{{ $ticket->subject }}</span></span>
                 </a>
+                @if($ticket->status->code === 'CLOSED')
+                    <a href="{{ route('tickets.pdf', $ticket) }}" class="btn btn-sm btn-primary flex-none d-inline-flex align-items-center gap-1"><x-icon name="download" :size="15"/> Download PDF</a>
+                @endif
                 <a href="{{ route('tickets.index') }}" class="btn btn-sm btn-outline-secondary flex-none">← Back</a>
             </div>
             <div class="collapse show" id="fold-top">

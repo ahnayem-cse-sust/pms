@@ -39,6 +39,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/tickets', [TicketController::class, 'store'])->middleware('can:ticket.create')->name('tickets.store');
     Route::get('/tickets/{ticket}', [TicketController::class, 'show'])->name('tickets.show');
     Route::get('/tickets/{ticket}/history-pdf', [TicketController::class, 'historyPdf'])->name('tickets.history.pdf');
+    Route::get('/tickets/{ticket}/pdf', [TicketController::class, 'requestPdf'])->name('tickets.pdf');
     Route::delete('/tickets/{ticket}', [TicketController::class, 'destroy'])->name('tickets.destroy');
     Route::post('/tickets/{ticket}/transition', [TicketController::class, 'transition'])->name('tickets.transition');
     Route::post('/tickets/{ticket}/assign', [TicketController::class, 'assign'])->name('tickets.assign');

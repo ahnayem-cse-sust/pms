@@ -3,7 +3,7 @@
         'Total' => ['list', 'indigo'], 'New' => ['inbox', 'blue'], 'Assigned' => ['users', 'cyan'],
         'In Progress' => ['activity', 'amber'], 'Waiting' => ['clock', 'slate'], 'Resolved' => ['check', 'green'],
         'Closed' => ['shield', 'dark'],
-        'New / Assigned' => ['inbox', 'blue'], 'Overdue' => ['alert', 'red'],
+        'New / Assigned' => ['inbox', 'blue'], 'Supporting' => ['users', 'cyan'], 'Support resolved' => ['check', 'cyan'], 'Overdue' => ['alert', 'red'],
     ];
 @endphp
 <div class="stat-grid">

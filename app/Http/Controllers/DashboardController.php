@@ -51,7 +51,15 @@ class DashboardController extends Controller
             ->whereNull('t.deleted_at')->where('s.is_open', 1)->where('a.role', 'SUPPORT')
             ->select('a.employee_id', DB::raw('count(*) as c'))->groupBy('a.employee_id')->pluck('c', 'employee_id');
 
-        $team = User::active()->assignable()->orderBy('name')->get()->map(function ($m) use ($rows, $supportCounts) {
+        // Resolved / confirmed / closed requests where each employee was a supporting team member
+        $supportDone = DB::table('ticket_assignments as a')
+            ->join('tickets as t', 't.id', '=', 'a.ticket_id')
+            ->join('ticket_statuses as s', 's.id', '=', 't.status_id')
+            ->whereNull('t.deleted_at')->where('a.role', 'SUPPORT')
+            ->whereIn('s.code', ['RESOLVED', 'USER_CONFIRMATION', 'CLOSED'])
+            ->select('a.employee_id', DB::raw('count(*) as c'))->groupBy('a.employee_id')->pluck('c', 'employee_id');
+
+        $team = User::active()->assignable()->orderBy('name')->get()->map(function ($m) use ($rows, $supportCounts, $supportDone) {
             $r = $rows->get($m->id, collect());
             $n = fn (array $codes) => $r->whereIn('code', $codes)->sum('c');
             return (object) [
@@ -62,6 +70,7 @@ class DashboardController extends Controller
                 'resolved' => $n(['RESOLVED', 'USER_CONFIRMATION', 'CLOSED']),
                 'open' => $r->where('is_open', 1)->sum('c') + ($supportCounts[$m->id] ?? 0),
                 'supporting' => $supportCounts[$m->id] ?? 0,
+                'support_resolved' => $supportDone[$m->id] ?? 0,
             ];
         });
 
@@ -129,8 +138,17 @@ class DashboardController extends Controller
             'New / Assigned' => ($counts['ASSIGNED'] ?? 0) + ($counts['REOPENED'] ?? 0) + ($counts['ESCALATED'] ?? 0),
             'In Progress' => $counts['IN_PROGRESS'] ?? 0,
             'Waiting' => ($counts['WAITING_USER'] ?? 0) + ($counts['ON_HOLD'] ?? 0),
+            // Open requests where this employee is a supporting (not primary) team member
+            'Supporting' => Ticket::open()
+                ->where(fn ($w) => $w->whereNull('tickets.assigned_to')->orWhere('tickets.assigned_to', '!=', $u->id))
+                ->whereHas('assignees', fn ($t) => $t->where('employee_id', $u->id)->where('role', 'SUPPORT'))
+                ->count(),
             'Overdue' => Ticket::involving($u)->open()->whereNotNull('due_date')->whereDate('due_date', '<', today())->count(),
             'Resolved' => ($counts['RESOLVED'] ?? 0) + ($counts['USER_CONFIRMATION'] ?? 0) + ($counts['CLOSED'] ?? 0),
+            // Resolved / confirmed / closed requests where this employee was a supporting team member
+            'Support resolved' => Ticket::whereHas('status', fn ($x) => $x->whereIn('code', ['RESOLVED', 'USER_CONFIRMATION', 'CLOSED']))
+                ->whereHas('assignees', fn ($t) => $t->where('employee_id', $u->id)->where('role', 'SUPPORT'))
+                ->count(),
         ];
 
         $open = (clone $mine)->open()

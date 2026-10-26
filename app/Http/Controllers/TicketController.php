@@ -184,6 +184,29 @@ class TicketController extends Controller
         return $ticket->history->reject(fn ($h) => in_array($h->action, $hidden, true))->values();
     }
 
+    /** Complete printable record of a CLOSED request: details, resolution, conversation, files and history. */
+    public function requestPdf(Ticket $ticket)
+    {
+        $this->authorizeView($ticket);
+        $u = auth()->user();
+        $ticket->load(['department', 'location', 'category', 'subcategory', 'priority', 'status', 'requester', 'creator', 'type',
+            'comments.user', 'history.user', 'team.employee', 'attachments.uploader']);
+        abort_unless($ticket->status->code === 'CLOSED', 403, 'The PDF is available once the request is closed.');
+
+        $seeInternal = $u->hasPermission('ticket.note.internal');
+        $reqNo = str_replace('-', '', $ticket->ticket_no);
+
+        return Pdf::loadView('tickets.request_pdf', [
+            'ticket' => $ticket, 'reqNo' => $reqNo, 'seeInternal' => $seeInternal,
+            'notes' => $seeInternal ? $ticket->notes()->with('user')->get() : collect(),
+            'workUpdates' => $seeInternal ? $ticket->workUpdates()->with('user')->get() : collect(),
+            'workStatuses' => TicketService::WORK_STATUSES,
+            'attachments' => $ticket->attachments->filter(fn ($a) => ! $a->is_internal || $u->hasPermission('attachment.download.internal')),
+            'history' => $this->visibleHistory($ticket, $u),
+            'generatedBy' => $u->name, 'generatedAt' => now(),
+        ])->setPaper('a4', 'portrait')->download("Request-{$reqNo}.pdf");
+    }
+
     /** Printable history of a request. */
     public function historyPdf(Ticket $ticket)
     {

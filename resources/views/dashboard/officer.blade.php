@@ -31,6 +31,7 @@
             <th class="text-center">In progress</th>
             <th class="text-center">Pending</th>
             <th class="text-center">Supporting</th>
+            <th class="text-center">Support resolved</th>
             <th class="text-center">Resolved</th>
             <th style="width:26%">Open load</th>
         </tr></thead>
@@ -48,6 +49,7 @@
                 <td class="text-center"><span class="wl-num n-amber">{{ $row->in_progress }}</span></td>
                 <td class="text-center"><span class="wl-num n-slate">{{ $row->pending }}</span></td>
                 <td class="text-center"><span class="wl-num n-cyan">{{ $row->supporting }}</span></td>
+                <td class="text-center"><span class="wl-num n-teal">{{ $row->support_resolved }}</span></td>
                 <td class="text-center"><span class="wl-num n-green">{{ $row->resolved }}</span></td>
                 <td>
                     <div class="d-flex align-items-center gap-3">
@@ -58,7 +60,7 @@
                 </td>
             </tr>
         @empty
-            <tr><td colspan="7" class="text-muted text-center py-4">No IT team members yet.</td></tr>
+            <tr><td colspan="8" class="text-muted text-center py-4">No IT team members yet.</td></tr>
         @endforelse
         </tbody>
     </table>
