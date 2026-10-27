@@ -18,7 +18,7 @@
 @forelse($rows as $x)
 <tr>
     <td><div class="inv-holder">@if($x->holder_type === 'EMPLOYEE')<x-avatar :name="$x->holder"/>@else<span class="dept-ico"><x-icon name="building" :size="14"/></span>@endif<div><div class="inv-name">{{ $x->holder }}</div>@if($x->dept)<div class="inv-sub">{{ $x->dept }}</div>@endif</div></div></td>
-    <td style="min-width:200px"><div class="inv-name">{{ $x->equipment->name }}</div><div class="inv-sub"><span class="inv-code">{{ $x->equipment->code }}</span>@if($x->serial_no) <span class="inv-sn">S/N {{ $x->serial_no }}</span>@endif</div></td>
+    <td style="min-width:200px"><div class="inv-name">{{ $x->equipment->name }}</div><div class="inv-sub"><span class="inv-code">{{ $x->equipment->code }}</span>@if($x->serial_no) <span class="inv-sn">Asset ID {{ $x->serial_no }}</span>@endif @if($x->device_sn)<span class="inv-sn">· Serial {{ $x->device_sn }}</span>@endif</div></td>
     <td>@include('inventory._crumb', ['e' => $x->equipment])</td>
     <td class="text-end"><span class="inv-q">{{ \App\Support\Inv::qty($x->held) }}</span> <span class="text-muted">{{ $x->equipment->unit }}</span></td>
     <td class="text-nowrap">{{ $x->since ? \Illuminate\Support\Carbon::parse($x->since)->format('d M Y') : '' }}</td>

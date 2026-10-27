@@ -27,7 +27,7 @@
 <tr><td class="k">Reference</td><td>{{ $first->reference_no ?: '—' }}</td><td class="k">Entered by</td><td>{{ $first->user->name ?? '—' }}</td></tr>
 @if($first->remarks)<tr><td class="k">Remarks</td><td colspan="3">{{ $first->remarks }}</td></tr>@endif
 </table>
-<table class="items"><thead><tr><th style="width:5%">#</th><th style="width:14%">Code</th><th style="width:31%">Equipment</th><th style="width:26%">Classification</th><th class="r" style="width:12%">Quantity</th><th>Serial no.</th></tr></thead><tbody>
+<table class="items"><thead><tr><th style="width:5%">#</th><th style="width:14%">Code</th><th style="width:31%">Equipment</th><th style="width:26%">Classification</th><th class="r" style="width:12%">Quantity</th><th>Asset ID</th></tr></thead><tbody>
 @foreach($lines as $i => $m)
 <tr><td>{{ $i + 1 }}</td><td>{{ $m->equipment->code }}</td><td>{{ $m->equipment->name }}@if($m->equipment->brand || $m->equipment->model)<br><span style="color:#6a7389">{{ trim($m->equipment->brand.' '.$m->equipment->model) }}</span>@endif</td>
 <td>{{ $m->equipment->classification ?: '—' }}</td><td class="r"><strong>{{ \App\Support\Inv::qty($m->qty) }}</strong> {{ $m->equipment->unit }}</td><td>{{ $m->serial_no ?: '—' }}</td></tr>

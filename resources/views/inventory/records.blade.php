@@ -19,7 +19,7 @@
     <td class="text-nowrap"><div class="d-flex align-items-center gap-2"><span class="type-ico ti-{{ \App\Support\Inv::tone($m->type) }}"><x-icon :name="\App\Support\Inv::icon($m->type)" :size="15"/></span><div><a href="{{ route('inv.records.show', $m) }}" class="ticket-link">{{ $m->ref }}</a>@if($m->entry_no)<div class="inv-sub">{{ $m->entry_no }}</div>@endif</div></div></td>
     <td class="text-nowrap">{{ $m->moved_on->format('d M Y') }}</td>
     <td>{{ \App\Support\Inv::pill($m->type) }}</td>
-    <td style="min-width:200px"><div class="inv-name">{{ $m->equipment->name }}</div><div class="inv-sub">@if($m->serial_no)<span class="inv-sn">S/N {{ $m->serial_no }}</span> · @endif{{ $m->equipment->classification }}</div></td>
+    <td style="min-width:200px"><div class="inv-name">{{ $m->equipment->name }}</div><div class="inv-sub">@if($m->serial_no)<span class="inv-sn">Asset ID {{ $m->serial_no }}</span> · @endif{{ $m->equipment->classification }}</div></td>
     <td class="text-end"><span class="inv-q {{ $m->qty > 0 ? 'pos' : ($m->qty < 0 ? 'neg' : '') }}">{{ $m->qty > 0 ? '+' : '' }}{{ \App\Support\Inv::qty($m->qty) }}</span></td>
     <td class="text-end inv-num">{{ \App\Support\Inv::qty($m->balance_after) }}</td>
     <td>{{ $m->holder_name ?: '—' }}</td>

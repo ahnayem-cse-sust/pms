@@ -19,13 +19,14 @@
         <div><dt>Equipment lines</dt><dd>{{ $lines->count() }}</dd></div>
     </dl>
 </div>
-<div class="table-card"><div class="table-responsive"><table class="table align-middle"><thead><tr><th>#</th><th>Equipment</th><th>Classification</th><th>Serial no. / Quantity</th><th>Purpose</th>@can('inv.view')<th></th>@endcan</tr></thead><tbody>
+<div class="table-card"><div class="table-responsive"><table class="table align-middle"><thead><tr><th>#</th><th>Equipment</th><th>Classification</th><th>Asset ID / Quantity</th><th>Serial number</th><th>Purpose</th>@can('inv.view')<th></th>@endcan</tr></thead><tbody>
 @foreach($lines as $i => $m)
 <tr>
     <td class="text-muted">{{ $i + 1 }}</td>
     <td style="min-width:200px"><div class="inv-name">{{ $m->equipment->name }}</div><div class="inv-sub"><span class="inv-code">{{ $m->equipment->code }}</span>@if(trim($m->equipment->brand.' '.$m->equipment->model)) · {{ trim($m->equipment->brand.' '.$m->equipment->model) }}@endif</div></td>
     <td>@include('inventory._crumb', ['e' => $m->equipment])</td>
     <td>@if($m->serial_no)<strong class="inv-sn text-body">{{ $m->serial_no }}</strong>@else<span class="inv-q">{{ \App\Support\Inv::qty(abs($m->qty)) }}</span> <span class="text-muted">{{ $m->equipment->unit }}</span>@endif</td>
+    <td>{{ $m->device_serial_no ?: '—' }}</td>
     <td>{{ $m->remarks ?: '—' }}</td>
     @can('inv.view')<td class="text-end"><a href="{{ route('inv.records.show', $m) }}">Record {{ $m->ref }}</a></td>@endcan
 </tr>

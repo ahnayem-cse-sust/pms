@@ -193,13 +193,16 @@ class InventoryService
     }
 
     /** Allocate exactly one unit of a serialisable item. A unit that came back is handed out again under its own serial; otherwise a new serial is generated. */
-    protected function allocateUnit(Equipment $e, array $d, bool $reuseReturned): Movement
+    protected function allocateUnit(Equipment $e, array $d, bool $reuseReturned, ?string $deviceSerial = null): Movement
     {
-        return DB::transaction(function () use ($e, $d, $reuseReturned) {
+        return DB::transaction(function () use ($e, $d, $reuseReturned, $deviceSerial) {
             Equipment::whereKey($e->id)->lockForUpdate()->firstOrFail();   // one allocation at a time per item, so serials cannot clash
             $serial = ($reuseReturned ? $this->returnedSerial($e->id) : null) ?? $this->nextSerial($e);
 
-            return $this->move('ALLOCATE', $e, -1.0, $d + ['serial_no' => $serial]);
+            // optional manufacturer serial number; a unit handed out again keeps the one it had before unless a new one is typed
+            $deviceSerial = trim((string) $deviceSerial) ?: Movement::where('equipment_id', $e->id)->where('serial_no', $serial)->whereNotNull('device_serial_no')->latest('id')->value('device_serial_no');
+
+            return $this->move('ALLOCATE', $e, -1.0, $d + ['serial_no' => $serial, 'device_serial_no' => $deviceSerial ?: null]);
         });
     }
 
@@ -217,7 +220,7 @@ class InventoryService
             foreach ($lines as $l) {
                 $e = Equipment::with('category')->findOrFail($l['equipment_id']);
                 $d = $this->holder($to) + ['moved_on' => $head['date'], 'reference_no' => $head['reference_no'] ?? null, 'remarks' => $l['purpose'] ?? null, 'entry_no' => $entry];
-                if ($e->is_serialized) $this->allocateUnit($e, $d, true);
+                if ($e->is_serialized) $this->allocateUnit($e, $d, true, $l['device_serial_no'] ?? null);
                 else $this->move('ALLOCATE', $e, -(float) $l['qty'], $d);
             }
             AuditLog::record('inventory.allocated', Equipment::find($lines[0]['equipment_id']), null, ['entry' => $entry, 'to' => $to, 'lines' => count($lines)]);

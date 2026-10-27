@@ -6,7 +6,7 @@
     $activeFilters = collect(request()->only(['q', 'source', 'equipment_id', 'from', 'to']))->filter(fn ($v) => $v !== null && $v !== '')->count();
 @endphp
 <form class="card filter-card mb-3" method="GET"><div class="filter-body"><div class="row g-2 align-items-end">
-    <div class="col-12 col-md-6 col-xl-3"><label class="form-label">Search</label><div class="input-icon"><x-icon name="search" :size="15"/><input name="q" value="{{ request('q') }}" class="form-control" placeholder="Entry, reference, supplier, person, item, serial"></div></div>
+    <div class="col-12 col-md-6 col-xl-3"><label class="form-label">Search</label><div class="input-icon"><x-icon name="search" :size="15"/><input name="q" value="{{ request('q') }}" class="form-control" placeholder="Entry, reference, supplier, person, item, asset ID"></div></div>
     <div class="col-6 col-md-3 col-xl-2"><label class="form-label">Received from</label><select name="source" class="form-select"><option value="">All</option>
         <option value="SUPPLIER" @selected(request('source') == 'SUPPLIER')>Supplier</option><option value="PREVIOUS" @selected(request('source') == 'PREVIOUS')>Previous item</option><option value="EMPLOYEE" @selected(request('source') == 'EMPLOYEE')>Employee return</option><option value="DEPARTMENT" @selected(request('source') == 'DEPARTMENT')>Department return</option></select></div>
     <div class="col-6 col-md-3 col-xl-2"><label class="form-label">Equipment</label><select name="equipment_id" class="form-select"><option value="">All</option>@foreach($equipment as $p)<option value="{{ $p->id }}" @selected(request('equipment_id') == $p->id)>{{ $p->name }}</option>@endforeach</select></div>
@@ -27,7 +27,7 @@
     <td class="text-nowrap">{{ $f->moved_on->format('d M Y') }}</td>
     <td>@if($f->type === 'RETURN')<span class="pill pill-info">Return</span> {{ $f->holder_name }}@elseif($f->type === 'OPENING')<span class="pill pill-secondary">Previous item</span> {{ $f->party }}@else<span class="pill pill-success">Supplier</span> {{ $f->party }}@endif</td>
     <td><div class="inv-items">
-        @foreach($ls->take(3) as $m)<div class="inv-item"><span class="inv-q {{ $m->qty > 0 ? 'pos' : ($m->qty < 0 ? 'neg' : '') }}">{{ $m->qty > 0 ? '+' : '' }}{{ \App\Support\Inv::qty($m->qty) }}</span> <span class="inv-name">{{ $m->equipment->name }}</span> <span class="inv-code">{{ $m->equipment->code }}</span>@if($m->serial_no)<span class="inv-sn">S/N {{ $m->serial_no }}</span>@endif</div>@endforeach
+        @foreach($ls->take(3) as $m)<div class="inv-item"><span class="inv-q {{ $m->qty > 0 ? 'pos' : ($m->qty < 0 ? 'neg' : '') }}">{{ $m->qty > 0 ? '+' : '' }}{{ \App\Support\Inv::qty($m->qty) }}</span> <span class="inv-name">{{ $m->equipment->name }}</span> <span class="inv-code">{{ $m->equipment->code }}</span>@if($m->serial_no)<span class="inv-sn">Asset ID {{ $m->serial_no }}</span>@endif</div>@endforeach
         @if($ls->count() > 3)<span class="inv-more" title="{{ $ls->slice(3)->map(fn ($m) => $m->equipment->name)->implode(', ') }}">+{{ $ls->count() - 3 }} more</span>@endif
     </div></td>
     <td>{{ $f->reference_no ?: '—' }}@if($f->remarks)<div class="inv-sub">{{ $f->remarks }}</div>@endif</td>

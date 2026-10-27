@@ -14,7 +14,7 @@
     </div>
     <dl class="inv-meta">
         <div class="wide"><dt>Equipment</dt><dd>{{ $m->equipment->name }} <span class="inv-code">{{ $m->equipment->code }}</span><div class="mt-1">@include('inventory._crumb', ['e' => $m->equipment])</div></dd></div>
-        <div><dt>Serial no.</dt><dd>{{ $m->serial_no ?: '—' }}</dd></div>
+        <div><dt>Asset ID</dt><dd>{{ $m->serial_no ?: '—' }}</dd></div>
         <div><dt>Stock after</dt><dd class="inv-num">{{ \App\Support\Inv::qty($m->balance_after) }}</dd></div>
         <div><dt>Entry</dt><dd>{{ $m->entry_no ?: '—' }}</dd></div>
         <div><dt>Date</dt><dd>{{ $m->moved_on->format('d M Y') }}</dd></div>

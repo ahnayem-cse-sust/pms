@@ -19,7 +19,7 @@
         <div class="wide"><dt>Remarks</dt><dd>{{ $first->remarks ?: '—' }}</dd></div>
     </dl>
 </div>
-<div class="table-card"><div class="table-responsive"><table class="table align-middle"><thead><tr><th>#</th><th>Equipment</th><th>Classification</th><th>Serial no.</th><th class="text-end">Quantity</th><th class="text-end">Stock after</th><th></th></tr></thead><tbody>
+<div class="table-card"><div class="table-responsive"><table class="table align-middle"><thead><tr><th>#</th><th>Equipment</th><th>Classification</th><th>Asset ID</th><th class="text-end">Quantity</th><th class="text-end">Stock after</th><th></th></tr></thead><tbody>
 @foreach($lines as $i => $m)
 <tr>
     <td class="text-muted">{{ $i + 1 }}</td>

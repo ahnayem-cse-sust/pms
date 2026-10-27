@@ -16,7 +16,7 @@ class AllocationController extends InvController
     public function holdings(?callable $scope = null)
     {
         $rows = Movement::whereIn('type', ['ALLOCATE', 'RETURN'])->when($scope, fn ($q) => $scope($q))
-            ->selectRaw('equipment_id, serial_no, holder_type, holder_user_id, holder_department_id, -SUM(qty) as held, MIN(CASE WHEN type = \'ALLOCATE\' THEN moved_on END) as since')
+            ->selectRaw('equipment_id, serial_no, holder_type, holder_user_id, holder_department_id, -SUM(qty) as held, MIN(CASE WHEN type = \'ALLOCATE\' THEN moved_on END) as since, MAX(device_serial_no) as device_sn')
             ->groupBy('equipment_id', 'serial_no', 'holder_type', 'holder_user_id', 'holder_department_id')->havingRaw('-SUM(qty) > 0')->get();
         $eq = Equipment::with(['assetType', 'category', 'subcategory'])->whereIn('id', $rows->pluck('equipment_id'))->get()->keyBy('id');
         $users = User::with('department')->whereIn('id', $rows->pluck('holder_user_id')->filter())->get()->keyBy('id');
@@ -32,11 +32,11 @@ class AllocationController extends InvController
 
     public function index(Request $r)
     {
-        $rows = $this->holdings()->when($r->q, fn ($c, $s) => $c->filter(fn ($x) => stripos($x->holder.' '.$x->dept.' '.$x->equipment->name.' '.$x->equipment->code.' '.$x->serial_no, $s) !== false))->values();
+        $rows = $this->holdings()->when($r->q, fn ($c, $s) => $c->filter(fn ($x) => stripos($x->holder.' '.$x->dept.' '.$x->equipment->name.' '.$x->equipment->code.' '.$x->serial_no.' '.$x->device_sn, $s) !== false))->values();
 
         if ($r->input('format') === 'csv') {
-            return $this->csv('allocations', ['Held by', 'Department', 'Equipment', 'Serial no.', 'Asset type', 'Category', 'Sub category', 'Quantity', 'Since'],
-                $rows->map(fn ($x) => [$x->holder, $x->dept, $x->equipment->name, $x->serial_no, $x->equipment->assetType->name ?? '', $x->equipment->category->name ?? '', $x->equipment->subcategory->name ?? '', \App\Support\Inv::qty($x->held), $x->since]));
+            return $this->csv('allocations', ['Held by', 'Department', 'Equipment', 'Asset ID', 'Serial number', 'Asset type', 'Category', 'Sub category', 'Quantity', 'Since'],
+                $rows->map(fn ($x) => [$x->holder, $x->dept, $x->equipment->name, $x->serial_no, $x->device_sn, $x->equipment->assetType->name ?? '', $x->equipment->category->name ?? '', $x->equipment->subcategory->name ?? '', \App\Support\Inv::qty($x->held), $x->since]));
         }
 
         return view('inventory.allocations.index', ['rows' => $rows]);
@@ -65,7 +65,7 @@ class AllocationController extends InvController
     {
         $d = $r->validate(['to_type' => 'required|in:EMPLOYEE,DEPARTMENT', 'user_id' => 'required_if:to_type,EMPLOYEE|nullable|exists:users,id',
             'department_id' => 'required_if:to_type,DEPARTMENT|nullable|exists:departments,id', 'date' => 'required|date|before_or_equal:today', 'reference_no' => 'nullable|string|max:255',
-            'lines' => 'required|array|min:1', 'lines.*.equipment_id' => 'required|exists:inv_equipment,id', 'lines.*.qty' => 'nullable|numeric|gt:0', 'lines.*.purpose' => 'nullable|string|max:500']);
+            'lines' => 'required|array|min:1', 'lines.*.equipment_id' => 'required|exists:inv_equipment,id', 'lines.*.qty' => 'nullable|numeric|gt:0', 'lines.*.purpose' => 'nullable|string|max:500', 'lines.*.device_serial_no' => 'nullable|string|max:120']);
         $lines = array_values($d['lines']);
 
         // Serialisable items need no quantity (always one unit, serial generated); every other item needs one.
@@ -86,15 +86,15 @@ class AllocationController extends InvController
             ->when($r->to_type, fn ($x, $v) => $x->where('holder_type', $v))
             ->when($r->equipment_id, fn ($x, $v) => $x->where('equipment_id', $v))
             ->when($r->from, fn ($x, $v) => $x->whereDate('moved_on', '>=', $v))->when($r->to, fn ($x, $v) => $x->whereDate('moved_on', '<=', $v))
-            ->when($r->q, fn ($x, $s) => $x->where(fn ($w) => $w->where('entry_no', 'like', "%$s%")->orWhere('ref', 'like', "%$s%")->orWhere('reference_no', 'like', "%$s%")->orWhere('remarks', 'like', "%$s%")->orWhere('serial_no', 'like', "%$s%")
+            ->when($r->q, fn ($x, $s) => $x->where(fn ($w) => $w->where('entry_no', 'like', "%$s%")->orWhere('ref', 'like', "%$s%")->orWhere('reference_no', 'like', "%$s%")->orWhere('remarks', 'like', "%$s%")->orWhere('serial_no', 'like', "%$s%")->orWhere('device_serial_no', 'like', "%$s%")
                 ->orWhereHas('equipment', fn ($e) => $e->where('name', 'like', "%$s%")->orWhere('code', 'like', "%$s%"))
                 ->orWhereHas('holderUser', fn ($u) => $u->where('name', 'like', "%$s%"))->orWhereHas('holderDepartment', fn ($d) => $d->where('name', 'like', "%$s%"))));
         $with = ['equipment.assetType', 'equipment.category', 'equipment.subcategory', 'user', 'holderUser.department', 'holderDepartment'];
 
         if ($r->input('format') === 'csv') {
-            return $this->csv('allocation_records', ['Entry', 'Date', 'Allocated to', 'Department', 'Code', 'Equipment', 'Serial no.', 'Quantity', 'Purpose', 'Reference', 'By'],
+            return $this->csv('allocation_records', ['Entry', 'Date', 'Allocated to', 'Department', 'Code', 'Equipment', 'Asset ID', 'Serial number', 'Quantity', 'Purpose', 'Reference', 'By'],
                 (clone $base)->with($with)->latest('moved_on')->latest('id')->get()->map(fn ($m) => [$m->entry_no, $m->moved_on->format('Y-m-d'), $m->holder_name, $m->holderUser?->department?->name ?? '', $m->equipment->code, $m->equipment->name,
-                    $m->serial_no, \App\Support\Inv::qty(abs($m->qty)), $m->remarks, $m->reference_no, $m->user->name ?? '']));
+                    $m->serial_no, $m->device_serial_no, \App\Support\Inv::qty(abs($m->qty)), $m->remarks, $m->reference_no, $m->user->name ?? '']));
         }
 
         $entries = (clone $base)->select('entry_no')->selectRaw('MAX(id) as last_id')->groupBy('entry_no')->orderByDesc('last_id')->paginate(40)->withQueryString();

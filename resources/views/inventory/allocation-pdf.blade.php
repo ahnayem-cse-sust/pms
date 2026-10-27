@@ -27,11 +27,12 @@
 <tr><td class="k">Department</td><td>{{ $first->holderUser->department->name ?? ($first->holderDepartment->name ?? '—') }}</td><td class="k">Reference</td><td>{{ $first->reference_no ?: '—' }}</td></tr>
 <tr><td class="k">Issued by</td><td>{{ $first->user->name ?? '—' }}</td><td class="k">Items</td><td>{{ $lines->count() }}</td></tr>
 </table>
-<table class="items"><thead><tr><th style="width:5%">#</th><th style="width:30%">Equipment</th><th style="width:24%">Classification</th><th style="width:16%">Serial no. / Qty</th><th>Purpose</th></tr></thead><tbody>
+<table class="items"><thead><tr><th style="width:5%">#</th><th style="width:30%">Equipment</th><th style="width:24%">Classification</th><th style="width:14%">Asset ID / Qty</th><th style="width:14%">Serial number</th><th>Purpose</th></tr></thead><tbody>
 @foreach($lines as $i => $m)
 <tr><td>{{ $i + 1 }}</td><td>{{ $m->equipment->name }}<br><span style="color:#6a7389">{{ $m->equipment->code }}@if($m->equipment->brand || $m->equipment->model) · {{ trim($m->equipment->brand.' '.$m->equipment->model) }}@endif</span></td>
 <td>{{ $m->equipment->classification ?: '—' }}</td>
 <td>@if($m->serial_no)<strong>{{ $m->serial_no }}</strong>@else<strong>{{ \App\Support\Inv::qty(abs($m->qty)) }}</strong> {{ $m->equipment->unit }}@endif</td>
+<td>{{ $m->device_serial_no ?: '—' }}</td>
 <td>{{ $m->remarks ?: '—' }}</td></tr>
 @endforeach
 </tbody></table>

@@ -303,6 +303,17 @@ class InventoryTest extends TestCase
         $this->assertSame(0.0, (float) $lap->fresh()->stock_qty);
     }
 
+    public function test_allocation_line_can_carry_an_optional_manufacturer_serial_number(): void
+    {
+        $lap = $this->serialEquipment();
+        $day = today()->toDateString();
+        $this->postAs('inv.receive.store', ['source' => 'SUPPLIER', 'date' => $day, 'lines' => [['equipment_id' => $lap->id, 'qty' => 2]]]);
+        $this->postAs('inv.allocations.store', ['to_type' => 'EMPLOYEE', 'user_id' => $this->person()->id, 'date' => $day,
+            'lines' => [['equipment_id' => $lap->id, 'device_serial_no' => 'SN-ABC-123'], ['equipment_id' => $lap->id]]])->assertSessionHasNoErrors();
+        $rows = Movement::where('type', 'ALLOCATE')->where('equipment_id', $lap->id)->orderBy('id')->get();
+        $this->assertSame(['SN-ABC-123', null], $rows->pluck('device_serial_no')->all());
+    }
+
     public function test_other_equipment_needs_a_quantity_and_has_no_serial(): void
     {
         $this->receive(10);

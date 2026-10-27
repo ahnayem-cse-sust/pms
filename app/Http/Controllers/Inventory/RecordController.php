@@ -19,7 +19,7 @@ class RecordController extends InvController
             ->latest('id');
 
         if ($r->input('format') === 'csv') {
-            return $this->csv('inventory_records', ['Record', 'Entry', 'Date', 'Type', 'Equipment', 'Asset type', 'Category', 'Sub category', 'Serial no.', 'Quantity', 'Balance after', 'Person / department', 'Reference', 'Supplier', 'Remarks', 'By'],
+            return $this->csv('inventory_records', ['Record', 'Entry', 'Date', 'Type', 'Equipment', 'Asset type', 'Category', 'Sub category', 'Asset ID', 'Quantity', 'Balance after', 'Person / department', 'Reference', 'Supplier', 'Remarks', 'By'],
                 $q->get()->map(fn ($m) => [$m->ref, $m->entry_no, $m->moved_on->format('Y-m-d'), Inv::label($m->type), $m->equipment->name, $m->equipment->assetType->name ?? '', $m->equipment->category->name ?? '', $m->equipment->subcategory->name ?? '', $m->serial_no,
                     Inv::qty($m->qty), Inv::qty($m->balance_after), $m->holder_name, $m->reference_no, $m->party, $m->remarks, $m->user->name ?? '']));
         }

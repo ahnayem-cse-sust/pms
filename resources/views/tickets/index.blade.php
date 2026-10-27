@@ -29,14 +29,12 @@
                     @foreach($categories as $c)<option value="{{ $c->id }}" @selected(request('category_id') == $c->id)>{{ $c->name }}</option>@endforeach
                 </select>
             </div>
-            @if($mode !== 'mine')
             <div class="col-6 col-md-4 col-xl-2">
                 <label class="form-label">Status</label>
                 <select name="status_id" class="form-select"><option value="">{{ $mode === 'tasks' ? 'All active' : 'All' }}</option>
                     @foreach($statuses as $s)<option value="{{ $s->id }}" @selected(request('status_id') == $s->id)>{{ $s->name }}</option>@endforeach
                 </select>
             </div>
-            @endif
             <div class="col-6 col-md-4 col-xl-2">
                 <label class="form-label">Service type</label>
                 <select name="ticket_type_id" class="form-select"><option value="">All</option>

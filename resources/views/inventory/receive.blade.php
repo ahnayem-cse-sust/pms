@@ -91,14 +91,14 @@ function lineChanged(sel) {
         if (o.serialized) { q.value = 1; q.readOnly = true; q.required = false; q.style.display = 'none'; fx.style.display = ''; }   // a serialisable unit is always one
         else q.value = o.held;
     }
-    hint.textContent = (o && o.held !== undefined) ? 'Currently holds ' + o.held + (o.serial ? ' · S/N ' + o.serial : '') : '';
+    hint.textContent = (o && o.held !== undefined) ? 'Currently holds ' + o.held + (o.serial ? ' · Asset ID ' + o.serial : '') : '';
 }
 function addLine() {
     var i = n++, o = options().map(function (x) { return '<option value="' + x.id + '">' + esc(x.label) + '</option>'; }).join('');
     var d = document.createElement('div'); d.className = 'inv-line';
     d.innerHTML = '<div class="row g-2 align-items-center">' +
       '<div class="col-md-6"><select name="lines[' + i + '][equipment_id]" class="form-select form-select-sm" required onchange="lineChanged(this)"><option value="">Item…</option>' + o + '</select></div>' +
-      '<div class="col-md-3"><input type="number" step="0.01" min="0.01" name="lines[' + i + '][qty]" class="form-control form-control-sm" placeholder="Quantity" required><span class="fixed small text-muted" style="display:none">1 unit (serial)</span><input type="hidden" class="sn" name="lines[' + i + '][serial_no]"></div>' +
+      '<div class="col-md-3"><input type="number" step="0.01" min="0.01" name="lines[' + i + '][qty]" class="form-control form-control-sm" placeholder="Quantity" required><span class="fixed small text-muted" style="display:none">1 unit (asset ID)</span><input type="hidden" class="sn" name="lines[' + i + '][serial_no]"></div>' +
       '<div class="col-md-3 text-md-end"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'.inv-line\').remove(); count()">Remove</button></div></div>' +
       '<div class="inv-hint"></div>';
     document.getElementById('lines').appendChild(d);

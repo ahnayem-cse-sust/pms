@@ -35,7 +35,7 @@ class ReceiveController extends InvController
         $from = fn ($m) => match ($m->type) { 'RECEIVE' => $m->party ?: 'Supplier', 'OPENING' => 'Previous item'.($m->party ? ' – '.$m->party : ''), default => 'Return – '.$m->holder_name };
 
         if ($r->input('format') === 'csv') {
-            return $this->csv('receives', ['Entry', 'Date', 'Received from', 'Code', 'Equipment', 'Asset type', 'Category', 'Sub category', 'Serial no.', 'Quantity', 'Reference', 'Remarks', 'By'],
+            return $this->csv('receives', ['Entry', 'Date', 'Received from', 'Code', 'Equipment', 'Asset type', 'Category', 'Sub category', 'Asset ID', 'Quantity', 'Reference', 'Remarks', 'By'],
                 (clone $base)->with($with)->latest('moved_on')->latest('id')->get()->map(fn ($m) => [$m->entry_no, $m->moved_on->format('Y-m-d'), $from($m), $m->equipment->code, $m->equipment->name, $m->equipment->assetType->name ?? '', $m->equipment->category->name ?? '',
                     $m->equipment->subcategory->name ?? '', $m->serial_no, \App\Support\Inv::qty($m->qty), $m->reference_no, $m->remarks, $m->user->name ?? '']));
         }
@@ -79,7 +79,7 @@ class ReceiveController extends InvController
         $holders = $holdings->groupBy(fn ($x) => $x->holder_type === 'EMPLOYEE' ? 'E:'.$x->holder_user_id : 'D:'.$x->holder_department_id)
             ->map(fn ($g, $key) => ['key' => $key, 'label' => $g->first()->holder.($g->first()->dept ? ' – '.$g->first()->dept : ''),
                 'items' => $g->map(fn ($x) => ['id' => $x->equipment_id, 'serial' => $x->serial_no, 'serialized' => $x->equipment->is_serialized || (bool) $x->serial_no,
-                    'label' => $x->equipment->name.' ('.$x->equipment->code.')'.($x->serial_no ? ' – S/N '.$x->serial_no : ''), 'held' => (float) $x->held])->sortBy('label')->values()])
+                    'label' => $x->equipment->name.' ('.$x->equipment->code.')'.($x->serial_no ? ' – Asset ID '.$x->serial_no : ''), 'held' => (float) $x->held])->sortBy('label')->values()])
             ->sortBy('label')->values();
 
         return view('inventory.receive', ['equipment' => $this->equipment(), 'people' => $this->people(), 'departments' => $this->departments(), 'holders' => $holders, 'preset' => ['from' => $r->query('from'), 'equipment_id' => $r->query('equipment_id'), 'serial' => $r->query('serial')]]);
