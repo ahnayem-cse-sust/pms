@@ -53,6 +53,8 @@ return [
             'role.view', 'role.create', 'role.update', 'role.delete',
             'lookup.view', 'lookup.create', 'lookup.update',
             'settings.view', 'settings.update', 'audit.view',
+            // IT Inventory
+            'inv.view', 'inv.view.own', 'inv.create', 'inv.update',
         ],
         'it_officer' => [
             'ticket.create', 'ticket.create.behalf', 'ticket.view.own', 'ticket.view.all', 'ticket.acknowledge',
@@ -61,23 +63,33 @@ return [
             'ticket.cancel', 'attachment.upload', 'attachment.download.internal',
             'dashboard.officer', 'report.view', 'lookup.view', 'lookup.create', 'lookup.update',
             'user.view', 'user.create', 'user.update',
+            // IT Inventory
+            'inv.view', 'inv.create', 'inv.update',
         ],
         'it_member' => [
             'ticket.create', 'ticket.create.behalf', 'ticket.view.own', 'ticket.view.assigned', 'ticket.work',
             'ticket.comment.public', 'ticket.note.internal', 'ticket.escalate', 'attachment.upload',
             'attachment.download.internal', 'dashboard.member', 'attendance.own',
+            // IT Inventory
+            'inv.view', 'inv.create',
         ],
         'dept_user' => [
             'ticket.create', 'ticket.view.own', 'ticket.comment.public', 'ticket.confirm',
             'ticket.reopen', 'ticket.cancel', 'attachment.upload', 'dashboard.department',
+            // IT Inventory
+            'inv.view.own',
         ],
         'dept_head' => [
             'ticket.create', 'ticket.create.behalf.dept', 'ticket.view.own', 'ticket.view.department', 'ticket.comment.public',
             'ticket.confirm', 'ticket.reopen', 'ticket.cancel', 'attachment.upload',
             'dashboard.department', 'report.view',
+            // IT Inventory
+            'inv.view.own',
         ],
         'management' => [
             'ticket.view.all', 'dashboard.officer', 'report.view', 'attendance.view',
+            // IT Inventory
+            'inv.view',
         ],
     ],
 
@@ -103,6 +115,7 @@ return [
         'role.create' => ['role.view'], 'role.update' => ['role.view'], 'role.delete' => ['role.view'],
         'lookup.create' => ['lookup.view'], 'lookup.update' => ['lookup.view'],
         'settings.update' => ['settings.view'],
+        'inv.create' => ['inv.view'], 'inv.update' => ['inv.view'],
     ],
 
     // Module-wise access matrix on the role screen: one row per module, one checkbox per Read / Add / Update / Delete.
@@ -127,6 +140,10 @@ return [
             ['label' => 'Reports', 'read' => 'report.view', 'add' => null, 'update' => null, 'delete' => null],
             ['label' => 'Attendance of all IT employees', 'read' => 'attendance.view', 'add' => null, 'update' => null, 'delete' => null],
             ['label' => 'Own attendance', 'read' => 'attendance.own', 'add' => null, 'update' => null, 'delete' => null],
+        ],
+        'IT Inventory' => [
+            ['label' => 'Equipment stock & allocations', 'note' => 'Add = receive item (new or returned), allocate; Update = equipment, asset types and categories', 'read' => 'inv.view', 'add' => 'inv.create', 'update' => 'inv.update', 'delete' => null],
+            ['label' => 'Own allocated equipment', 'read' => 'inv.view.own', 'add' => null, 'update' => null, 'delete' => null],
         ],
         'Administration' => [
             ['label' => 'Users', 'read' => 'user.view', 'add' => 'user.create', 'update' => 'user.update', 'delete' => null],
@@ -174,6 +191,12 @@ return [
             'report.view' => 'View reports',
             'attendance.view' => 'View attendance of all IT employees',
             'attendance.own' => 'View own attendance',
+        ],
+        'IT Inventory' => [
+            'inv.view' => 'View equipment stock, allocations and records',
+            'inv.view.own' => 'View equipment allocated to themselves / their department',
+            'inv.create' => 'Receive items (new or returned) and allocate items',
+            'inv.update' => 'Manage equipment, asset types and categories',
         ],
         'Administration' => [
             'user.view' => 'View users',

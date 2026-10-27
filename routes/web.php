@@ -103,3 +103,6 @@ Route::middleware('auth')->group(function () {
         });
     });
 });
+
+// IT Inventory module (separate routes file; does not alter any route above)
+require __DIR__.'/inventory.php';

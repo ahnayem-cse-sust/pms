@@ -34,6 +34,7 @@
                 $canWork = $authUser->hasPermission('ticket.work');
                 $mgmtOpen = request()->has('unassigned') || request()->routeIs('board.index', 'attendance.index', 'attendance.pdf', 'reports.*');
                 $cfgOpen = request()->routeIs('admin.lookups');
+                $invOpen = request()->routeIs('inv.*');
                 $adminOpen = request()->routeIs('admin.users.*', 'admin.roles.*', 'admin.settings*', 'admin.audit', 'admin.logins');
             @endphp
 
@@ -75,6 +76,33 @@
                     @endcan
                     @can('report.view')
                         <li><a class="nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}" href="{{ route('reports.index') }}"><x-icon name="chart"/> Reports</a></li>
+                    @endcan
+                </x-nav-group>
+            @endcanany
+
+            {{-- IT Inventory --}}
+            @canany(['inv.view', 'inv.view.own'])
+                <x-nav-group id="inv" icon="box" label="IT Inventory" :open="$invOpen">
+                    @can('inv.view')
+                        <li><a class="nav-link {{ request()->routeIs('inv.dashboard') ? 'active' : '' }}" href="{{ route('inv.dashboard') }}"><x-icon name="home"/> Dashboard</a></li>
+                    @endcan
+                    @can('inv.view')
+                        <li><a class="nav-link {{ request()->routeIs('inv.equipment.*') ? 'active' : '' }}" href="{{ route('inv.equipment.index') }}"><x-icon name="box"/> Equipment &amp; Stock</a></li>
+                    @endcan
+                    @can('inv.view')
+                        <li><a class="nav-link {{ request()->routeIs('inv.allocations.*') ? 'active' : '' }}" href="{{ route('inv.allocations.index') }}"><x-icon name="users"/> Allocations</a></li>
+                    @endcan
+                    @can('inv.view.own')
+                        <li><a class="nav-link {{ request()->routeIs('inv.mine') ? 'active' : '' }}" href="{{ route('inv.mine') }}"><x-icon name="list"/> My Equipment</a></li>
+                    @endcan
+                    @can('inv.view')
+                        <li><a class="nav-link {{ request()->routeIs('inv.receive*') ? 'active' : '' }}" href="{{ route('inv.receives') }}"><x-icon name="inbox"/> Receives</a></li>
+                    @endcan
+                    @can('inv.view')
+                        <li><a class="nav-link {{ request()->routeIs('inv.records') ? 'active' : '' }}" href="{{ route('inv.records') }}"><x-icon name="clipboard"/> Records</a></li>
+                    @endcan
+                    @can('inv.view')
+                        <li><a class="nav-link {{ request()->routeIs('inv.setup*') ? 'active' : '' }}" href="{{ route('inv.setup') }}"><x-icon name="folder"/> Types &amp; Categories</a></li>
                     @endcan
                 </x-nav-group>
             @endcanany
