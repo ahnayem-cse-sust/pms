@@ -2,24 +2,28 @@
 @section('title', 'Record '.$m->ref)
 @section('content')
 <div class="d-flex flex-wrap gap-2 mb-3">
-    <a href="{{ route('inv.records') }}" class="btn btn-outline-secondary">&larr; Records</a>
-    @if($entryRoute)<a href="{{ route($entryRoute, $m->entry_no) }}" class="btn btn-outline-primary ms-md-auto">View entry {{ $m->entry_no }}@if($entryCount > 1) ({{ $entryCount }} lines)@endif</a>
-    <a href="{{ route($entryRoute === 'inv.allocations.show' ? 'inv.allocations.pdf' : 'inv.receives.pdf', $m->entry_no) }}" class="btn btn-primary">Download PDF</a>@endif
+    <a href="{{ route('inv.records') }}" class="btn btn-outline-secondary inv-back"><x-icon name="arrow-left" :size="15"/> Records</a>
+    @if($entryRoute)<a href="{{ route($entryRoute, $m->entry_no) }}" class="btn btn-outline-primary ms-md-auto inv-back"><x-icon name="eye" :size="15"/> View entry {{ $m->entry_no }}@if($entryCount > 1) ({{ $entryCount }} lines)@endif</a>
+    <a href="{{ route($entryRoute === 'inv.allocations.show' ? 'inv.allocations.pdf' : 'inv.receives.pdf', $m->entry_no) }}" class="btn btn-primary inv-back"><x-icon name="download" :size="15"/> Download PDF</a>@endif
 </div>
-<div class="card"><div class="card-body"><div class="row g-3">
-    <div class="col-6 col-md-3"><div class="text-muted small">Record</div><strong>{{ $m->ref }}</strong></div>
-    <div class="col-6 col-md-3"><div class="text-muted small">Entry</div>{{ $m->entry_no ?: '—' }}</div>
-    <div class="col-6 col-md-3"><div class="text-muted small">Date</div>{{ $m->moved_on->format('d M Y') }}</div>
-    <div class="col-6 col-md-3"><div class="text-muted small">Type</div>{{ \App\Support\Inv::pill($m->type) }}</div>
-    <div class="col-12 col-md-6"><div class="text-muted small">Equipment</div>{{ $m->equipment->name }} <span class="text-muted">({{ $m->equipment->code }})</span><div class="small text-muted">{{ $m->equipment->classification }}</div></div>
-    <div class="col-6 col-md-3"><div class="text-muted small">Serial no.</div>{{ $m->serial_no ?: '—' }}</div>
-    <div class="col-6 col-md-3"><div class="text-muted small">Quantity</div>{{ $m->qty > 0 ? '+' : '' }}{{ \App\Support\Inv::qty($m->qty) }} {{ $m->equipment->unit }}</div>
-    <div class="col-6 col-md-3"><div class="text-muted small">Stock after</div>{{ \App\Support\Inv::qty($m->balance_after) }}</div>
-    <div class="col-6 col-md-3"><div class="text-muted small">Person / department</div>{{ $m->holder_name ?: '—' }}@if($m->holderUser)<div class="small text-muted">{{ $m->holderUser->employee_id }}, {{ $m->holderUser->department->name ?? '' }}</div>@endif</div>
-    <div class="col-6 col-md-3"><div class="text-muted small">Reference</div>{{ $m->reference_no ?: '—' }}</div>
-    <div class="col-6 col-md-3"><div class="text-muted small">Supplier</div>{{ $m->party ?: '—' }}</div>
-    <div class="col-12 col-md-6"><div class="text-muted small">{{ $m->type === 'ALLOCATE' ? 'Purpose' : 'Remarks' }}</div>{{ $m->remarks ?: '—' }}</div>
-    <div class="col-6 col-md-3"><div class="text-muted small">By</div>{{ $m->user->name ?? '—' }}</div>
-    <div class="col-6 col-md-3"><div class="text-muted small">Recorded at</div>{{ $m->created_at?->format('d M Y H:i') }}</div>
-</div></div></div>
+<div class="card">
+    <div class="inv-hero">
+        <span class="type-ico ti-{{ \App\Support\Inv::tone($m->type) }}"><x-icon :name="\App\Support\Inv::icon($m->type)" :size="20"/></span>
+        <div><div class="inv-hero-title">{{ $m->ref }}</div><div class="inv-sub">{{ $m->moved_on->format('d M Y') }}@if($m->entry_no) · Entry {{ $m->entry_no }}@endif</div></div>
+        <div class="ms-auto d-flex align-items-center gap-3">{{ \App\Support\Inv::pill($m->type) }}<span class="inv-q fs-5 {{ $m->qty > 0 ? 'pos' : ($m->qty < 0 ? 'neg' : '') }}">{{ $m->qty > 0 ? '+' : '' }}{{ \App\Support\Inv::qty($m->qty) }} <span class="text-muted fs-6 fw-normal">{{ $m->equipment->unit }}</span></span></div>
+    </div>
+    <dl class="inv-meta">
+        <div class="wide"><dt>Equipment</dt><dd>{{ $m->equipment->name }} <span class="inv-code">{{ $m->equipment->code }}</span><div class="mt-1">@include('inventory._crumb', ['e' => $m->equipment])</div></dd></div>
+        <div><dt>Serial no.</dt><dd>{{ $m->serial_no ?: '—' }}</dd></div>
+        <div><dt>Stock after</dt><dd class="inv-num">{{ \App\Support\Inv::qty($m->balance_after) }}</dd></div>
+        <div><dt>Entry</dt><dd>{{ $m->entry_no ?: '—' }}</dd></div>
+        <div><dt>Date</dt><dd>{{ $m->moved_on->format('d M Y') }}</dd></div>
+        <div><dt>Person / department</dt><dd>{{ $m->holder_name ?: '—' }}@if($m->holderUser)<div class="inv-sub fw-normal">{{ $m->holderUser->employee_id }}, {{ $m->holderUser->department->name ?? '' }}</div>@endif</dd></div>
+        <div><dt>Reference</dt><dd>{{ $m->reference_no ?: '—' }}</dd></div>
+        <div><dt>Supplier</dt><dd>{{ $m->party ?: '—' }}</dd></div>
+        <div class="wide"><dt>{{ $m->type === 'ALLOCATE' ? 'Purpose' : 'Remarks' }}</dt><dd>{{ $m->remarks ?: '—' }}</dd></div>
+        <div><dt>By</dt><dd>{{ $m->user->name ?? '—' }}</dd></div>
+        <div><dt>Recorded at</dt><dd>{{ $m->created_at?->format('d M Y H:i') }}</dd></div>
+    </dl>
+</div>
 @endsection

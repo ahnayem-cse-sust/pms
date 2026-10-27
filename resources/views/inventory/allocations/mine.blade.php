@@ -1,8 +1,24 @@
 @extends('layouts.app')
 @section('title', 'My Equipment')
 @section('content')
-<table class="table table-sm bg-white align-middle"><thead class="table-light"><tr><th>Equipment</th><th>Classification</th><th class="text-end">Quantity</th><th>Held by</th><th>Since</th></tr></thead><tbody>
-@forelse($rows as $x)<tr><td>{{ $x->equipment->name }}<div class="text-muted small">{{ $x->equipment->brand }} {{ $x->equipment->model }}</div>@if($x->serial_no)<div class="text-muted small">S/N {{ $x->serial_no }}</div>@endif</td><td class="small">{{ $x->equipment->classification }}</td>
-<td class="text-end">{{ \App\Support\Inv::qty($x->held) }} {{ $x->equipment->unit }}</td><td>{{ $x->holder }}</td><td>{{ $x->since ? \Illuminate\Support\Carbon::parse($x->since)->format('d M Y') : '' }}</td></tr>
-@empty<tr><td colspan="5" class="text-center text-muted py-4">Nothing is allocated to you or your department.</td></tr>@endforelse</tbody></table>
+@if($rows->isEmpty())
+    <div class="card"><div class="card-body">@include('inventory._empty', ['icon' => 'box', 'msg' => 'Nothing is allocated to you or your department.', 'hint' => 'Equipment issued to you will be listed here.'])</div></div>
+@else
+    <div class="inv-summary"><span><strong class="text-body">{{ $rows->count() }}</strong> {{ \Illuminate\Support\Str::plural('item', $rows->count()) }} with you or your department</span></div>
+    <div class="inv-cards">
+    @foreach($rows as $x)
+        <div class="inv-hold">
+            <span class="type-ico"><x-icon name="box" :size="20"/></span>
+            <div class="min-w-0">
+                <div class="inv-name">{{ $x->equipment->name }}</div>
+                <div class="inv-sub">{{ trim($x->equipment->brand.' '.$x->equipment->model) }}</div>
+                <div class="mt-1">@include('inventory._crumb', ['e' => $x->equipment])</div>
+                @if($x->serial_no)<div class="mt-1"><span class="inv-sn">S/N {{ $x->serial_no }}</span></div>@endif
+                <div class="inv-sub mt-2">Held by {{ $x->holder }}@if($x->since) · since {{ \Illuminate\Support\Carbon::parse($x->since)->format('d M Y') }}@endif</div>
+            </div>
+            <div class="inv-hold-qty"><div class="inv-q fs-5">{{ \App\Support\Inv::qty($x->held) }}</div><div class="inv-sub">{{ $x->equipment->unit }}</div></div>
+        </div>
+    @endforeach
+    </div>
+@endif
 @endsection

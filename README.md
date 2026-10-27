@@ -175,3 +175,14 @@ Tests: `tests/Feature/InventoryTest.php` (not run in the build environment; run 
 ## Inventory classification upgrade
 
 If an inventory page fails with `Unknown column 'level' in 'where clause'`, run `php artisan migrate` and `php artisan optimize:clear`. Migration `000028` adds the missing `inv_categories.level` / `inv_equipment.asset_type_id` columns if they are absent and does nothing otherwise. Do not run `migrate:fresh` or `migrate:refresh` on a database with data you need (migration `000025` drops the `inv_*` tables).
+
+## Inventory UI upgrade (v69)
+Presentation only: no routes, permissions, database or form-field changes.
+- **Dashboard**: icon stat cards, quick actions, "Needs attention" with stock meters, a latest-activity feed (each row opens its record) and stock by asset type.
+- **Equipment & Stock**: one classification column (Asset type › Category › Sub category), stock meter with the minimum level marked, Out of stock / Low stock / In stock status, a result summary, a History shortcut per item, and filter switches.
+- **Receives, Allocation records, Records**: whole row opens the entry, movement-type icons, +/- coloured quantities, long entries show the first three items with "+N more", PDF and CSV actions as labelled buttons, active-filter count on Reset, proper empty states.
+- **Who has what / My Equipment**: avatars and department icons; My Equipment is now a card view that works well on phones.
+- **Receive Item / Allocate Equipment / Equipment form**: sectioned cards, numbered item lines with live item count and available-quantity hints, sticky save bar.
+- **Detail pages** (entry and record): header card with type icon, status and a tidy details grid.
+- **Types & Categories**: tabs with counts, the Asset type › Category › Sub category path, switches, highlighted row while editing.
+- All light/dark theme aware. Shared styles are in the `inv-*` block at the end of `public/css/itsm.css`; small partials live in `resources/views/inventory/` (`_crumb`, `_meter`, `_empty`, `_rowlink`).
