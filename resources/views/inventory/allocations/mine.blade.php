@@ -14,7 +14,7 @@
                 <div class="inv-sub">{{ trim($x->equipment->brand.' '.$x->equipment->model) }}</div>
                 <div class="mt-1">@include('inventory._crumb', ['e' => $x->equipment])</div>
                 @if($x->serial_no)<div class="mt-1"><span class="inv-sn">Asset ID {{ $x->serial_no }}</span>@if($x->device_sn) <span class="inv-sn">· Serial {{ $x->device_sn }}</span>@endif</div>@endif
-                <div class="inv-sub mt-2">Held by {{ $x->holder }}@if($x->since) · since {{ \Illuminate\Support\Carbon::parse($x->since)->format('d M Y') }}@endif</div>
+                <div class="inv-sub mt-2">Assigned to {{ $x->holder }}@if($x->since) · since {{ \Illuminate\Support\Carbon::parse($x->since)->format('d M Y') }}@endif</div>
             </div>
             <div class="inv-hold-qty"><div class="inv-q fs-5">{{ \App\Support\Inv::qty($x->held) }}</div><div class="inv-sub">{{ $x->equipment->unit }}</div></div>
         </div>

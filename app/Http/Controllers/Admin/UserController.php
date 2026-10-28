@@ -116,6 +116,13 @@ class UserController extends Controller
             if ($v === 'allow') $allow[] = $key;
             if ($v === 'deny') $deny[] = $key;
         }
+        // Allowing a sidebar menu (or anything with prerequisites) also allows what it needs, unless that was denied on purpose.
+        $requires = config('itsm.permission_requires', []);
+        for ($i = 0; $i < count($allow); $i++) {
+            foreach ($requires[$allow[$i]] ?? [] as $dep) {
+                if (! in_array($dep, $allow, true) && ! in_array($dep, $deny, true)) $allow[] = $dep;
+            }
+        }
         $user->forceFill(['extra_permissions' => $allow ?: null, 'denied_permissions' => $deny ?: null])->save();
 
         return true;

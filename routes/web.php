@@ -40,6 +40,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/tickets/create', [TicketController::class, 'create'])->middleware('can:ticket.create')->name('tickets.create');
     Route::post('/tickets', [TicketController::class, 'store'])->middleware('can:ticket.create')->name('tickets.store');
     Route::get('/tickets/{ticket}', [TicketController::class, 'show'])->name('tickets.show');
+    Route::get('/tickets/{ticket}/edit', [TicketController::class, 'editDetails'])->name('tickets.edit');
+    Route::put('/tickets/{ticket}/details', [TicketController::class, 'updateDetails'])->name('tickets.details');
     Route::get('/tickets/{ticket}/history-pdf', [TicketController::class, 'historyPdf'])->name('tickets.history.pdf');
     Route::get('/tickets/{ticket}/pdf', [TicketController::class, 'requestPdf'])->name('tickets.pdf');
     Route::delete('/tickets/{ticket}', [TicketController::class, 'destroy'])->name('tickets.destroy');

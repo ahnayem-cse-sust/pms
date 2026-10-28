@@ -1,6 +1,64 @@
 <?php
 
 /**
+ * Sidebar menus, in the order they appear. Every menu has its own permission (menu.*) so each one can be given to a role
+ * or to a single employee. A menu shows only when the user holds its menu permission AND the access it opens
+ * (the "needs" list); ticking a menu on a role / user automatically adds that access too.
+ */
+$sidebarMenus = [
+    'Main' => [
+        'menu.dashboard'       => ['Dashboard', []],
+        'menu.new_request'     => ['New Request', ['ticket.create']],
+        'menu.all_requests'    => ['All Requests', ['ticket.view.all']],
+        'menu.my_requests'     => ['My Requests', ['ticket.view.own']],
+        'menu.my_tasks'        => ['My Tasks', ['ticket.work']],
+        'menu.completed_tasks' => ['Completed Tasks', ['ticket.work']],
+        'menu.my_equipment'    => ['My Equipment', ['inv.view.own']],
+        'menu.my_attendance'   => ['My Attendance', ['attendance.own']],
+        'menu.notifications'   => ['Notifications', []],
+    ],
+    'Management' => [
+        'menu.unassigned'    => ['Unassigned Queue', ['ticket.assign']],
+        'menu.board'         => ['Assignment Board', ['dashboard.officer']],
+        'menu.it_attendance' => ['IT Attendance', ['attendance.view']],
+        'menu.reports'       => ['Reports', ['report.view']],
+    ],
+    'IT Inventory' => [
+        'menu.inv_dashboard'   => ['Inventory Dashboard', ['inv.view']],
+        'menu.inv_equipment'   => ['Equipment & Stock', ['inv.view']],
+        'menu.inv_allocations' => ['Allocations', ['inv.view']],
+        'menu.inv_receives'    => ['Receives', ['inv.view']],
+        'menu.inv_records'     => ['Records', ['inv.view']],
+        'menu.inv_setup'       => ['Types & Categories', ['inv.view']],
+    ],
+    'Configuration' => [
+        'menu.configuration' => ['Configuration', ['lookup.view']],
+    ],
+    'Administration' => [
+        'menu.users'    => ['Users', ['user.view']],
+        'menu.roles'    => ['Roles & Permissions', ['role.view']],
+        'menu.settings' => ['System Settings', ['settings.view']],
+        'menu.audit'    => ['Audit Log', ['audit.view']],
+        'menu.logins'   => ['Login History', ['audit.view']],
+    ],
+];
+$menuRequires = [];
+foreach ($sidebarMenus as $items) foreach ($items as $key => [$label, $needs]) if ($needs) $menuRequires[$key] = $needs;
+// Default roles get every menu whose access they already have, so the sidebar looks exactly as before.
+$withMenus = function (array $roles) use ($sidebarMenus) {
+    foreach ($roles as $slug => $list) {
+        foreach ($sidebarMenus as $items) foreach ($items as $key => [$label, $needs]) {
+            if (! array_diff($needs, $list)) $list[] = $key;
+        }
+        $roles[$slug] = $list;
+    }
+
+    return $roles;
+};
+$menuCatalog = [];
+foreach ($sidebarMenus as $section => $items) $menuCatalog['Sidebar menu – '.$section] = array_map(fn ($m) => $m[0], $items);
+
+/**
  * Role => permission map. Seeded into the `roles` table by RoleSeeder;
  * after seeding, the database copy is authoritative (editable later by an admin screen).
  */
@@ -45,7 +103,7 @@ return [
         'management' => 'Management',
     ],
 
-    'permissions' => [
+    'permissions' => $withMenus([
         'admin' => [
             'ticket.create', 'ticket.create.behalf', 'ticket.view.own', 'ticket.view.all', 'ticket.comment.public',
             'ticket.note.internal', 'attachment.upload', 'attachment.download.internal',
@@ -91,13 +149,15 @@ return [
             // IT Inventory
             'inv.view',
         ],
-    ],
+    ]),
 
     // Permissions that only a System Administrator may hand out (to a user through a role).
-    'privileged_permissions' => ['role.view', 'role.create', 'role.update', 'role.delete', 'settings.view', 'settings.update', 'audit.view'],
+    'privileged_permissions' => ['role.view', 'role.create', 'role.update', 'role.delete', 'settings.view', 'settings.update', 'audit.view', 'menu.roles', 'menu.settings', 'menu.audit', 'menu.logins'],
 
     // Picking a permission automatically adds the ones it cannot work without (applied in the role form and on save).
-    'permission_requires' => [
+    'sidebar_menus' => $sidebarMenus,
+
+    'permission_requires' => $menuRequires + [
         'ticket.create.behalf' => ['ticket.create'],
         'ticket.create.behalf.dept' => ['ticket.create'],
         'ticket.assign' => ['ticket.view.all'],
@@ -213,5 +273,5 @@ return [
             'settings.update' => 'Change system settings and SLA',
             'audit.view' => 'View audit log and login history',
         ],
-    ],
+    ] + $menuCatalog,
 ];

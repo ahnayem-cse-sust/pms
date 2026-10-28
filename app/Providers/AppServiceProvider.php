@@ -30,5 +30,12 @@ class AppServiceProvider extends ServiceProvider
         foreach ($all as $permission) {
             Gate::define($permission, fn ($user) => $user->hasPermission($permission));
         }
+
+        // A sidebar menu shows only when the user holds the menu permission and the access the menu opens.
+        foreach (config('itsm.sidebar_menus', []) as $items) {
+            foreach ($items as $key => [$label, $needs]) {
+                Gate::define($key, fn ($user) => $user->hasPermission($key) && collect($needs)->every(fn ($p) => $user->hasPermission($p)));
+            }
+        }
     }
 }

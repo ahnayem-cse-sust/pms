@@ -5,31 +5,53 @@
     <a href="{{ route('inv.receives') }}" class="btn btn-outline-secondary inv-back"><x-icon name="arrow-left" :size="15"/> Receives</a>
     <a href="{{ route('inv.receives.pdf', $entry) }}" class="btn btn-primary ms-md-auto inv-back"><x-icon name="download" :size="15"/> Download PDF</a>
 </div>
-<div class="card mb-3">
+<div class="card">
     <div class="inv-hero">
         <span class="type-ico ti-{{ \App\Support\Inv::tone($first->type) }}"><x-icon :name="\App\Support\Inv::icon($first->type)" :size="20"/></span>
-        <div><div class="inv-hero-title">{{ $entry }}</div><div class="inv-sub">{{ $first->moved_on->format('d M Y') }} · {{ $lines->count() }} {{ \Illuminate\Support\Str::plural('line', $lines->count()) }}</div></div>
+        <div><div class="inv-hero-title">{{ $entry }}</div><div class="inv-sub">{{ $first->moved_on->format('d M Y') }} · {{ $lines->count() }} {{ \Illuminate\Support\Str::plural('equipment', $lines->count()) }}</div></div>
         <div class="ms-auto">{{ \App\Support\Inv::pill($first->type) }}</div>
     </div>
-    <dl class="inv-meta">
-        <div class="wide"><dt>Received from</dt><dd>@if($first->type === 'RETURN')<span class="pill pill-info">Return</span> {{ $first->holder_name }}@if($first->holderUser) <span class="text-muted fw-normal">({{ $first->holderUser->employee_id }}, {{ $first->holderUser->department->name ?? '' }})</span>@endif @elseif($first->type === 'OPENING')<span class="pill pill-secondary">Previous item</span> {{ $first->party }}@else<span class="pill pill-success">Supplier</span> {{ $first->party }}@endif</dd></div>
-        <div><dt>Date</dt><dd>{{ $first->moved_on->format('d M Y') }}</dd></div>
-        <div><dt>Reference</dt><dd>{{ $first->reference_no ?: '—' }}</dd></div>
-        <div><dt>Entered by</dt><dd>{{ $first->user->name ?? '—' }}</dd></div>
-        <div class="wide"><dt>Remarks</dt><dd>{{ $first->remarks ?: '—' }}</dd></div>
-    </dl>
-</div>
-<div class="table-card"><div class="table-responsive"><table class="table align-middle"><thead><tr><th>#</th><th>Equipment</th><th>Classification</th><th>Asset ID</th><th class="text-end">Quantity</th><th class="text-end">Stock after</th><th></th></tr></thead><tbody>
-@foreach($lines as $i => $m)
+    @php
+        $from = $first->type === 'RETURN'
+            ? '<span class="pill pill-info">Return</span> '.e($first->holder_name).($first->holderUser ? ' <span class="text-muted fw-normal">('.e($first->holderUser->employee_id).', '.e($first->holderUser->department->name ?? '').')</span>' : '')
+            : ($first->type === 'OPENING' ? '<span class="pill pill-secondary">Previous item</span> '.e($first->party) : '<span class="pill pill-success">Supplier</span> '.e($first->party));
+        $pairs = collect([
+            ['Entry', e($entry)],
+            ['Received from', $from],
+            ['Date', e($first->moved_on->format('d M Y'))],
+            ['Reference', e($first->reference_no ?: '—')],
+            ['Entered by', e($first->user->name ?? '—')],
+            ['Equipment', e($lines->count())],
+            ['Total items', e(\App\Support\Inv::qty($lines->sum(fn ($m) => abs($m->qty))))],
+            ['Remarks', e($first->remarks ?: '—')],
+        ]);
+        $half = (int) ceil($pairs->count() / 2);   // same number of rows on both sides; an odd total leaves the right side blank
+        $left = $pairs->take($half)->values();
+        $right = $pairs->slice($half)->values();
+    @endphp
+    <div class="table-responsive inv-lines">
+    <table class="table table-bordered align-middle inv-info mb-0"><tbody>
+        @for($i = 0; $i < $half; $i++)
+        <tr>
+            <th>{{ $left[$i][0] }}</th><td>{!! $left[$i][1] !!}</td>
+            @if(isset($right[$i]))<th>{{ $right[$i][0] }}</th><td>{!! $right[$i][1] !!}</td>@else<th></th><td></td>@endif
+        </tr>
+        @endfor
+    </tbody></table>
+    </div>
+<div class="inv-history-head">Equipment <span class="inv-count">{{ $lines->count() }}</span></div>
+<div class="table-responsive inv-lines"><table class="table align-middle"><thead><tr><th>Equipment ID</th><th>Equipment</th><th>Asset type</th><th>Category</th><th>Sub category</th><th class="text-end">Quantity</th><th></th></tr></thead><tbody>
+@foreach($lines as $m)
 <tr>
-    <td class="text-muted">{{ $i + 1 }}</td>
-    <td style="min-width:200px"><div class="inv-name">{{ $m->equipment->name }}</div><div class="inv-sub"><span class="inv-code">{{ $m->equipment->code }}</span>@if(trim($m->equipment->brand.' '.$m->equipment->model)) · {{ trim($m->equipment->brand.' '.$m->equipment->model) }}@endif</div></td>
-    <td>@include('inventory._crumb', ['e' => $m->equipment])</td>
-    <td>@if($m->serial_no)<span class="inv-sn">{{ $m->serial_no }}</span>@else — @endif</td>
-    <td class="text-end"><span class="inv-q {{ $m->qty > 0 ? 'pos' : '' }}">{{ \App\Support\Inv::qty($m->qty) }}</span> <span class="text-muted">{{ $m->equipment->unit }}</span></td>
-    <td class="text-end inv-num">{{ \App\Support\Inv::qty($m->balance_after) }}</td>
+    <td class="text-nowrap"><span class="inv-code">{{ $m->equipment->code }}</span></td>
+    <td style="min-width:180px"><div class="inv-name">{{ $m->equipment->name }}</div>@if(trim($m->equipment->brand.' '.$m->equipment->model))<div class="inv-sub">{{ trim($m->equipment->brand.' '.$m->equipment->model) }}</div>@endif</td>
+    <td>{{ $m->equipment->assetType->name ?? '—' }}</td>
+    <td>{{ $m->equipment->category->name ?? '—' }}</td>
+    <td>{{ $m->equipment->subcategory->name ?? '—' }}</td>
+    <td class="text-end text-nowrap"><span class="inv-q {{ $m->qty > 0 ? 'pos' : '' }}">{{ \App\Support\Inv::qty($m->qty) }}</span> <span class="text-muted">{{ $m->equipment->unit }}</span></td>
     <td class="text-end"><a href="{{ route('inv.records.show', $m) }}">Record {{ $m->ref }}</a></td>
 </tr>
 @endforeach
-</tbody></table></div></div>
+</tbody></table></div>
+</div>
 @endsection

@@ -508,6 +508,59 @@ class TicketService
         return $t;
     }
 
+    /** The requester's own edit of the request (before assignment); every changed field is written to the history. */
+    public function updateDetails(Ticket $t, User $user, array $in): Ticket
+    {
+        $t->loadMissing(['type', 'category', 'subcategory', 'location']);
+        $clip = fn ($v) => $v === null ? null : \Illuminate\Support\Str::limit((string) $v, 190);
+        $changes = [];
+
+        if ((int) $in['ticket_type_id'] !== (int) $t->ticket_type_id) {
+            $changes[] = ['service type', $t->type?->name, TicketType::findOrFail($in['ticket_type_id'])->name];
+            $t->ticket_type_id = $in['ticket_type_id'];
+        }
+        if ((int) $in['category_id'] !== (int) $t->category_id) {
+            $changes[] = ['category', $t->category?->name, TicketCategory::findOrFail($in['category_id'])->name];
+            $t->category_id = $in['category_id'];
+        }
+        $sub = $in['subcategory_id'] ?? null;
+        if ((int) $sub !== (int) $t->subcategory_id) {
+            $changes[] = ['sub-category', $t->subcategory?->name, $sub ? TicketSubcategory::findOrFail($sub)->name : null];
+            $t->subcategory_id = $sub ?: null;
+        }
+        foreach (['subject' => 'subject', 'description' => 'description'] as $key => $label) {
+            if (trim((string) $in[$key]) !== trim((string) $t->{$key})) {
+                $changes[] = [$label, $clip($t->{$key}), $clip($in[$key])];
+                $t->{$key} = trim($in[$key]);
+            }
+        }
+        $date = ! empty($in['preferred_completion_date']) ? $in['preferred_completion_date'] : null;
+        if ($date !== optional($t->preferred_completion_date)->format('Y-m-d')) {
+            $changes[] = ['preferred completion date', optional($t->preferred_completion_date)->format('Y-m-d'), $date];
+            $t->preferred_completion_date = $date;
+        }
+        $phone = $in['phone'] ?? null;
+        if ((string) $phone !== (string) $t->requester_phone) {
+            $changes[] = ['phone', $t->requester_phone, $phone];
+            $t->requester_phone = $phone;
+        }
+        $loc = $in['location_id'] ?? null;
+        if ((int) $loc !== (int) $t->location_id) {
+            $changes[] = ['location', $t->location?->name, $loc ? \App\Models\Location::findOrFail($loc)->name : null];
+            $t->location_id = $loc ?: null;
+        }
+
+        if ($changes) {
+            $t->updated_by = $user->id;
+            $t->save();
+            foreach ($changes as [$field, $old, $new]) {
+                $this->log($t, $user, 'details_edited', $field, $old, $new);
+            }
+        }
+
+        return $t;
+    }
+
     // ------------------------------------------------------------ conversation
 
     public function addComment(Ticket $t, User $user, string $body, array $files = []): TicketComment

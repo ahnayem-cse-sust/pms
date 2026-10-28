@@ -39,6 +39,17 @@ class Ticket extends Model
     public function notes() { return $this->hasMany(TicketInternalNote::class)->with('user')->oldest(); }
     public function attachments() { return $this->hasMany(TicketAttachment::class)->with('uploader'); }
     public function history() { return $this->hasMany(TicketHistory::class)->with('user')->oldest('created_at'); }
+    /** The requester (or whoever filed it for them) and a System Administrator may edit the request itself until it is assigned. */
+    public function canEditDetails(User $u): bool
+    {
+        if (! $u->isRole('admin') && (int) $this->requester_id !== $u->id && (int) $this->created_by !== $u->id) {
+            return false;
+        }
+        $this->loadMissing('status');
+
+        return (bool) $this->status->is_open && $this->assigned_to === null && ! $this->assignees()->exists();
+    }
+
     /** Plain relation (no ordering/eager loading) for existence checks in scopes. */
     public function assignees() { return $this->hasMany(TicketAssignment::class); }
 

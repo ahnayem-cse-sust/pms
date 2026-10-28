@@ -14,6 +14,7 @@ Route::middleware('auth')->prefix('inventory')->name('inv.')->group(function () 
     Route::get('equipment', [I\EquipmentController::class, 'index'])->middleware('can:inv.view')->name('equipment.index');
     Route::get('equipment/create', [I\EquipmentController::class, 'create'])->middleware('can:inv.update')->name('equipment.create');
     Route::post('equipment', [I\EquipmentController::class, 'store'])->middleware('can:inv.update')->name('equipment.store');
+    Route::get('equipment/{equipment}', [I\EquipmentController::class, 'show'])->middleware('can:inv.view')->whereNumber('equipment')->name('equipment.show');
     Route::get('equipment/{equipment}/edit', [I\EquipmentController::class, 'edit'])->middleware('can:inv.update')->name('equipment.edit');
     Route::put('equipment/{equipment}', [I\EquipmentController::class, 'update'])->middleware('can:inv.update')->name('equipment.update');
 
@@ -34,6 +35,7 @@ Route::middleware('auth')->prefix('inventory')->name('inv.')->group(function () 
     Route::get('allocations/create', [I\AllocationController::class, 'create'])->middleware('can:inv.create')->name('allocations.create');
     Route::post('allocations', [I\AllocationController::class, 'store'])->middleware('can:inv.create')->name('allocations.store');
     Route::get('allocations/records', [I\AllocationController::class, 'entries'])->middleware('can:inv.view')->name('allocations.entries');
+    Route::get('allocations/holder/{holder}', [I\AllocationController::class, 'holder'])->middleware('can:inv.view')->where('holder', '[ED]-[0-9]+')->name('allocations.holder');
     Route::get('allocations/{entry}/pdf', [I\AllocationController::class, 'pdf'])->name('allocations.pdf');
     Route::get('allocations/{entry}', [I\AllocationController::class, 'show'])->where('entry', '[A-Z]{2,3}-[0-9]+')->name('allocations.show');
     Route::get('my-items', [I\AllocationController::class, 'mine'])->name('mine');

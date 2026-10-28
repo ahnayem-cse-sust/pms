@@ -5,7 +5,7 @@
 @php
     $names = ['types' => ['Asset types', 'asset type', 'folder'], 'categories' => ['Categories', 'category', 'list'], 'subcategories' => ['Sub categories', 'sub category', 'list']];
     $parentLabel = ['categories' => 'Asset type', 'subcategories' => 'Category'][$kind] ?? '';
-    $cols = 3 + ($level > 1 ? 1 : 0) + ($level === 3 ? 1 : 0) + ($level === 2 ? 1 : 0);
+    $cols = 3;
 @endphp
 <div class="inv-tabs">@foreach($names as $k => $n)<a class="inv-tab {{ $kind === $k ? 'active' : '' }}" href="{{ route('inv.setup', $k) }}"><x-icon :name="$n[2]" :size="15"/> {{ $n[0] }}@if($kind === $k)<span class="n">{{ $rows->count() }}</span>@endif</a>@endforeach</div>
 <div class="inv-flow">Equipment is classified as <b>Asset type</b><span class="sep">›</span><b>Category</b><span class="sep">›</span><b>Sub category</b> <span>e.g. Computing › Laptop › Business laptop. Create them in that order.</span></div>
@@ -21,9 +21,9 @@
     <div class="col-md-3 d-flex gap-2"><button class="btn btn-primary">{{ $edit ? 'Save changes' : '+ Add' }}</button>@if($edit)<a href="{{ route('inv.setup', $kind) }}" class="btn btn-outline-secondary">Cancel</a>@endif</div></div></div></form>
 @endcan
 
-<div class="table-card"><div class="table-responsive"><table class="table table-hover align-middle"><thead><tr>@if($level === 3)<th>Asset type</th>@endif @if($level > 1)<th>{{ $parentLabel }}</th>@endif<th>Name</th>@if($level === 2)<th>Asset ID</th>@endif<th>Status</th><th></th></tr></thead><tbody>
+<div class="table-card"><div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Name</th><th>Status</th><th></th></tr></thead><tbody>
 @forelse($rows as $r)
-<tr class="{{ $edit && $edit->id === $r->id ? 'row-edit' : '' }}">@if($level === 3)<td class="text-muted">{{ $r->parent->parent->name ?? '' }}</td>@endif @if($level > 1)<td class="text-muted">{{ $r->parent->name ?? '' }}</td>@endif<td class="inv-name">{{ $r->name }}</td>@if($level === 2)<td>{!! $r->is_serialized ? '<span class="pill pill-info">Serialisable</span>' : '<span class="text-muted">No</span>' !!}</td>@endif<td>{!! $r->is_active ? '<span class="pill pill-success">Active</span>' : '<span class="pill pill-secondary">Inactive</span>' !!}</td>
+<tr class="{{ $edit && $edit->id === $r->id ? 'row-edit' : '' }}"><td><div class="inv-name">{{ $r->name }}</div>@if($level > 1)<div class="inv-sub">{{ $level === 3 ? ($r->parent->parent->name ?? '').' › ' : '' }}{{ $r->parent->name ?? '' }}</div>@endif</td><td>{!! $r->is_active ? '<span class="pill pill-success">Active</span>' : '<span class="pill pill-secondary">Inactive</span>' !!}@if($level === 2 && $r->is_serialized) <span class="pill pill-info">Serialisable</span>@endif</td>
 <td class="text-end">@can('inv.update')<a href="{{ route('inv.setup', [$kind, 'edit' => $r->id]) }}" class="btn btn-sm btn-outline-primary inv-actions-cell"><x-icon name="edit" :size="14"/> Edit</a>@endcan</td></tr>
 @empty
 <tr><td colspan="{{ $cols }}">@include('inventory._empty', ['icon' => 'folder', 'msg' => 'No '.strtolower($names[$kind][0]).' yet', 'hint' => $level === 1 ? 'Start with an asset type such as Computing or Networking.' : 'Add one using the form above.'])</td></tr>

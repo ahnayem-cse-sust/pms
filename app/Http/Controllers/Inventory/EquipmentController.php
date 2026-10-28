@@ -18,15 +18,30 @@ class EquipmentController extends InvController
             ->when($r->q, fn ($q, $s) => $q->where(fn ($w) => $w->where('name', 'like', "%$s%")->orWhere('code', 'like', "%$s%")->orWhere('brand', 'like', "%$s%")->orWhere('model', 'like', "%$s%")))
             ->when($r->asset_type_id, fn ($q, $v) => $q->where('asset_type_id', $v))->when($r->category_id, fn ($q, $v) => $q->where('category_id', $v))
             ->when($r->subcategory_id, fn ($q, $v) => $q->where('subcategory_id', $v))
-            ->when($r->boolean('low'), fn ($q) => $q->where('min_stock', '>', 0)->whereColumn('stock_qty', '<=', 'min_stock'))
+            ->when($r->boolean('low'), fn ($q) => $q->where('min_stock', '>', 0)->whereColumn('stock_qty', '<=', 'min_stock'))   // dashboard link
             ->when(! $r->boolean('inactive'), fn ($q) => $q->where('is_active', true))->orderBy('name')->get();
 
         if ($r->input('format') === 'csv') {
-            return $this->csv('equipment_stock', ['Code', 'Equipment', 'Asset type', 'Category', 'Sub category', 'Serialisable', 'Brand', 'Model', 'In stock', 'Unit', 'Minimum'],
-                $rows->map(fn ($e) => [$e->code, $e->name, $e->assetType->name ?? '', $e->category->name ?? '', $e->subcategory->name ?? '', $e->is_serialized ? 'Yes' : 'No', $e->brand, $e->model, $e->stock_qty, $e->unit, $e->min_stock]));
+            return $this->csv('equipment_stock', ['Equipment ID', 'Equipment', 'Asset type', 'Category', 'Sub category', 'Serialisable', 'Brand', 'Model', 'In stock', 'Unit'],
+                $rows->map(fn ($e) => [$e->code, $e->name, $e->assetType->name ?? '', $e->category->name ?? '', $e->subcategory->name ?? '', $e->is_serialized ? 'Yes' : 'No', $e->brand, $e->model, $e->stock_qty, $e->unit]));
         }
 
         return view('inventory.equipment.index', ['rows' => $rows, 'types' => $this->types(), 'cats' => $this->categories(), 'subs' => $this->subcategories()]);
+    }
+
+    /** Everything about one equipment item, with its allocation and receive history in two separate lists. */
+    public function show(Request $request, Equipment $equipment)
+    {
+        $equipment->load($this->with);
+        $base = fn () => $equipment->movements()->with('user', 'holderUser.department', 'holderDepartment');
+        // Allocations and returns go out to / come back from people; receives (and previous-item openings) bring stock in.
+        // Old "Correction" rows follow the direction of the quantity.
+        $allocations = $base()->where(fn ($q) => $q->whereIn('type', ['ALLOCATE', 'RETURN'])->orWhere(fn ($w) => $w->where('type', 'ADJUST')->where('qty', '<', 0)))
+            ->paginate(15, ['*'], 'alloc_page')->withQueryString()->appends(['tab' => 'allocation']);
+        $receives = $base()->where(fn ($q) => $q->whereIn('type', ['RECEIVE', 'OPENING'])->orWhere(fn ($w) => $w->where('type', 'ADJUST')->where('qty', '>=', 0)))
+            ->paginate(15, ['*'], 'recv_page')->withQueryString()->appends(['tab' => 'receive']);
+
+        return view('inventory.equipment.show', ['e' => $equipment, 'allocations' => $allocations, 'receives' => $receives, 'tab' => $request->input('tab') === 'receive' ? 'receive' : 'allocation']);
     }
 
     protected function rules(?Equipment $e = null): array
@@ -35,7 +50,7 @@ class EquipmentController extends InvController
             'asset_type_id' => ['required', Rule::exists('inv_categories', 'id')->where('level', 1)],
             'category_id' => ['required', Rule::exists('inv_categories', 'id')->where('level', 2)],
             'subcategory_id' => ['nullable', Rule::exists('inv_categories', 'id')->where('level', 3)],
-            'brand' => 'nullable|string|max:255', 'model' => 'nullable|string|max:255', 'unit' => 'nullable|string|max:30', 'min_stock' => 'nullable|numeric|min:0', 'notes' => 'nullable|string|max:2000'];
+            'brand' => 'nullable|string|max:255', 'model' => 'nullable|string|max:255', 'unit' => 'nullable|string|max:30', 'notes' => 'nullable|string|max:2000'];
     }
 
     /** Category must sit under the asset type, sub category under the category. */
@@ -60,7 +75,6 @@ class EquipmentController extends InvController
     {
         $d = $r->validate($this->rules());
         $this->checkTree($d);
-        $d['min_stock'] = $d['min_stock'] ?? 0;   // an empty field arrives as null, and `+` would not replace an existing null key
         $e = $this->svc()->createEquipment($d + ['is_active' => true]);
         $this->audit('equipment.created', $e, null, ['code' => $e->code]);
 
@@ -72,11 +86,10 @@ class EquipmentController extends InvController
         $d = $r->validate($this->rules($equipment));
         $this->checkTree($d);
         $d['is_active'] = $r->boolean('is_active');
-        $d['min_stock'] = $d['min_stock'] ?? 0;
         $old = $equipment->only(array_keys($d));
         $equipment->update($d);
         $this->audit('equipment.updated', $equipment, $old, $d);
 
-        return redirect()->route('inv.equipment.index')->with('ok', 'Saved.');
+        return redirect()->route('inv.equipment.show', $equipment)->with('ok', 'Saved.');
     }
 }

@@ -70,8 +70,33 @@
         </table>
         </div>
 
+        @if(! empty($menus))
+        <label class="form-label mt-4">Sidebar menus <span class="text-muted fw-normal">&ndash; tick the menus this role sees; the access a menu needs is added automatically</span></label>
+        <div class="row g-3 mb-2" id="menuGrid">
+        @foreach($menus as $section => $items)
+            <div class="col-md-6 col-xl-4 perm-col">
+                <div class="card h-100 perm-group">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>{{ $section }} <span class="text-muted fw-normal small perm-n"></span></span>
+                        @unless($locked)<label class="small fw-normal text-muted mb-0"><input type="checkbox" class="form-check-input me-1 perm-all"> All</label>@endunless
+                    </div>
+                    <div class="card-body">
+                        @foreach($items as $key => $label)
+                            @php($req = config("itsm.permission_requires.$key", []))
+                            <div class="form-check perm-line" data-text="{{ strtolower($label.' '.$key.' menu sidebar') }}">
+                                <input class="form-check-input perm-item" type="checkbox" name="permissions[]" value="{{ $key }}" id="p_{{ md5($key) }}" @checked(in_array($key, $picked)) @disabled($locked)>
+                                <label class="form-check-label" for="p_{{ md5($key) }}">{{ $label }}@if($req)<span class="d-block text-muted" style="font-size:.7rem">needs: {{ collect($req)->map(fn ($k) => $labels[$k] ?? $k)->implode(', ') }}</span>@endif</label>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+        @endforeach
+        </div>
+        @endif
+
         @if(count($others))
-        <label class="form-label">Workflow &amp; other actions</label>
+        <label class="form-label mt-3">Workflow &amp; other actions</label>
         <div class="row g-3" id="permGrid">
         @foreach($others as $group => $items)
             <div class="col-md-6 col-xl-4 perm-col">

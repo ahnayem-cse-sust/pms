@@ -126,9 +126,13 @@ class RoleController extends Controller
                 if ($row['read'] || $row['add'] || $row['update'] || $row['delete']) $matrix[$module][] = $row;
             }
         }
-        $others = collect($this->visibleCatalog())->map(fn ($g) => array_diff_key($g, array_flip($inMatrix)))->filter()->all();
+        $catalog = $this->visibleCatalog();
+        $others = collect($catalog)->reject(fn ($g, $name) => str_starts_with($name, 'Sidebar menu'))->map(fn ($g) => array_diff_key($g, array_flip($inMatrix)))->filter()->all();
+        // Every sidebar menu, in sidebar order, minus the ones this actor may not hand out.
+        $allowed = collect($catalog)->flatMap(fn ($g) => array_keys($g))->flip();
+        $menus = collect(config('itsm.sidebar_menus'))->map(fn ($items) => collect($items)->filter(fn ($m, $key) => isset($allowed[$key]))->map(fn ($m) => $m[0])->all())->filter()->all();
 
-        return ['matrix' => $matrix, 'others' => $others, 'catalog' => $this->visibleCatalog()];
+        return ['matrix' => $matrix, 'others' => $others, 'catalog' => $catalog, 'menus' => $menus];
     }
 
     /** Only a System Administrator may see or hand out role/settings/audit management. */

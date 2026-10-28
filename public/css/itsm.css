@@ -665,3 +665,21 @@ a.inv-chip:hover{ border-color:var(--primary); color:var(--primary); }
 .board-col.backlog .board-head{ color:#5b21b6; border-bottom-color:#c4b5fd; }
 [data-bs-theme=dark] .board-col.backlog .board-head{ color:#ddd6fe; border-bottom-color:#5b21b6; }
 .board-col.backlog .tcard{ border-left-color:#8b5cf6; }
+
+/* inventory: search panel buttons – Search / Reset on the left, CSV and the create action on the right */
+.filter-btns{ justify-content:space-between; }
+.filter-btns .fb-main, .filter-btns .fb-side{ display:flex; flex-wrap:wrap; gap:.4rem; align-items:center; }
+.filter-btns .fb-side{ margin-left:auto; }
+@media (max-width:1199.98px){ .filter-btns .fb-main{ flex:1 1 auto; } .filter-btns .fb-main .btn-primary{ flex:1 1 auto; } .filter-btns .fb-side{ margin-left:0; width:100%; } .filter-btns .fb-side .btn{ flex:1 1 auto; } }
+/* inventory details: header, meta and the lines table share one card */
+.inv-lines{ border-top:1px solid var(--border); }
+.inv-lines .table{ margin-bottom:0; }
+
+/* equipment details: history section inside the same card */
+.inv-history-head{ padding:.8rem 1rem; border-top:1px solid var(--border); font-weight:650; display:flex; align-items:center; gap:.5rem; }
+
+/* Equipment details: information table */
+.inv-info th{ width:17%; background:var(--primary-soft); color:var(--muted); font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; font-weight:700; white-space:nowrap; }
+.inv-info td{ width:33%; font-weight:550; overflow-wrap:anywhere; }
+.inv-info.table-bordered{ border-left-width:0; border-right-width:0; border-bottom-width:0; }
+@media (max-width:575.98px){ .inv-info th{ width:auto; } }

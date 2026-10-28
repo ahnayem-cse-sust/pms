@@ -32,14 +32,29 @@ class AllocationController extends InvController
 
     public function index(Request $r)
     {
-        $rows = $this->holdings()->when($r->q, fn ($c, $s) => $c->filter(fn ($x) => stripos($x->holder.' '.$x->dept.' '.$x->equipment->name.' '.$x->equipment->code.' '.$x->serial_no.' '.$x->device_sn, $s) !== false))->values();
+        $rows = $this->holdings()
+            ->when($r->equipment_id, fn ($c, $v) => $c->filter(fn ($x) => $x->equipment_id == $v))
+            ->when($r->user_id, fn ($c, $v) => $c->filter(fn ($x) => $x->holder_type === 'EMPLOYEE' && $x->holder_user_id == $v))
+            ->when($r->department_id, fn ($c, $v) => $c->filter(fn ($x) => $x->holder_type === 'DEPARTMENT' && $x->holder_department_id == $v))
+            ->when($r->q, fn ($c, $s) => $c->filter(fn ($x) => stripos($x->holder.' '.$x->dept.' '.$x->equipment->name.' '.$x->equipment->code.' '.$x->serial_no.' '.$x->device_sn, $s) !== false))->values();
 
         if ($r->input('format') === 'csv') {
-            return $this->csv('allocations', ['Held by', 'Department', 'Equipment', 'Asset ID', 'Serial number', 'Asset type', 'Category', 'Sub category', 'Quantity', 'Since'],
+            return $this->csv('allocations', ['Assigned to', 'Department', 'Equipment', 'Asset ID', 'Serial number', 'Asset type', 'Category', 'Sub category', 'Quantity', 'Since'],
                 $rows->map(fn ($x) => [$x->holder, $x->dept, $x->equipment->name, $x->serial_no, $x->device_sn, $x->equipment->assetType->name ?? '', $x->equipment->category->name ?? '', $x->equipment->subcategory->name ?? '', \App\Support\Inv::qty($x->held), $x->since]));
         }
 
-        return view('inventory.allocations.index', ['rows' => $rows]);
+        return view('inventory.allocations.index', ['rows' => $rows, 'equipment' => $this->equipment(), 'people' => $this->people(), 'departments' => $this->departments()]);
+    }
+
+    /** One holder (employee or department) with everything they currently hold; equipment is shown here and returned from here. */
+    public function holder(string $holder)
+    {
+        [$kind, $id] = explode('-', $holder);
+        $isEmp = $kind === 'E';
+        $who = $isEmp ? User::with('department')->findOrFail($id) : Department::findOrFail($id);
+        $rows = $this->holdings(fn ($q) => $isEmp ? $q->where('holder_type', 'EMPLOYEE')->where('holder_user_id', $id) : $q->where('holder_type', 'DEPARTMENT')->where('holder_department_id', $id));
+
+        return view('inventory.allocations.holder', ['who' => $who, 'isEmp' => $isEmp, 'rows' => $rows, 'holderId' => $holder]);
     }
 
     /** "My Items": what is currently allocated to me or my department. */
@@ -121,7 +136,14 @@ class AllocationController extends InvController
     {
         $lines = $this->entryLines($entry);
 
-        return view('inventory.allocations.show', ['entry' => $entry, 'lines' => $lines, 'first' => $lines->first()]);
+        $f = $lines->first();
+        // What the holder still has of each equipment / asset in this entry (allocated minus returned, across all entries).
+        $held = Movement::whereIn('type', ['ALLOCATE', 'RETURN'])->whereIn('equipment_id', $lines->pluck('equipment_id'))->where('holder_type', $f->holder_type)
+            ->when($f->holder_type === 'EMPLOYEE', fn ($q) => $q->where('holder_user_id', $f->holder_user_id), fn ($q) => $q->where('holder_department_id', $f->holder_department_id))
+            ->selectRaw('equipment_id, serial_no, -SUM(qty) as held')->groupBy('equipment_id', 'serial_no')->get()
+            ->mapWithKeys(fn ($x) => [$x->equipment_id.'|'.($x->serial_no ?? '') => (float) $x->held]);
+
+        return view('inventory.allocations.show', ['entry' => $entry, 'lines' => $lines, 'first' => $f, 'held' => $held]);
     }
 
     /** PDF handover form of one allocation entry: every equipment handed over in it. */

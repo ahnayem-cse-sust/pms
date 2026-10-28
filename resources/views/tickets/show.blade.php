@@ -25,6 +25,7 @@
                 @if($ticket->status->code === 'CLOSED')
                     <a href="{{ route('tickets.pdf', $ticket) }}" class="btn btn-sm btn-primary flex-none d-inline-flex align-items-center gap-1"><x-icon name="download" :size="15"/> Download PDF</a>
                 @endif
+                @if(! empty($canEditDetails))<a href="{{ route('tickets.edit', $ticket) }}" class="btn btn-sm btn-primary flex-none d-inline-flex align-items-center gap-1"><x-icon name="edit" :size="15"/> Edit request</a>@endif
                 <a href="{{ route('tickets.index') }}" class="btn btn-sm btn-outline-secondary flex-none">← Back</a>
             </div>
             <div class="collapse show" id="fold-top">

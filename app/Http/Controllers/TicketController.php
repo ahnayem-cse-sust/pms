@@ -181,6 +181,7 @@ class TicketController extends Controller
             'transitions' => $this->svc->allowedTransitions($ticket, $u),
             'canAssign' => $u->can('ticket.assign') && in_array($ticket->status->code, TicketService::ASSIGNABLE, true),
             'canEdit' => $u->can('ticket.edit') && $ticket->status->is_open,
+            'canEditDetails' => $ticket->canEditDetails($u),
             'members' => User::active()->assignable()->orderBy('name')->get(),
             'categories' => TicketCategory::with('subcategories')->orderBy('name')->get(),
             'types' => TicketType::where('is_active', true)->orWhere('id', $ticket->ticket_type_id)->orderBy('name')->get(),
@@ -321,6 +322,43 @@ class TicketController extends Controller
         ]);
         $this->svc->updateWork($ticket, auth()->user(), $d['work_status'], $d['note'] ?? null);
         return back()->with('ok', 'Your work update was saved.');
+    }
+
+    /** Edit the request itself (subject, description, type, category ...) - requester or System Administrator, before it is assigned. */
+    public function editDetails(Ticket $ticket)
+    {
+        $this->authorizeView($ticket);
+        abort_unless($ticket->canEditDetails(auth()->user()), 403, 'This request can no longer be edited. It is already assigned or closed.');
+        $ticket->load(['category', 'subcategory', 'type', 'location', 'requester']);
+
+        return view('tickets.edit', [
+            'ticket' => $ticket,
+            'types' => TicketType::where('is_active', true)->orWhere('id', $ticket->ticket_type_id)->orderBy('name')->get(),
+            'categories' => TicketCategory::with('subcategories')->where(fn ($q) => $q->where('is_active', true)->orWhere('id', $ticket->category_id))->orderBy('sort_order')->get(),
+            'locations' => Location::where('is_active', true)->orWhere('id', $ticket->location_id)->orderBy('name')->get(),
+        ]);
+    }
+
+    public function updateDetails(Request $r, Ticket $ticket)
+    {
+        $this->authorizeView($ticket);
+        abort_unless($ticket->canEditDetails(auth()->user()), 403, 'This request can no longer be edited. It is already assigned or closed.');
+        $d = $r->validate([
+            'ticket_type_id' => 'required|exists:ticket_types,id',
+            'category_id' => 'required|exists:ticket_categories,id',
+            'subcategory_id' => 'nullable|exists:ticket_subcategories,id',
+            'subject' => 'required|string|max:200',
+            'description' => 'required|string|max:10000',
+            'preferred_completion_date' => 'nullable|date',
+            'phone' => 'nullable|string|max:30',
+            'location_id' => 'nullable|exists:locations,id',
+        ], [], ['ticket_type_id' => 'service type', 'subcategory_id' => 'sub-category']);
+        if (! empty($d['subcategory_id'])) {
+            abort_unless(\App\Models\TicketSubcategory::where('id', $d['subcategory_id'])->where('category_id', $d['category_id'])->exists(), 422, 'That sub-category does not belong to the selected category.');
+        }
+        $this->svc->updateDetails($ticket, auth()->user(), $d);
+
+        return redirect()->route('tickets.show', $ticket)->with('ok', 'Request updated.');
     }
 
     public function update(Request $r, Ticket $ticket)
