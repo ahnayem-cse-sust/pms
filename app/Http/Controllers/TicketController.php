@@ -66,7 +66,8 @@ class TicketController extends Controller
             }
         }
         if ($r->filled('unassigned')) {
-            $q->whereNull('assigned_to');
+            // the unassigned queue: nobody on it yet, or parked as Backlog
+            $q->where(fn ($w) => $w->whereNull('tickets.assigned_to')->orWhereHas('status', fn ($s) => $s->where('code', 'BACKLOG')));
         }
         // My Tasks / Completed Tasks: filter by the user's own role on the request
         if (in_array($mode, ['tasks', 'completed'], true) && in_array($r->input('role'), ['primary', 'support'], true)) {
@@ -290,22 +291,22 @@ class TicketController extends Controller
         $this->authorizeView($ticket);
         $d = $r->validate([
             'primary_id' => 'nullable|integer|exists:users,id',
-            'auto' => 'nullable|boolean',
             'support_ids' => 'nullable|array',
             'support_ids.*' => 'integer|exists:users,id',
-            'instructions' => 'nullable|string|max:2000',
-            'due_date' => 'nullable|date',
         ]);
 
         $support = $d['support_ids'] ?? [];
-        $primary = $r->boolean('auto')
-            ? $this->svc->autoPickAssignee(array_map('intval', $support))
-            : User::find($d['primary_id'] ?? null);
+        $primary = User::find($d['primary_id'] ?? null);
         if (! $primary) {
-            return back()->withErrors(['primary_id' => 'Choose the primary responsible employee (or tick auto-assign).'])->withInput();
+            // no primary chosen: on an assigned request that means "unassign" (everyone leaves the team)
+            if ($ticket->assigned_to) {
+                $this->svc->unassign($ticket, auth()->user());
+                return back()->with('ok', 'Request unassigned. It is back in the Unassigned Queue.');
+            }
+            return back()->withErrors(['primary_id' => 'Choose the primary responsible employee.'])->withInput();
         }
 
-        $this->svc->setTeam($ticket, $primary, $support, auth()->user(), $d['instructions'] ?? null, $d['due_date'] ?? null);
+        $this->svc->setTeam($ticket, $primary, $support, auth()->user());
         return back()->with('ok', "Team saved – {$primary->name} is the primary responsible employee.");
     }
 

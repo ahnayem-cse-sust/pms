@@ -4,7 +4,7 @@
 @php
     $steps = ['New', 'Assigned', 'In progress', 'Resolved', 'Closed'];
     $stepOf = ['NEW' => 0, 'ACKNOWLEDGED' => 0, 'ASSIGNED' => 1, 'REOPENED' => 1, 'IN_PROGRESS' => 2, 'WAITING_USER' => 2,
-               'ON_HOLD' => 2, 'ESCALATED' => 2, 'RESOLVED' => 3, 'USER_CONFIRMATION' => 3, 'CLOSED' => 4];
+               'ON_HOLD' => 2, 'ESCALATED' => 2, 'BACKLOG' => 0, 'RESOLVED' => 3, 'USER_CONFIRMATION' => 3, 'CLOSED' => 4];
     $cur = $stepOf[$ticket->status->code] ?? null;
     $open = $ticket->status->is_open;
     $reqNo = str_replace('-', '', $ticket->ticket_no);

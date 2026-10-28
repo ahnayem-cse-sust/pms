@@ -94,7 +94,7 @@ class DashboardController extends Controller
     {
         // Column order = the saved board position (drag a column header to change it), then name for anyone not placed yet
         $memberList = User::active()->assignable()->orderByRaw('board_position is null')->orderBy('board_position')->orderBy('name')->get();
-        $openTickets = Ticket::open()->with(['department', 'team.employee', 'assignee'])->orderBy('created_at')->limit(400)->get();
+        $openTickets = Ticket::open()->with(['department', 'team.employee', 'assignee', 'status'])->orderBy('created_at')->limit(400)->get();
         $card = fn ($t) => [
             'id' => $t->id, 'no' => $t->ticket_no, 'subject' => $t->subject,
             'dept' => $t->department->name,
@@ -104,14 +104,18 @@ class DashboardController extends Controller
             'role' => 'primary',
             'primary' => $t->assignee?->name,
         ];
+        $backlog = fn ($t) => $t->status->code === 'BACKLOG';   // Backlog requests have a column of their own
         $columns = [[
-            'id' => null, 'name' => 'Unassigned',
-            'tickets' => $openTickets->whereNull('assigned_to')->map($card)->values()->all(),
+            'id' => null, 'key' => 'backlog', 'name' => 'Backlog',
+            'tickets' => $openTickets->filter($backlog)->map($card)->values()->all(),
+        ], [
+            'id' => null, 'key' => 'unassigned', 'name' => 'Unassigned',
+            'tickets' => $openTickets->filter(fn ($t) => $t->assigned_to === null && ! $backlog($t))->map($card)->values()->all(),
         ]];
         foreach ($memberList as $m) {
-            $primary = $openTickets->where('assigned_to', $m->id)->map($card)->values()->all();
+            $primary = $openTickets->where('assigned_to', $m->id)->reject($backlog)->map($card)->values()->all();
             // Requests where this employee is a supporting (not primary) team member
-            $support = $openTickets->filter(fn ($t) => (int) $t->assigned_to !== (int) $m->id
+            $support = $openTickets->filter(fn ($t) => ! $backlog($t) && (int) $t->assigned_to !== (int) $m->id
                     && $t->team->contains(fn ($x) => (int) $x->employee_id === (int) $m->id && $x->role === 'SUPPORT'))
                 ->map(fn ($t) => array_merge($card($t), ['role' => 'support']))->values()->all();
             $columns[] = [

@@ -56,6 +56,7 @@ Route::middleware('auth')->group(function () {
     // Notifications
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.readAll');
+    Route::get('/notifications/poll', [NotificationController::class, 'poll'])->name('notifications.poll');
     Route::get('/notifications/{id}', [NotificationController::class, 'read'])->name('notifications.read');
 
     // Keep-alive ping sent by the page while the user is active (see layout script)

@@ -186,3 +186,15 @@ Presentation only: no routes, permissions, database or form-field changes.
 - **Detail pages** (entry and record): header card with type icon, status and a tidy details grid.
 - **Types & Categories**: tabs with counts, the Asset type › Category › Sub category path, switches, highlighted row while editing.
 - All light/dark theme aware. Shared styles are in the `inv-*` block at the end of `public/css/itsm.css`; small partials live in `resources/views/inventory/` (`_crumb`, `_meter`, `_empty`, `_rowlink`).
+
+
+## Desktop notification pop-ups over plain http
+
+Browsers only allow operating-system pop-ups (the Notification API) on `https://` pages or `localhost`; a web page cannot override that.
+When the system is opened over `http://server`, the top-bar button reads **Enable sound alerts** and gives a chime plus a flashing tab title for every new notification.
+
+To get real desktop pop-ups on the office PCs without HTTPS, allow the site in the browser (one-time, per PC or via Group Policy):
+
+- **Chrome / Edge, single PC:** open `chrome://flags/#unsafe-treat-insecure-origin-as-secure` (Edge: `edge://flags/...`), add `http://your-server-address`, set it to *Enabled* and relaunch the browser.
+- **Chrome / Edge, all PCs (Group Policy):** policy `OverrideSecurityRestrictionsOnInsecureOrigin` (Chrome) / `OverrideSecurityRestrictionsOnInsecureOrigin` (Edge) with the value `http://your-server-address`.
+- After that the button reads **Enable desktop alerts** and the pop-ups work.

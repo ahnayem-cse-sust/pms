@@ -30,6 +30,8 @@ Transitions live in the `ticket_status_transitions` table (seeded by `ItsmLookup
 | USER_CONFIRMATION | REOPENED | ticket.confirm | Yes | Requester ("problem still exists") |
 | CLOSED | REOPENED | ticket.reopen | Yes | Requester within `ticket.reopen_window_days`; Officer anytime |
 | NEW / ACKNOWLEDGED / ASSIGNED / IN_PROGRESS / WAITING_USER / ON_HOLD / REOPENED | ESCALATED | ticket.escalate | Yes | IT Admin, or the primary responsible IT employee |
+| NEW / ACKNOWLEDGED / REOPENED / ESCALATED | BACKLOG | ticket.work | No | IT Admin, and only while **no employee is assigned** (enforced in code). A Backlog request is listed in the **Unassigned Queue** and in its own **Backlog** column on the Assignment Board until it is assigned (BACKLOG → ASSIGNED, `ticket.assign`) or cancelled. |
+| *(unassign)* any open working state | same, or ACKNOWLEDGED | ticket.assign | No (reason optional) | IT Admin, by choosing "Unassign" in the Primary responsible employee list of the team panel and saving. Removes the primary and all supporting employees; a request that was Assigned / In Progress / Waiting / On Hold returns to Acknowledged, the others keep their status. It then shows in the Unassigned Queue and can be moved to Backlog. |
 | NEW / ACKNOWLEDGED / ASSIGNED | CANCELLED | ticket.cancel | Yes | Requester (own, while NEW) / IT Admin |
 
 **Design note:** RESOLVED and USER_CONFIRMATION are effectively the same waiting state. Phase 1 keeps both to match your spec; if it feels redundant in UAT, merge them (resolve → "Resolved – Awaiting Confirmation").

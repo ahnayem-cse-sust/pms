@@ -25,6 +25,7 @@ class ItsmLookupSeeder extends Seeder
             ['IN_PROGRESS',       'In Progress',       1, 0, 'warning'],
             ['WAITING_USER',      'Waiting for User',  1, 0, 'secondary'],
             ['ON_HOLD',           'On Hold',           1, 0, 'secondary'],
+            ['BACKLOG',           'Backlog',           1, 0, 'dark'],
             ['ESCALATED',         'Escalated',         1, 0, 'danger'],
             ['RESOLVED',          'Resolved',          1, 0, 'primary'],
             ['USER_CONFIRMATION', 'User Confirmation', 1, 0, 'success'],
@@ -70,6 +71,15 @@ class ItsmLookupSeeder extends Seeder
                 'permission' => $perm, 'requires_comment' => $comment,
             ]);
         }
+        // Backlog: park a request nobody is assigned to (it then waits in the Unassigned Queue; TicketService refuses it once someone is assigned); it leaves Backlog by being assigned, or cancelled
+        foreach (['NEW', 'ACKNOWLEDGED', 'REOPENED', 'ESCALATED'] as $from) {
+            DB::table('ticket_status_transitions')->insert(['from_status_id' => $id($from), 'to_status_id' => $id('BACKLOG'), 'permission' => 'ticket.work', 'requires_comment' => 0]);
+        }
+        DB::table('ticket_status_transitions')->insert([
+            ['from_status_id' => $id('BACKLOG'), 'to_status_id' => $id('ASSIGNED'), 'permission' => 'ticket.assign', 'requires_comment' => 0],
+            ['from_status_id' => $id('BACKLOG'), 'to_status_id' => $id('CANCELLED'), 'permission' => 'ticket.cancel', 'requires_comment' => 1],
+            ['from_status_id' => $id('BACKLOG'), 'to_status_id' => $id('ESCALATED'), 'permission' => 'ticket.escalate', 'requires_comment' => 1],
+        ]);
         // Escalate from any active working state (officer / system SLA job)
         foreach (['NEW', 'ACKNOWLEDGED', 'ASSIGNED', 'IN_PROGRESS', 'WAITING_USER', 'ON_HOLD', 'REOPENED'] as $from) {
             DB::table('ticket_status_transitions')->insert([

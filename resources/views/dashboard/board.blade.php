@@ -1,12 +1,13 @@
 @extends('layouts.app')
 @section('title', 'Assignment Board')
+@section('nofooter', '1')
 @section('content')
 <div class="text-muted small mb-3">Open requests, oldest first.@if($board['canAssign']) Drag an employee's name to reorder the columns.@endif</div>
 
 <div id="board" v-cloak>
     <div class="board">
-        <div v-for="col in cols" :key="col.id === null ? 'u' : col.id"
-             class="board-col" :class="{ unassigned: col.id === null, 'col-over': colOver === col.id && colDrag && colDrag.id !== col.id, 'col-moving': colDrag && colDrag.id === col.id }"
+        <div v-for="col in cols" :key="col.id === null ? col.key : col.id"
+             class="board-col" :class="{ unassigned: col.key === 'unassigned', backlog: col.key === 'backlog', 'col-over': colOver === col.id && colDrag && colDrag.id !== col.id, 'col-moving': colDrag && colDrag.id === col.id }"
              v-on:dragover.prevent="onDragOver(col)"
              v-on:dragleave="colOver = null"
              v-on:drop.prevent="moveColumn(col)">
@@ -33,7 +34,7 @@
                     <div v-else-if="t.support && t.support.length" class="ticket-sub mb-1">+ support: [[ t.support.join(', ') ]]</div>
                     <div class="meta"><span>[[ t.dept ]]<template v-if="t.due"> · due [[ t.due ]]</template></span></div>
                 </a>
-                <div v-if="!col.tickets.length" class="empty-hint">[[ col.id === null ? 'Nothing waiting 🎉' : 'No open tickets' ]]</div>
+                <div v-if="!col.tickets.length" class="empty-hint">[[ col.key === 'backlog' ? 'Backlog is empty' : (col.id === null ? 'Nothing waiting 🎉' : 'No open tickets') ]]</div>
             </div>
         </div>
     </div>
@@ -44,6 +45,9 @@
 <style>[v-cloak]{display:none}</style>
 <script>
 const BOARD = @json($board);
+// the columns take the rest of the screen height, whatever the device
+function fitBoard() { var b = document.querySelector('#board .board'); if (!b) return; b.style.height = Math.max(380, window.innerHeight - b.getBoundingClientRect().top - 16) + 'px'; }
+window.addEventListener('resize', fitBoard);
 Vue.createApp({
     delimiters: ['[[', ']]'],
     data() { return { cols: BOARD.columns, canReorder: BOARD.canAssign, colDrag: null, colOver: null }; },
@@ -61,7 +65,7 @@ Vue.createApp({
             var moving = this.colDrag; this.colDrag = null; this.colOver = null;
             if (!moving || target.id === null || target.id === moving.id) return;
             var from = this.cols.indexOf(moving), to = this.cols.indexOf(target);
-            this.cols.splice(from, 1); this.cols.splice(to, 0, moving);   // the Unassigned column always stays first
+            this.cols.splice(from, 1); this.cols.splice(to, 0, moving);   // the Backlog and Unassigned columns always stay first
             var ids = this.cols.filter(function (c) { return c.id !== null; }).map(function (c) { return c.id; });
             try {
                 var res = await fetch(BOARD.orderUrl, { method: 'POST',
@@ -72,6 +76,8 @@ Vue.createApp({
             } catch (e) { window.toast('Could not save the column order.', 'danger'); }
         }
     }
+    ,mounted() { this.$nextTick(fitBoard); }
 }).mount('#board');
+setTimeout(fitBoard, 0);
 </script>
 @endpush

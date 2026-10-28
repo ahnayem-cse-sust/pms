@@ -62,7 +62,7 @@
             @can('attendance.own')
                 <li><a class="nav-link {{ request()->routeIs('attendance.mine') ? 'active' : '' }}" href="{{ route('attendance.mine') }}"><x-icon name="clock"/> My Attendance</a></li>
             @endcan
-            <li><a class="nav-link {{ request()->routeIs('notifications.*') ? 'active' : '' }}" href="{{ route('notifications.index') }}">
+            <li><a id="navNotif" class="nav-link {{ request()->routeIs('notifications.*') ? 'active' : '' }}" href="{{ route('notifications.index') }}">
                 <x-icon name="bell"/> Notifications @if($unread)<span class="badge bg-danger count">{{ $unread }}</span>@endif</a></li>
 
             {{-- Management --}}
@@ -148,8 +148,9 @@
         <h1 class="page-title">@yield('title', 'IT Service Desk')</h1>
         <div class="company d-none d-sm-block">Jamuna Oil PLC.</div>
         <div class="ms-auto d-flex align-items-center gap-2">
+            <button type="button" id="deskNotif" class="btn btn-sm btn-outline-light d-none" title="Show a desktop notification when a new one arrives">Enable desktop alerts</button>
             <button class="btn-icon" id="themeToggle" type="button" title="Light / dark" aria-label="Toggle theme"><x-icon name="moon"/></button>
-            <a class="btn-icon" href="{{ route('notifications.index') }}" title="Notifications"><x-icon name="bell"/>@if($unread)<span class="dot">{{ $unread }}</span>@endif</a>
+            <a id="topNotif" class="btn-icon" href="{{ route('notifications.index') }}" title="Notifications"><x-icon name="bell"/>@if($unread)<span class="dot">{{ $unread }}</span>@endif</a>
             <a href="{{ route('profile.password') }}" class="top-user d-none d-md-flex text-decoration-none" title="My account">
                 <x-avatar :name="auth()->user()->name" :user="auth()->user()" class="avatar-lg"/>
                 <div class="lh-sm">
@@ -169,7 +170,7 @@
         @endif
         @yield('content')
     </main>
-    <footer class="app-footer">Developed by MIS &amp; IT Department of JOPLC.</footer>
+    @hasSection('nofooter')@else<footer class="app-footer">Developed by MIS &amp; IT Department of JOPLC.</footer>@endif
 </div>
 @else
     @if($errors->any())
@@ -246,6 +247,103 @@ window.toast = function (msg, type) {
             window.toast('You will be signed out in 1 minute because of inactivity. Move the mouse or press a key to stay signed in.', 'warning');
         }
     }, 5000);
+})();
+</script>
+@endauth
+@auth
+<script>
+// Live notifications: poll the server, update the counters, pop a toast for each new notification, refresh the list when it is open.
+(function () {
+    var url = @json(route('notifications.poll')), every = 10000, since = {{ now()->timestamp }} - 5, seen = {}, busy = false, stopped = false;
+    function badge(el, cls, n) {
+        if (!el) return;
+        var b = el.querySelector('.' + cls.split(' ')[0]);
+        if (n > 0) { if (!b) { b = document.createElement('span'); b.className = cls; el.appendChild(b); } b.textContent = n; }
+        else if (b) b.remove();
+    }
+    function show(n) {
+        var el = document.createElement('div');
+        el.className = 'toast align-items-center text-bg-primary border-0'; el.setAttribute('role', 'alert');
+        el.innerHTML = '<div class="d-flex"><a class="toast-body text-white text-decoration-none flex-grow-1"></a><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>';
+        var a = el.querySelector('a'); a.textContent = n.message; a.href = n.url;
+        document.getElementById('toasts').appendChild(el);
+        new bootstrap.Toast(el, { delay: 8000 }).show();
+        el.addEventListener('hidden.bs.toast', function () { el.remove(); });
+    }
+    // Desktop (operating-system) notification: needs the user's permission, and a secure page (https or localhost)
+    // Over plain http the browser refuses desktop pop-ups (nothing a web page can change), so there the same button turns on
+    // the alternatives that do work: a sound and a flashing tab title.
+    var dbtn = document.getElementById('deskNotif'), secure = window.isSecureContext !== false, canDesk = secure && 'Notification' in window, ctx = null, flashTimer = null, baseTitle = document.title;
+    function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+    function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+    function audio() { try { var A = window.AudioContext || window.webkitAudioContext; if (A && !ctx) ctx = new A(); if (ctx && ctx.state === 'suspended') ctx.resume(); } catch (e) {} return ctx; }
+    function chime() {
+        if (lsGet('itsm-alerts') !== '1' || !audio()) return;
+        try {
+            [880, 1175].forEach(function (f, i) {
+                var o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime + i * 0.18;
+                o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.25, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
+                o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t + 0.32);
+            });
+        } catch (e) {}
+    }
+    function flashTitle(n) {
+        if (!document.hidden && document.hasFocus()) return;
+        if (flashTimer) clearInterval(flashTimer);
+        var on = false;
+        flashTimer = setInterval(function () { on = !on; document.title = on ? '\uD83D\uDD14 ' + n.message : baseTitle; }, 1000);
+    }
+    function stopFlash() { if (flashTimer) { clearInterval(flashTimer); flashTimer = null; document.title = baseTitle; } }
+    window.addEventListener('focus', stopFlash); document.addEventListener('visibilitychange', function () { if (!document.hidden) stopFlash(); });
+    function deskState() {
+        if (!dbtn) return;
+        var need = canDesk ? Notification.permission === 'default' : lsGet('itsm-alerts') !== '1';
+        dbtn.textContent = canDesk ? 'Enable desktop alerts' : 'Enable sound alerts';
+        dbtn.classList.toggle('d-none', !need);
+    }
+    if (dbtn) {
+        dbtn.addEventListener('click', function () {
+            if (canDesk) { Notification.requestPermission().then(function () { lsSet('itsm-alerts', '1'); audio(); deskState(); }); return; }
+            lsSet('itsm-alerts', '1'); audio(); chime(); deskState();
+            window.toast('Sound and tab alerts are on. Desktop pop-ups are not available over http (see README).', 'info');
+        });
+        deskState();
+    }
+    if (lsGet('itsm-alerts') === '1') document.addEventListener('click', audio, { once: true });
+    function desktop(n) {
+        chime(); flashTitle(n);
+        if (!canDesk || Notification.permission !== 'granted' || (!document.hidden && document.hasFocus())) return;   // only when the user is not looking at the page
+        try {
+            var d = new Notification('JOPLC IT Service Desk', { body: n.message, tag: n.id, icon: @json(asset('images/joplc_logo.png')) });
+            d.onclick = function () { window.focus(); window.location.href = n.url; d.close(); };
+        } catch (e) {}
+    }
+    function refreshList() {
+        var box = document.getElementById('notifList');
+        if (!box) return;
+        fetch(location.href, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } }).then(function (r) { return r.text(); }).then(function (h) {
+            var f = new DOMParser().parseFromString(h, 'text/html').getElementById('notifList');
+            if (f) box.innerHTML = f.innerHTML;
+        }).catch(function () {});
+    }
+    function tick() {
+        if (busy || stopped) return;   // keeps polling in a background tab so desktop alerts still arrive
+        busy = true;
+        fetch(url + '?since=' + since, { credentials: 'same-origin', headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function (r) { if (r.status === 401 || r.status === 419) { stopped = true; throw 0; } return r.json(); })
+            .then(function (d) {
+                since = d.now - 5;
+                badge(document.getElementById('navNotif'), 'badge bg-danger count', d.unread);
+                badge(document.getElementById('topNotif'), 'dot', d.unread);
+                var fresh = d.items.filter(function (n) { return !seen[n.id]; });
+                fresh.reverse().forEach(function (n) { seen[n.id] = 1; show(n); desktop(n); });
+                if (fresh.length) refreshList();
+            })
+            .catch(function () {}).then(function () { busy = false; });
+    }
+    setInterval(tick, every);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) tick(); });
+    tick();
 })();
 </script>
 @endauth

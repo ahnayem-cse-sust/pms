@@ -34,9 +34,12 @@ class InactivityTimeout
                     ->withErrors(['email' => "You were signed out after {$minutes} minutes of inactivity. Please sign in again."]);
             }
 
-            $request->session()->put('last_activity_at', now()->timestamp);
-            $request->session()->put('last_activity_ip', $request->ip());
-            SessionTracker::touch($user, $request->ip());
+            // the background notification poll is not user activity: it must not keep an idle session alive
+            if (! $request->routeIs('notifications.poll')) {
+                $request->session()->put('last_activity_at', now()->timestamp);
+                $request->session()->put('last_activity_ip', $request->ip());
+                SessionTracker::touch($user, $request->ip());
+            }
         }
 
         return $next($request);

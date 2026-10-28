@@ -658,3 +658,10 @@ a.inv-chip:hover{ border-color:var(--primary); color:var(--primary); }
 .filter-card .form-switch .form-check-input{ cursor:pointer; }
 .filter-card .form-switch .form-check-label{ cursor:pointer; color:var(--text); font-size:.8rem; text-transform:none; letter-spacing:0; font-weight:550; }
 .table tbody tr.row-edit>td{ background:var(--primary-soft); }
+
+/* assignment board: Backlog column in its own (violet) colour */
+.board-col.backlog{ border-color:#8b5cf6; background:color-mix(in srgb,#ede9fe 45%,var(--card)); }
+[data-bs-theme=dark] .board-col.backlog{ border-color:#7c3aed; background:color-mix(in srgb,#4c1d95 30%,var(--card)); }
+.board-col.backlog .board-head{ color:#5b21b6; border-bottom-color:#c4b5fd; }
+[data-bs-theme=dark] .board-col.backlog .board-head{ color:#ddd6fe; border-bottom-color:#5b21b6; }
+.board-col.backlog .tcard{ border-left-color:#8b5cf6; }

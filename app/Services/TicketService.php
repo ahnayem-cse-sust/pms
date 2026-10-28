@@ -32,7 +32,7 @@ class TicketService
         'DONE' => 'Done',
     ];
 
-    public const ASSIGNABLE = ['NEW', 'ACKNOWLEDGED', 'ASSIGNED', 'IN_PROGRESS', 'WAITING_USER', 'ON_HOLD', 'REOPENED', 'ESCALATED'];
+    public const ASSIGNABLE = ['NEW', 'ACKNOWLEDGED', 'ASSIGNED', 'IN_PROGRESS', 'WAITING_USER', 'ON_HOLD', 'REOPENED', 'ESCALATED', 'BACKLOG'];
 
     public function __construct(protected AttachmentService $attachments) {}
 
@@ -119,6 +119,7 @@ class TicketService
             ->get()
             ->filter(fn ($r) => $r->permission !== 'system'
                 && $r->code !== 'ASSIGNED'
+                && ! ($r->code === 'BACKLOG' && $t->assigned_to !== null)   // Backlog is for requests nobody is assigned to
                 && $this->userMay($t, $u, $r->permission))
             ->unique('code')
             ->values();
@@ -172,6 +173,10 @@ class TicketService
         }
         if ($rows->max('requires_comment') && ! $system && blank($comment)) {
             $this->fail('comment', 'A comment is required for this change.');
+        }
+
+        if ($code === 'BACKLOG' && $t->assigned_to !== null) {
+            $this->fail('status', 'Only a request that has no assigned employee can be moved to Backlog.');
         }
 
         $old = $t->status;
@@ -231,6 +236,45 @@ class TicketService
     {
         $support = TicketAssignment::where('ticket_id', $t->id)->where('role', TicketAssignment::SUPPORT)->pluck('employee_id')->all();
         return $this->setTeam($t, $assignee, $support, $by, $instructions, $dueDate);
+    }
+
+    /**
+     * Take everybody off a request, at any open stage: the primary and all supporting employees leave the team and the request
+     * goes back to the unassigned queue. A request that was already being worked (Assigned / In Progress / Waiting / On Hold)
+     * returns to Acknowledged; New, Acknowledged, Backlog, Reopened and Escalated keep their status.
+     */
+    public function unassign(Ticket $t, User $by, ?string $reason = null): Ticket
+    {
+        $t->loadMissing('status', 'assignee');
+        if (! in_array($t->status->code, self::ASSIGNABLE, true)) {
+            $this->fail('primary_id', "A ticket in '{$t->status->name}' cannot be unassigned.");
+        }
+        $team = TicketAssignment::with('employee')->where('ticket_id', $t->id)->get();
+        if ($team->isEmpty() && $t->assigned_to === null) {
+            $this->fail('primary_id', 'This request has nobody assigned.');
+        }
+
+        $oldStatus = $t->status;
+        DB::transaction(function () use ($t, $by, $reason, $team, $oldStatus) {
+            foreach ($team as $row) {
+                $this->log($t, $by, 'team_removed', 'team', $row->employee->name.($row->role === TicketAssignment::PRIMARY ? ' (Primary)' : ' (Supporting)'), null, $reason);
+                $row->delete();
+            }
+            $upd = ['assigned_to' => null, 'assigned_at' => null, 'updated_by' => $by->id];
+            if (in_array($oldStatus->code, ['ASSIGNED', 'IN_PROGRESS', 'WAITING_USER', 'ON_HOLD'], true)) {
+                $ack = TicketStatus::where('code', 'ACKNOWLEDGED')->firstOrFail();
+                $upd['status_id'] = $ack->id;
+                $this->log($t, $by, 'status_changed', 'status', $oldStatus->name, $ack->name, null);
+            }
+            $t->update($upd);
+            $this->log($t, $by, 'unassigned', 'assigned_to', $team->firstWhere('role', TicketAssignment::PRIMARY)?->employee->name, null, $reason);
+        });
+
+        $t->refresh()->load('status');
+        $this->notify($team->pluck('employee')->all(), $t, "{$t->ticket_no}: you were taken off this request", $by);
+        $this->notify([$t->requester], $t, "{$t->ticket_no} is waiting to be assigned again", $by);
+
+        return $t;
     }
 
     /**
@@ -312,7 +356,7 @@ class TicketService
             $oldStatus = $t->status;
             $toAssigned = $primaryChanged
                 ? $oldStatus->code !== 'ASSIGNED'
-                : in_array($oldStatus->code, ['NEW', 'ACKNOWLEDGED', 'REOPENED', 'ESCALATED'], true);
+                : in_array($oldStatus->code, ['NEW', 'ACKNOWLEDGED', 'REOPENED', 'ESCALATED', 'BACKLOG'], true);
             if ($toAssigned) {
                 $assigned = TicketStatus::where('code', 'ASSIGNED')->firstOrFail();
                 $upd['status_id'] = $assigned->id;

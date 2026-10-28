@@ -30,14 +30,10 @@
     <div class="card-body">
         <form method="POST" action="{{ route('tickets.team', $ticket) }}" id="teamForm">@csrf
             <label class="form-label">Primary responsible employee *</label>
-            <select name="primary_id" id="primarySel" class="form-select form-select-sm mb-1">
-                <option value="">Select…</option>
+            <select name="primary_id" id="primarySel" class="form-select form-select-sm mb-3">
+                <option value="">{{ $ticket->assigned_to ? '— Unassign (remove everyone) —' : 'Select…' }}</option>
                 @foreach($members as $m)<option value="{{ $m->id }}" @selected(old('primary_id', $ticket->assigned_to) == $m->id)>{{ $m->name }}</option>@endforeach
             </select>
-            <div class="form-check mb-3">
-                <input class="form-check-input" type="checkbox" name="auto" value="1" id="auto">
-                <label class="form-check-label small" for="auto">Auto-pick primary</label>
-            </div>
 
             <label class="form-label">Supporting employees</label>
             @php($supportIds = old('support_ids', $supporters->pluck('employee_id')->all()))
@@ -50,8 +46,6 @@
                 @endforeach
             </div>
 
-            <input type="date" name="due_date" value="{{ $ticket->due_date?->format('Y-m-d') }}" class="form-control form-control-sm mb-2" title="Due date">
-            <textarea name="instructions" rows="2" class="form-control form-control-sm mb-2" placeholder="Instructions"></textarea>
             <button class="btn btn-primary btn-sm w-100">Save team</button>
         </form>
     </div>
