@@ -33,6 +33,10 @@ Audit log, Login history and System Settings are restricted to the System Admini
 
 Upgrading an existing install: run `php artisan migrate` (renames the user phone column to `whatsapp` and refreshes role names/permissions), then `php artisan optimize:clear`.
 
+## Maintenance mode (under construction page)
+
+`php artisan down` takes the application offline and every visitor sees the **under maintenance** page (`resources/views/errors/503.blade.php`, with the JOPLC logo and footer; it refreshes itself every minute). Bring the app back with `php artisan up`. Useful options: `php artisan down --retry=60` (tells browsers when to retry) and `php artisan down --secret="my-secret"` (the administrator can still open the app at `/my-secret` while it is down). The page is standalone (no login, session or database), so it works even during a database upgrade.
+
 ## Automatic sign-out
 
 The session itself lives for 8 hours (`ITSM_SESSION_LIFETIME`, default 480) on purpose: a 15-minute session lifetime also expires the *login page*, so the first sign-in after an automatic logout fails with "419 Page Expired". The 15-minute rule is enforced separately for signed-in users. If a login page is left open for hours and a token still goes stale, the user is returned to the login screen with a message instead of a 419 error page.

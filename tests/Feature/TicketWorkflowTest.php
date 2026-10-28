@@ -540,4 +540,13 @@ class TicketWorkflowTest extends TestCase
         $this->actingAs($emp)->get(route('tickets.index'))->assertSee('data-href="' . route('tickets.show', $t) . '"', false);
         $this->actingAs($emp)->get(route('tickets.show', $t))->assertOk();
     }
+
+    public function test_maintenance_page_is_a_standalone_under_maintenance_screen(): void
+    {
+        $html = view('errors.503')->render();
+
+        $this->assertStringContainsString('under maintenance', $html);
+        $this->assertStringContainsString('Developed by MIS &amp; IT Department of JOPLC.', $html);
+        $this->assertStringContainsString('Jamuna Oil PLC.', $html);
+    }
 }
