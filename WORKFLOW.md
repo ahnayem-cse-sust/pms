@@ -58,6 +58,7 @@ Legend: ● = yes, ◐ = limited (see note), blank = no.
 | ticket.view.own | ● | ● | ● | ● | ● | |
 | ticket.view.department | | | | | ● | |
 | ticket.view.assigned | | | ● | | | |
+| ticket.list.all (see every request in the All Requests list; details still need view access) | ● | ● | ● | | | ● |
 | ticket.view.all | ● | ● | | | | ● |
 | ticket.acknowledge | | ● | | | | |
 | ticket.assign (assign/reassign) | | ● | | | | |

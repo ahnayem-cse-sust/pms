@@ -88,6 +88,31 @@ class Ticket extends Model
         });
     }
 
+    /** What the All Requests list shows: everything for list-all / view-all holders, otherwise only what the user may open. */
+    public function scopeListableTo($q, User $u)
+    {
+        if ($u->hasPermission('ticket.list.all') || $u->hasPermission('ticket.view.all')) {
+            return $q;
+        }
+
+        return $q->visibleTo($u);
+    }
+
+    /** In-memory twin of scopeVisibleTo: may this user open the request? Uses the already-loaded team to avoid extra queries. */
+    public function canBeOpenedBy(User $u): bool
+    {
+        if ($u->hasPermission('ticket.view.all')) return true;
+        if ($this->requester_id === $u->id || $this->created_by === $u->id) return true;
+        if ($u->hasPermission('ticket.view.department') && $u->department_id && $this->department_id === $u->department_id) return true;
+        if ($u->hasPermission('ticket.view.assigned')) {
+            if ($this->assigned_to === $u->id) return true;
+            $team = $this->relationLoaded('team') ? $this->team : $this->team()->get();
+            if ($team->contains('employee_id', $u->id)) return true;
+        }
+
+        return false;
+    }
+
     /** Work still to do: open and not yet resolved / awaiting confirmation / closed. Used by My Tasks. */
     public function scopeActiveTask($q)
     {

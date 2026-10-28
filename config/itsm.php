@@ -9,7 +9,7 @@ $sidebarMenus = [
     'Main' => [
         'menu.dashboard'       => ['Dashboard', []],
         'menu.new_request'     => ['New Request', ['ticket.create']],
-        'menu.all_requests'    => ['All Requests', ['ticket.view.all']],
+        'menu.all_requests'    => ['All Requests', ['ticket.list.all']],
         'menu.my_requests'     => ['My Requests', ['ticket.view.own']],
         'menu.my_tasks'        => ['My Tasks', ['ticket.work']],
         'menu.completed_tasks' => ['Completed Tasks', ['ticket.work']],
@@ -105,7 +105,7 @@ return [
 
     'permissions' => $withMenus([
         'admin' => [
-            'ticket.create', 'ticket.create.behalf', 'ticket.view.own', 'ticket.view.all', 'ticket.comment.public',
+            'ticket.create', 'ticket.create.behalf', 'ticket.view.own', 'ticket.view.all', 'ticket.list.all', 'ticket.comment.public',
             'ticket.note.internal', 'attachment.upload', 'attachment.download.internal',
             'dashboard.officer', 'report.view', 'attendance.view', 'user.view', 'user.create', 'user.update',
             'role.view', 'role.create', 'role.update', 'role.delete',
@@ -115,7 +115,7 @@ return [
             'inv.view', 'inv.view.own', 'inv.create', 'inv.update',
         ],
         'it_officer' => [
-            'ticket.create', 'ticket.create.behalf', 'ticket.view.own', 'ticket.view.all', 'ticket.acknowledge',
+            'ticket.create', 'ticket.create.behalf', 'ticket.view.own', 'ticket.view.all', 'ticket.list.all', 'ticket.acknowledge',
             'ticket.assign', 'ticket.edit', 'ticket.work', 'ticket.comment.public',
             'ticket.note.internal', 'ticket.close', 'ticket.reopen', 'ticket.escalate',
             'ticket.cancel', 'attachment.upload', 'attachment.download.internal',
@@ -125,7 +125,7 @@ return [
             'inv.view', 'inv.create', 'inv.update',
         ],
         'it_member' => [
-            'ticket.create', 'ticket.create.behalf', 'ticket.view.own', 'ticket.view.assigned', 'ticket.work',
+            'ticket.create', 'ticket.create.behalf', 'ticket.view.own', 'ticket.view.assigned', 'ticket.list.all', 'ticket.work',
             'ticket.comment.public', 'ticket.note.internal', 'ticket.escalate', 'attachment.upload',
             'attachment.download.internal', 'dashboard.member', 'attendance.own',
             // IT Inventory
@@ -145,7 +145,7 @@ return [
             'inv.view.own',
         ],
         'management' => [
-            'ticket.view.all', 'dashboard.officer', 'report.view', 'attendance.view',
+            'ticket.view.all', 'ticket.list.all', 'dashboard.officer', 'report.view', 'attendance.view',
             // IT Inventory
             'inv.view',
         ],
@@ -160,6 +160,7 @@ return [
     'permission_requires' => $menuRequires + [
         'ticket.create.behalf' => ['ticket.create'],
         'ticket.create.behalf.dept' => ['ticket.create'],
+        'ticket.view.all' => ['ticket.list.all'],
         'ticket.assign' => ['ticket.view.all'],
         'ticket.edit' => ['ticket.view.all'],
         'ticket.acknowledge' => ['ticket.view.all'],
@@ -186,6 +187,7 @@ return [
             ['label' => 'Own requests', 'note' => 'Delete = cancel a request', 'read' => 'ticket.view.own', 'add' => 'ticket.create', 'update' => null, 'delete' => 'ticket.cancel'],
             ['label' => 'Requests assigned to them', 'read' => 'ticket.view.assigned', 'add' => null, 'update' => null, 'delete' => null],
             ['label' => 'Own department requests', 'note' => 'Add = file a request for department users', 'read' => 'ticket.view.department', 'add' => 'ticket.create.behalf.dept', 'update' => null, 'delete' => null],
+            ['label' => 'All requests – list only', 'note' => 'Shows every request in the All Requests list; a request opens only if the user can view it (own, assigned, department ...)', 'read' => 'ticket.list.all', 'add' => null, 'update' => null, 'delete' => null],
             ['label' => 'All requests', 'note' => 'Add = file for any user; Update = edit request details', 'read' => 'ticket.view.all', 'add' => 'ticket.create.behalf', 'update' => 'ticket.edit', 'delete' => null],
         ],
         'Files' => [
@@ -223,7 +225,8 @@ return [
             'ticket.view.own' => 'View own requests',
             'ticket.view.assigned' => 'View requests assigned to them',
             'ticket.view.department' => 'View all requests of own department',
-            'ticket.view.all' => 'View all requests',
+            'ticket.list.all' => 'See all requests in the All Requests list (details open only where allowed)',
+            'ticket.view.all' => 'View all requests (open any request)',
         ],
         'Request handling' => [
             'ticket.acknowledge' => 'Acknowledge requests',

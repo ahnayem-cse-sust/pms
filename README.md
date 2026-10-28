@@ -82,7 +82,7 @@ Upgrading an existing install: `php artisan migrate` (the old assignment trail i
 
 ## My Requests and My Tasks (IT staff)
 
-IT Team Members and IT Admins have two personal menus. **My Requests** lists only requests where they are the requester: ones they submitted for themselves, or ones someone submitted on their behalf. **My Tasks** lists every request they are on the team of, as primary or supporting (with a badge for the open ones). IT Admins keep **All Requests** for the full list. Requests an IT employee filed for other people appear under that person's own list.
+IT Team Members and IT Admins have two personal menus. **My Requests** lists only requests where they are the requester: ones they submitted for themselves, or ones someone submitted on their behalf. **My Tasks** lists every request they are on the team of, as primary or supporting (with a badge for the open ones). **All Requests** lists every request for IT Team Members too, but a request's details page opens only for the requester and the IT team assigned to it (other rows show a lock and are not clickable; a direct link redirects to the request list with a red "That page is not accessible to you." alert). IT Admins and Management can open any request. Requests an IT employee filed for other people appear under that person's own list.
 
 ## Who can be assigned tickets
 

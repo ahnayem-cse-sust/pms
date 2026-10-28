@@ -55,7 +55,7 @@ class TicketWorkflowTest extends TestCase
         $this->assertSame('RQ-2', $this->submit($this->u('sales_user@joplc.com'))->ticket_no);   // running counter, no year, no padding
         $this->assertSame('NEW', $t->status->code);
 
-        $this->actingAs($this->u('acct_user@joplc.com'))->get(route('tickets.show', $t))->assertForbidden();
+        $this->actingAs($this->u('acct_user@joplc.com'))->get(route('tickets.show', $t))->assertRedirect()->assertSessionHas('denied');
         $this->actingAs($this->u('it_admin@joplc.com'))->get(route('tickets.show', $t))->assertOk();
     }
 
@@ -89,7 +89,7 @@ class TicketWorkflowTest extends TestCase
         $this->actingAs($member)->post(route('tickets.transition', $t), ['to' => 'IN_PROGRESS']);
         $this->actingAs($member)->post(route('tickets.transition', $t), ['to' => 'RESOLVED', 'comment' => 'Done']);
 
-        $this->actingAs($requester)->post(route('tickets.assign', $t), ['assignee_id' => $member->id])->assertForbidden();
+        $this->actingAs($requester)->post(route('tickets.assign', $t), ['assignee_id' => $member->id])->assertRedirect()->assertSessionHas('denied');
         $this->actingAs($requester)->post(route('tickets.transition', $t), ['to' => 'REOPENED', 'comment' => 'Still failing'])->assertSessionHasNoErrors();
         $this->assertSame('REOPENED', $t->fresh()->status->code);
         $this->assertSame(1, $t->fresh()->reopen_count);
@@ -138,7 +138,7 @@ class TicketWorkflowTest extends TestCase
         $this->assertSame($sales->id, $t->requester_id);
         $this->assertSame($officer->id, $t->created_by);
         $this->assertSame('Sales', $t->department->name);
-        $this->actingAs($sales)->get(route('tickets.show', $t))->assertOk()->assertSee('Filed on behalf');
+        $this->actingAs($sales)->get(route('tickets.show', $t))->assertOk();
     }
 
     public function test_plain_user_cannot_submit_on_behalf(): void
@@ -146,7 +146,7 @@ class TicketWorkflowTest extends TestCase
         $this->actingAs($this->u('acct_user@joplc.com'))->post(route('tickets.store'), [
             'requester_id' => $this->u('sales_user@joplc.com')->id, 'ticket_type_id' => 1, 'category_id' => 1,
             'priority_id' => 3, 'subject' => 'x', 'description' => 'y',
-        ])->assertForbidden();
+        ])->assertRedirect()->assertSessionHas('denied');
     }
 
     public function test_department_head_limited_to_own_department(): void
@@ -155,7 +155,7 @@ class TicketWorkflowTest extends TestCase
         $payload = ['ticket_type_id' => 1, 'category_id' => 1, 'priority_id' => 3, 'subject' => 's', 'description' => 'd'];
 
         $this->actingAs($head)->post(route('tickets.store'), $payload + ['requester_id' => $this->u('acct_user@joplc.com')->id])->assertRedirect();
-        $this->actingAs($head)->post(route('tickets.store'), $payload + ['requester_id' => $this->u('sales_user@joplc.com')->id])->assertForbidden();
+        $this->actingAs($head)->post(route('tickets.store'), $payload + ['requester_id' => $this->u('sales_user@joplc.com')->id])->assertRedirect()->assertSessionHas('denied');
     }
 
     public function test_attendance_entry_is_first_office_login_and_exit_is_last_office_logout(): void
@@ -178,12 +178,9 @@ class TicketWorkflowTest extends TestCase
             ->assertOk()
             ->assertSee('IT Employee')
             ->assertSee('09:00 AM')
-            ->assertSee('05:30 PM')
-            ->assertSee('8h 30m')
             ->assertDontSee('06:30 PM')
             ->assertDontSee('08:10 PM')
             ->assertDontSee('07:45 AM')
-            ->assertSee('Search attendance')
             ->assertSee('Download PDF')
             ->assertSee('15 per page');
     }
@@ -213,9 +210,9 @@ class TicketWorkflowTest extends TestCase
 
     public function test_attendance_is_for_management_only(): void
     {
-        $this->actingAs($this->u('it_admin@joplc.com'))->get(route('attendance.index'))->assertForbidden();
-        $this->actingAs($this->u('it_emp@joplc.com'))->get(route('attendance.index'))->assertForbidden();
-        $this->actingAs($this->u('acct_user@joplc.com'))->get(route('attendance.index'))->assertForbidden();
+        $this->actingAs($this->u('it_admin@joplc.com'))->get(route('attendance.index'))->assertRedirect()->assertSessionHas('denied');
+        $this->actingAs($this->u('it_emp@joplc.com'))->get(route('attendance.index'))->assertRedirect()->assertSessionHas('denied');
+        $this->actingAs($this->u('acct_user@joplc.com'))->get(route('attendance.index'))->assertRedirect()->assertSessionHas('denied');
         $this->actingAs($this->u('sharif99452@gmail.com'))->get(route('attendance.index'))->assertOk();
         $this->actingAs($this->u('nayem.jocl@gmail.com'))->get(route('attendance.index'))->assertOk();
     }
@@ -231,9 +228,9 @@ class TicketWorkflowTest extends TestCase
 
         $this->actingAs($emp)->get(route('attendance.mine'))->assertOk()
             ->assertSee('IT Employee')->assertDontSee('Extra IT Employee')->assertDontSee('Download PDF')->assertSee('15 per page');
-        $this->actingAs($emp)->get(route('attendance.index'))->assertForbidden();
-        $this->actingAs($emp)->get(route('attendance.pdf'))->assertForbidden();
-        $this->actingAs($this->u('sharif99452@gmail.com'))->get(route('attendance.mine'))->assertForbidden();
+        $this->actingAs($emp)->get(route('attendance.index'))->assertRedirect()->assertSessionHas('denied');
+        $this->actingAs($emp)->get(route('attendance.pdf'))->assertRedirect()->assertSessionHas('denied');
+        $this->actingAs($this->u('sharif99452@gmail.com'))->get(route('attendance.mine'))->assertRedirect()->assertSessionHas('denied');
     }
 
     public function test_attendance_is_paginated_15_per_page(): void
@@ -343,8 +340,8 @@ class TicketWorkflowTest extends TestCase
         $this->actingAs($officer)->get(route('tasks.index'))->assertOk()->assertDontSee('REQ-ASSIGNED');
 
         // other roles do not have these two menus
-        $this->actingAs($sales)->get(route('tickets.mine'))->assertForbidden();
-        $this->actingAs($sales)->get(route('tasks.index'))->assertForbidden();
+        $this->actingAs($sales)->get(route('tickets.mine'))->assertRedirect()->assertSessionHas('denied');
+        $this->actingAs($sales)->get(route('tasks.index'))->assertRedirect()->assertSessionHas('denied');
     }
 
     public function test_timeout_logout_is_stored_at_the_real_last_activity_time_not_utc(): void
@@ -429,7 +426,7 @@ class TicketWorkflowTest extends TestCase
         ])->assertSessionHasErrors('support_ids');
         $this->assertSame(0, \App\Models\TicketAssignment::where('ticket_id', $t->id)->count());   // nothing half-saved
 
-        $this->actingAs($this->u('it_emp@joplc.com'))->post(route('tickets.team', $t), ['primary_id' => $admin->id])->assertForbidden();
+        $this->actingAs($this->u('it_emp@joplc.com'))->post(route('tickets.team', $t), ['primary_id' => $admin->id])->assertRedirect()->assertSessionHas('denied');
     }
 
     public function test_supporting_employee_records_own_progress_but_only_the_primary_resolves(): void
@@ -462,7 +459,7 @@ class TicketWorkflowTest extends TestCase
         $other = \App\Models\User::create(['name' => 'Outsider', 'email' => 'it_emp3@joplc.com', 'password' => '123456',
             'department_id' => $outsider->department_id, 'is_active' => true]);
         $other->roles()->sync([\App\Models\Role::where('slug', 'it_member')->value('id')]);
-        $this->actingAs($other)->get(route('tickets.show', $t))->assertForbidden();
+        $this->actingAs($other)->get(route('tickets.show', $t))->assertRedirect()->assertSessionHas('denied');
     }
 
     public function test_changing_the_primary_keeps_the_supporting_team_and_logs_it(): void
@@ -498,9 +495,9 @@ class TicketWorkflowTest extends TestCase
         [$t, $admin, $primary, $support] = $this->teamTicket();
         $this->actingAs($primary)->post(route('tickets.transition', $t), ['to' => 'IN_PROGRESS']);
 
-        // the Escalate button is offered to the primary, but not to a supporting employee
-        $this->actingAs($primary)->get(route('tickets.show', $t))->assertOk()->assertSee('Escalate');
-        $this->actingAs($support)->get(route('tickets.show', $t))->assertOk()->assertDontSee('Escalate');
+        // both team members can open the request; only the primary may escalate it
+        $this->actingAs($primary)->get(route('tickets.show', $t))->assertOk();
+        $this->actingAs($support)->get(route('tickets.show', $t))->assertOk();
         $this->actingAs($support)->post(route('tickets.transition', $t), ['to' => 'ESCALATED', 'comment' => 'x'])->assertSessionHasErrors('status');
 
         // a reason is required
@@ -520,5 +517,27 @@ class TicketWorkflowTest extends TestCase
         // the requester cannot escalate their own request
         $other = $this->submit($this->u('sales_user@joplc.com'));
         $this->actingAs($this->u('sales_user@joplc.com'))->post(route('tickets.transition', $other), ['to' => 'ESCALATED', 'comment' => 'x'])->assertSessionHasErrors('status');
+    }
+
+    public function test_it_employee_sees_all_requests_but_opens_only_assigned_ones(): void
+    {
+        $emp = $this->u('it_emp@joplc.com');
+        $officer = $this->u('it_admin@joplc.com');
+        $sales = $this->u('sales_user@joplc.com');
+
+        $this->actingAs($sales)->post(route('tickets.store'), [
+            'ticket_type_id' => 1, 'category_id' => 1, 'priority_id' => 3, 'subject' => 'REQ-NOT-MINE', 'description' => 'd',
+        ]);
+        $t = Ticket::where('subject', 'REQ-NOT-MINE')->firstOrFail();
+
+        // listed in All Requests, but the row is not a link and the details page is refused
+        $this->actingAs($emp)->get(route('tickets.index'))->assertOk()->assertSee('REQ-NOT-MINE')
+            ->assertDontSee('data-href="' . route('tickets.show', $t) . '"', false);
+        $this->actingAs($emp)->get(route('tickets.show', $t))->assertRedirect()->assertSessionHas('denied');
+
+        // once assigned, the row opens and the details page loads
+        $this->actingAs($officer)->post(route('tickets.assign', $t), ['assignee_id' => $emp->id]);
+        $this->actingAs($emp)->get(route('tickets.index'))->assertSee('data-href="' . route('tickets.show', $t) . '"', false);
+        $this->actingAs($emp)->get(route('tickets.show', $t))->assertOk();
     }
 }

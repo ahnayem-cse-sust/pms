@@ -212,6 +212,9 @@ window.toast = function (msg, type) {
     @if(session('ok'))
         window.toast(@json(session('ok')), 'success');
     @endif
+    @if(session('denied'))
+        window.toast(@json(session('denied')), 'danger');
+    @endif
 })();
 </script>
 @auth

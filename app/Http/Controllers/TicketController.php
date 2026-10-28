@@ -23,7 +23,7 @@ class TicketController extends Controller
     /** All requests the user is allowed to see. */
     public function index(Request $r)
     {
-        return $this->listing($r, Ticket::visibleTo(auth()->user()), 'all');
+        return $this->listing($r, Ticket::listableTo(auth()->user()), 'all');
     }
 
     /** My Requests (IT staff): only requests where the user is the requester, whether they filed it or someone filed it for them. */
@@ -96,7 +96,7 @@ class TicketController extends Controller
                 ->when($mode === 'completed', fn ($x) => $x->whereIn('code', ['RESOLVED', 'USER_CONFIRMATION', 'CLOSED']))
                 ->get(),
             'types' => TicketType::all(),
-            'members' => ($mode === 'all' && $u->hasPermission('ticket.view.all')) ? User::active()->assignable()->orderBy('name')->get() : collect(),
+            'members' => ($mode === 'all' && ($u->hasPermission('ticket.list.all') || $u->hasPermission('ticket.view.all'))) ? User::active()->assignable()->orderBy('name')->get() : collect(),
         ]);
     }
 

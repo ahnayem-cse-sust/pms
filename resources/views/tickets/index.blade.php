@@ -15,7 +15,7 @@
                 <label class="form-label">Search</label>
                 <div class="input-icon"><x-icon name="search" :size="15"/><input name="q" value="{{ request('q') }}" class="form-control" placeholder="Request ID, subject, requester, employee ID"></div>
             </div>
-            @if($mode === 'all' && auth()->user()->can('ticket.view.all'))
+            @if($mode === 'all' && auth()->user()->canany(['ticket.list.all', 'ticket.view.all']))
             <div class="col-6 col-md-4 col-xl-2">
                 <label class="form-label">Department</label>
                 <select name="department_id" class="form-select"><option value="">All</option>
@@ -41,7 +41,7 @@
                     @foreach($types as $t)<option value="{{ $t->id }}" @selected(request('ticket_type_id') == $t->id)>{{ $t->name }}</option>@endforeach
                 </select>
             </div>
-            @if($mode === 'all' && auth()->user()->can('ticket.view.all'))
+            @if($mode === 'all' && auth()->user()->canany(['ticket.list.all', 'ticket.view.all']))
             <div class="col-6 col-md-4 col-xl-2">
                 <label class="form-label">Assignee</label>
                 <select name="assigned_to" class="form-select"><option value="">Any</option>

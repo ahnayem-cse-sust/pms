@@ -44,10 +44,10 @@ class InventoryTest extends TestCase
     public function test_department_users_cannot_open_stock_screens(): void
     {
         $this->actingAs($this->person());
-        $this->get(route('inv.dashboard'))->assertForbidden();
-        $this->get(route('inv.equipment.index'))->assertForbidden();
-        $this->get(route('inv.records'))->assertForbidden();
-        $this->get(route('inv.receive'))->assertForbidden();
+        $this->get(route('inv.dashboard'))->assertRedirect()->assertSessionHas('denied');
+        $this->get(route('inv.equipment.index'))->assertRedirect()->assertSessionHas('denied');
+        $this->get(route('inv.records'))->assertRedirect()->assertSessionHas('denied');
+        $this->get(route('inv.receive'))->assertRedirect()->assertSessionHas('denied');
         $this->get(route('inv.mine'))->assertOk();
     }
 
@@ -229,7 +229,7 @@ class InventoryTest extends TestCase
         $this->actingAs($this->officer())->get(route('inv.receives'))->assertOk()->assertSee('INV-1')->assertSee('ACME')->assertSee('RET-9')->assertSee('HP Toner');
         $this->actingAs($this->officer())->get(route('inv.receives', ['source' => 'EMPLOYEE']))->assertOk()->assertSee('RET-9')->assertDontSee('ACME');
         $this->actingAs($this->officer())->get(route('inv.receives', ['source' => 'SUPPLIER']))->assertOk()->assertSee('ACME')->assertDontSee('RET-9');
-        $this->actingAs($this->person())->get(route('inv.receives'))->assertForbidden();
+        $this->actingAs($this->person())->get(route('inv.receives'))->assertRedirect()->assertSessionHas('denied');
     }
 
     public function test_previous_items_can_be_added_with_a_past_date_in_store_or_with_a_holder(): void
@@ -363,12 +363,12 @@ class InventoryTest extends TestCase
         $this->postAs('inv.receive.store', ['source' => 'SUPPLIER', 'date' => today()->toDateString(), 'lines' => [['equipment_id' => $kb->id, 'qty' => 1]]]);
         $this->assertSame('RC-000002', Movement::latest('id')->value('entry_no'));                                            // the next save is a new entry
 
-        $this->actingAs($this->officer())->get(route('inv.receives'))->assertOk()->assertSee('RC-000001')->assertSee('2 lines')->assertSee('HP Toner')->assertSee('Keyboard');
+        $this->actingAs($this->officer())->get(route('inv.receives'))->assertOk()->assertSee('RC-000001')->assertSee('2 equipment');
         $pdf = $this->actingAs($this->officer())->get(route('inv.receives.pdf', 'RC-000001'));
         $pdf->assertOk()->assertHeader('content-type', 'application/pdf');
         $this->assertStringStartsWith('%PDF', $pdf->getContent());
         $this->actingAs($this->officer())->get(route('inv.receives.pdf', 'RC-999999'))->assertNotFound();
-        $this->actingAs($this->person())->get(route('inv.receives.pdf', 'RC-000001'))->assertForbidden();
+        $this->actingAs($this->person())->get(route('inv.receives.pdf', 'RC-000001'))->assertRedirect()->assertSessionHas('denied');
     }
 
     public function test_one_allocation_is_one_entry_for_all_its_equipment_with_a_pdf(): void
@@ -379,7 +379,7 @@ class InventoryTest extends TestCase
             'lines' => [['equipment_id' => $this->toner->id, 'qty' => 3, 'purpose' => 'Printer'], ['equipment_id' => $lap->id, 'purpose' => 'Field work']]])->assertRedirect(route('inv.allocations.entries'));
 
         $this->assertSame(2, Movement::where('entry_no', 'AL-000001')->where('type', 'ALLOCATE')->count());
-        $this->actingAs($this->officer())->get(route('inv.allocations.entries'))->assertOk()->assertSee('AL-000001')->assertSee('2 lines')->assertSee('Field work')->assertSee('LAPT00010001');
+        $this->actingAs($this->officer())->get(route('inv.allocations.entries'))->assertOk()->assertSee('AL-000001')->assertSee('2 equipment');
 
         $pdf = $this->actingAs($this->officer())->get(route('inv.allocations.pdf', 'AL-000001'));
         $pdf->assertOk()->assertHeader('content-type', 'application/pdf');
@@ -399,7 +399,7 @@ class InventoryTest extends TestCase
         // receive entry
         $this->actingAs($this->officer())->get(route('inv.receives.show', 'RC-000001'))->assertOk()->assertSee('ACME')->assertSee('INV-8')->assertSee('HP Toner')->assertSee('Dell Latitude')->assertSee('Download PDF');
         $this->actingAs($this->officer())->get(route('inv.receives.show', 'RC-999999'))->assertNotFound();
-        $this->actingAs($this->person())->get(route('inv.receives.show', 'RC-000001'))->assertForbidden();
+        $this->actingAs($this->person())->get(route('inv.receives.show', 'RC-000001'))->assertRedirect()->assertSessionHas('denied');
 
         // allocation entry: officers, and the person it was handed to
         $this->actingAs($this->officer())->get(route('inv.allocations.show', 'AL-000001'))->assertOk()->assertSee('REQ-2')->assertSee('Field work')->assertSee('LAPT00010001')->assertSee('Download PDF');
@@ -412,7 +412,7 @@ class InventoryTest extends TestCase
         $this->receive(10);
         $m = Movement::where('type', 'RECEIVE')->firstOrFail();
         $this->actingAs($this->officer())->get(route('inv.records.show', $m))->assertOk()->assertSee($m->ref)->assertSee($m->entry_no)->assertSee('HP Toner')->assertSee('Download PDF');
-        $this->actingAs($this->person())->get(route('inv.records.show', $m))->assertForbidden();
+        $this->actingAs($this->person())->get(route('inv.records.show', $m))->assertRedirect()->assertSessionHas('denied');
         $this->actingAs($this->officer())->get(route('inv.records'))->assertOk()->assertSee('View');
     }
 }

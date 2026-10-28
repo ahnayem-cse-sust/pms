@@ -16,11 +16,26 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->appendToGroup('web', \App\Http\Middleware\InactivityTimeout::class);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        // "419 Page Expired" (stale CSRF token, e.g. a login page left open for hours): send the user
-        // back with a clear message instead of an error page.
         $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\HttpException $e, \Illuminate\Http\Request $request) {
-            if ($e->getStatusCode() !== 419 || $request->expectsJson()) {
+            if ($request->expectsJson()) {
                 return null; // default handling
+            }
+
+            // "403 Forbidden" (a page the user may not open): send the signed-in user to a page they can use, with an alert.
+            // Request pages go to the request list, everything else to the dashboard. A page is never redirected to itself,
+            // so a user who cannot open the dashboard still gets the plain 403 page instead of a redirect loop.
+            if ($e->getStatusCode() === 403 && $request->user()) {
+                $target = $request->routeIs('tickets.*', 'attachments.*') ? 'tickets.index' : 'dashboard';
+                if ($request->routeIs($target)) {
+                    return null;
+                }
+                return redirect()->route($target)->with('denied', 'That page is not accessible to you.');
+            }
+
+            // "419 Page Expired" (stale CSRF token, e.g. a login page left open for hours): send the user
+            // back with a clear message instead of an error page.
+            if ($e->getStatusCode() !== 419) {
+                return null;
             }
             if (! $request->user()) {
                 return redirect()->route('login')
