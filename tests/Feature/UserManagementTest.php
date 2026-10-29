@@ -68,11 +68,11 @@ class UserManagementTest extends TestCase
     public function test_only_the_system_administrator_sees_and_can_use_delete(): void
     {
         $temp = $this->throwaway();
-        $this->actingAs($this->officer())->get(route('admin.users.show', $temp))->assertOk()->assertDontSee(route('admin.users.destroy', $temp), false);
+        $this->actingAs($this->officer())->get(route('admin.users.show', $temp))->assertOk()->assertDontSee('value="DELETE"', false);
         $this->actingAs($this->officer())->delete(route('admin.users.destroy', $temp))->assertRedirect()->assertSessionHas('denied');
         $this->assertNotNull($temp->fresh());
 
-        $this->actingAs($this->sysadmin())->get(route('admin.users.show', $temp))->assertOk()->assertSee(route('admin.users.destroy', $temp), false);
+        $this->actingAs($this->sysadmin())->get(route('admin.users.show', $temp))->assertOk()->assertSee('value="DELETE"', false);
     }
 
     public function test_the_system_administrator_can_delete_a_user_with_no_records(): void
@@ -88,7 +88,7 @@ class UserManagementTest extends TestCase
         $admin = $this->sysadmin();
         $this->actingAs($admin)->delete(route('admin.users.destroy', $admin))->assertRedirect()->assertSessionHas('error');
         $this->assertNotNull($admin->fresh());
-        $this->actingAs($admin)->get(route('admin.users.show', $admin))->assertOk()->assertDontSee(route('admin.users.destroy', $admin), false);
+        $this->actingAs($admin)->get(route('admin.users.show', $admin))->assertOk()->assertDontSee('value="DELETE"', false);
     }
 
     public function test_a_user_who_already_has_records_cannot_be_deleted(): void
@@ -99,5 +99,54 @@ class UserManagementTest extends TestCase
         $this->actingAs($this->sysadmin())->delete(route('admin.users.destroy', $temp))->assertRedirect()->assertSessionHas('error');
         $this->assertNotNull($temp->fresh());
         $this->actingAs($this->sysadmin())->get(route('admin.users.show', $temp))->assertOk()->assertSee('disable the account instead');
+    }
+
+    public function test_the_details_page_lists_the_users_permissions(): void
+    {
+        $person = $this->person();
+        $res = $this->actingAs($this->officer())->get(route('admin.users.show', $person))->assertOk();
+        $res->assertSee('Permissions')->assertSee('View own requests')->assertSee('Allowed')->assertSee('Denied');   // inherited ones too, not only individual changes
+        $res->assertDontSee(route('admin.users.permissions', $person), false);   // the IT admin cannot edit permissions
+    }
+
+    public function test_the_user_edit_form_no_longer_holds_the_permissions(): void
+    {
+        $this->actingAs($this->sysadmin())->get(route('admin.users.edit', $this->person()))->assertOk()->assertDontSee('Individual permissions');
+    }
+
+    public function test_the_system_administrator_edits_permissions_on_their_own_screen(): void
+    {
+        $person = $this->person();
+        $this->actingAs($this->sysadmin())->get(route('admin.users.show', $person))->assertOk()->assertSee(route('admin.users.permissions', $person), false);
+        $this->actingAs($this->sysadmin())->get(route('admin.users.permissions', $person))->assertOk()->assertSee('Individual permissions')->assertSee('btn-inh-allow', false)->assertSee('btn-inh-deny', false)->assertSee('Inherit · Allowed')->assertSee('Inherit · Denied');
+
+        $this->actingAs($this->sysadmin())->put(route('admin.users.permissions.update', $person), ['perm' => ['report.view' => 'allow', 'ticket.create' => 'deny']])
+            ->assertRedirect(route('admin.users.show', $person))->assertSessionHas('ok');
+        $person = $person->fresh();
+        $this->assertContains('report.view', $person->extra_permissions);
+        $this->assertContains('ticket.create', $person->denied_permissions);
+        $this->assertTrue(AuditLog::where('event', 'user.permissions_updated')->where('auditable_id', $person->id)->exists());
+        $this->actingAs($this->sysadmin())->get(route('admin.users.show', $person))->assertOk()->assertSee('Denied')->assertSee('allowed for this user only');
+    }
+
+    public function test_saving_the_user_form_leaves_permissions_alone(): void
+    {
+        $person = $this->person();
+        $person->forceFill(['extra_permissions' => ['report.view']])->save();
+        $this->actingAs($this->sysadmin())->put(route('admin.users.update', $person), ['name' => $person->name, 'email' => $person->email, 'role_ids' => $person->roles->pluck('id')->all(), 'is_active' => 1])->assertSessionHas('ok');
+        $this->assertSame(['report.view'], $person->fresh()->extra_permissions);
+    }
+
+    public function test_only_users_who_can_update_roles_may_open_the_permissions_screen(): void
+    {
+        $this->actingAs($this->officer())->get(route('admin.users.permissions', $this->person()))->assertRedirect()->assertSessionHas('denied');
+        $this->actingAs($this->officer())->put(route('admin.users.permissions.update', $this->person()), ['perm' => ['report.view' => 'allow']])->assertRedirect()->assertSessionHas('denied');
+        $this->assertEmpty($this->person()->extra_permissions);
+    }
+
+    public function test_nobody_edits_their_own_permissions(): void
+    {
+        $admin = $this->sysadmin();
+        $this->actingAs($admin)->get(route('admin.users.permissions', $admin))->assertRedirect()->assertSessionHas('denied');
     }
 }

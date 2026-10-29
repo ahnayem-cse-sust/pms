@@ -84,6 +84,8 @@ Route::middleware('auth')->group(function () {
         Route::get('users/{user}', [UserController::class, 'show'])->middleware('can:user.view')->whereNumber('user')->name('users.show');
         Route::get('users/{user}/edit', [UserController::class, 'edit'])->middleware('can:user.update')->name('users.edit');
         Route::match(['put', 'patch'], 'users/{user}', [UserController::class, 'update'])->middleware('can:user.update')->name('users.update');
+        Route::get('users/{user}/permissions', [UserController::class, 'permissions'])->middleware(['can:user.view', 'can:role.update'])->whereNumber('user')->name('users.permissions');
+        Route::put('users/{user}/permissions', [UserController::class, 'updatePermissions'])->middleware(['can:user.view', 'can:role.update'])->whereNumber('user')->name('users.permissions.update');
         Route::delete('users/{user}', [UserController::class, 'destroy'])->middleware('can:user.delete')->whereNumber('user')->name('users.destroy');
 
         // Roles: Read / Add / Update / Delete

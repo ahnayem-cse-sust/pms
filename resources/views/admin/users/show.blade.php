@@ -55,21 +55,65 @@
     </div>
 </div>
 
-@if($user->hasCustomPermissions())
 @php
-    $labels = collect(config('itsm.permission_catalog'))->flatMap(fn ($g) => $g);
-    $hidden = auth()->user()->isRole('admin') ? [] : config('itsm.privileged_permissions', []);
-    $names = fn ($keys) => collect((array) $keys)->reject(fn ($k) => in_array($k, $hidden, true))->map(fn ($k) => $labels[$k] ?? $k)->values();
-    $allowed = $names($user->extra_permissions);
-    $denied = $names($user->denied_permissions);
+    $all = collect($permGroups)->flatten(1);
+    $nAllowed = $all->where(1, true)->count();
+    $nDenied = $all->where(1, false)->count();
 @endphp
 <div class="card mt-3">
-    <div class="inv-history-head" style="border-top:0">Individual permissions <span class="inv-count">{{ $allowed->count() + $denied->count() }}</span></div>
+    <div class="inv-history-head d-flex flex-wrap align-items-center gap-2" style="border-top:0">
+        <span>Permissions</span>
+        <span class="pill pill-success">{{ $nAllowed }} allowed</span><span class="pill pill-danger">{{ $nDenied }} denied</span>
+        @if($canEditPermissions)<a href="{{ route('admin.users.permissions', $user) }}" class="btn btn-sm btn-outline-primary ms-auto"><x-icon name="edit" :size="14"/> Edit permissions</a>@endif
+    </div>
     <div class="card-body pt-2">
-        <div class="text-muted small mb-2">On top of the roles, for this user only.</div>
-        @if($allowed->isNotEmpty())<div class="mb-2"><span class="fw-semibold me-2">Allowed</span>@foreach($allowed as $n)<span class="pill pill-success me-1 mb-1">{{ $n }}</span>@endforeach</div>@endif
-        @if($denied->isNotEmpty())<div><span class="fw-semibold me-2">Denied</span>@foreach($denied as $n)<span class="pill pill-danger me-1 mb-1">{{ $n }}</span>@endforeach</div>@endif
+        <div class="perm-legend">
+            <span><b>Allowed / Denied</b> – what applies to this user now</span>
+            <span><i style="background:#16a34a"></i>allowed for this user only</span>
+            <span><i style="background:#dc2626"></i>denied for this user only</span>
+            <span>no colour – follows the user's roles</span>
+        </div>
+        <div class="perm-toolbar">
+            <div class="input-icon"><x-icon name="search" :size="15"/><input type="search" id="viewPermSearch" class="form-control form-control-sm" placeholder="Find a permission…"></div>
+            <select id="viewPermShow" class="form-select form-select-sm" style="width:auto"><option value="">All</option><option value="allowed">Allowed only</option><option value="denied">Denied only</option></select>
+        </div>
+        <div class="row g-3">
+        @foreach($permGroups as $group => $items)
+            <div class="col-md-6 col-xl-4 perm-col">
+                <div class="perm-group">
+                    <div class="perm-group-h"><span>{{ $group }}</span><span class="text-muted fw-normal text-lowercase">{{ collect($items)->where(1, true)->count() }}/{{ count($items) }} allowed</span></div>
+                    @foreach($items as [$label, $allowed, $source])
+                        <div class="perm-row {{ $source === 'individual' ? ($allowed ? 'is-allow' : 'is-deny') : '' }}" data-text="{{ strtolower($label) }}" data-state="{{ $allowed ? 'allowed' : 'denied' }}">
+                            <span class="small">{{ $label }}</span>
+                            <span class="text-nowrap">@if($source === 'individual')<span class="inv-sub me-1">individual</span>@elseif($source === 'role')<span class="inv-sub me-1">role</span>@endif<span class="pill {{ $allowed ? 'pill-success' : 'pill-danger' }}">{{ $allowed ? 'Allowed' : 'Denied' }}</span></span>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endforeach
+        </div>
+        <div class="text-muted small text-center py-3 d-none" id="viewPermNone">No permission matches.</div>
+        @if($user->isRole('admin'))<div class="text-muted small mt-2">A System Administrator always has the full permissions of the role.</div>@endif
     </div>
 </div>
-@endif
+@push('scripts')
+<script>
+(function () {
+    var search = document.getElementById('viewPermSearch'), show = document.getElementById('viewPermShow');
+    function refresh() {
+        var q = search.value.trim().toLowerCase(), st = show.value, visible = 0;
+        document.querySelectorAll('.perm-row').forEach(function (r) {
+            var ok = r.dataset.text.indexOf(q) > -1 && (!st || r.dataset.state === st);
+            r.style.display = ok ? '' : 'none'; if (ok) visible++;
+        });
+        document.querySelectorAll('.perm-col').forEach(function (c) {
+            var any = Array.prototype.some.call(c.querySelectorAll('.perm-row'), function (r) { return r.style.display !== 'none'; });
+            c.style.display = any ? '' : 'none';
+        });
+        document.getElementById('viewPermNone').classList.toggle('d-none', visible > 0);
+    }
+    search.addEventListener('input', refresh); show.addEventListener('change', refresh);
+})();
+</script>
+@endpush
 @endsection

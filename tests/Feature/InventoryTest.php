@@ -515,4 +515,18 @@ class InventoryTest extends TestCase
         // sub category form: asset type and category are two boxes, the asset type is read-only
         $this->get(route('inv.setup', 'subcategories'))->assertSee('id="subType"', false)->assertSee('id="subCategory"', false)->assertSee('readonly', false);
     }
+
+    public function test_the_equipment_form_lists_every_asset_type_category_and_sub_category(): void
+    {
+        $type2 = Category::create(['name' => 'Hardware', 'level' => 1]);
+        $cat2 = Category::create(['name' => 'Laptops', 'parent_id' => $type2->id, 'level' => 2]);
+        $sub2 = Category::create(['name' => 'Ultrabooks', 'parent_id' => $cat2->id, 'level' => 3]);
+
+        $res = $this->actingAs($this->officer())->get(route('inv.equipment.create'))->assertOk();
+        // nothing is filtered by the selection above it: both branches of the tree are in the page
+        $res->assertSee('Consumables')->assertSee('Hardware')->assertSee('Printing')->assertSee('Laptops')->assertSee('Toner')->assertSee('Ultrabooks');
+        // each category / sub category carries its parent and its path, which the page uses to fill in the levels above and to search
+        $res->assertSee('data-p="'.$type2->id.'" data-path="Hardware"', false);
+        $res->assertSee('data-p="'.$cat2->id.'" data-path="Hardware › Laptops"', false);
+    }
 }

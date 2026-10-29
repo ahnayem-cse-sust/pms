@@ -710,3 +710,24 @@ a.inv-chip:hover{ border-color:var(--primary); color:var(--primary); }
 .perm-row.is-allow{ border-left-color:#16a34a; background:rgba(22,163,74,.07); }
 .perm-row.is-deny{ border-left-color:#dc2626; background:rgba(220,38,38,.07); }
 .perm-row .btn-group .btn{ font-size:.72rem; padding:.18rem .55rem; }
+/* Inherit button: green when the roles allow the permission, red when they do not (softer than the Allow / Deny buttons) */
+.btn-inh-allow{ color:#166534; border:1px solid #86efac; background:rgba(22,163,74,.08); }
+.btn-inh-allow:hover{ color:#166534; background:rgba(22,163,74,.18); border-color:#4ade80; }
+.btn-check:checked + .btn-inh-allow{ color:#14532d; background:#bbf7d0; border-color:#16a34a; font-weight:600; }
+.btn-inh-deny{ color:#991b1b; border:1px solid #fca5a5; background:rgba(220,38,38,.08); }
+.btn-inh-deny:hover{ color:#991b1b; background:rgba(220,38,38,.18); border-color:#f87171; }
+.btn-check:checked + .btn-inh-deny{ color:#7f1d1d; background:#fecaca; border-color:#dc2626; font-weight:600; }
+
+/* Searchable select over a real <select> (IT inventory equipment form) */
+.ss{ position:relative; }
+.ss-native{ position:absolute; left:0; bottom:0; width:100%; height:1px; opacity:0; pointer-events:none; }
+.ss-btn{ text-align:left; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.ss-btn.ss-placeholder{ color:var(--muted); }
+.ss-panel{ position:absolute; z-index:60; left:0; right:0; top:100%; margin-top:.3rem; padding:.45rem; background:var(--card); border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow); }
+.ss-panel[hidden]{ display:none; }
+.ss-list{ max-height:240px; overflow:auto; margin-top:.4rem; }
+.ss-item{ display:flex; justify-content:space-between; align-items:baseline; gap:.6rem; padding:.4rem .6rem; border-radius:8px; cursor:pointer; font-size:.88rem; }
+.ss-item small{ color:var(--muted); font-size:.74rem; text-align:right; }
+.ss-item:hover,.ss-item.hl{ background:var(--primary-soft); }
+.ss-item.active{ font-weight:600; }
+.ss-none{ padding:.5rem .6rem; color:var(--muted); font-size:.85rem; }

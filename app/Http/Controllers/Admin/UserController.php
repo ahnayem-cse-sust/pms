@@ -47,7 +47,6 @@ class UserController extends Controller
         unset($d['role_ids']);
         $user = User::create($d + ['is_active' => $r->boolean('is_active'), 'is_department_head' => $r->boolean('is_department_head'), 'show_in_attendance' => $r->boolean('show_in_attendance')]);
         $user->roles()->sync($roleIds);
-        $this->saveOverrides($r, $user);
         AuditLog::record('user.created', $user, null, collect($d)->except('password')->all() + ['role_ids' => $roleIds]);
         return redirect()->route('admin.users.index')->with('ok', 'User created.');
     }
@@ -59,8 +58,61 @@ class UserController extends Controller
 
         return view('admin.users.show', [
             'user' => $user,
+            'permGroups' => $this->permissionSummary($user),
+            'canEditPermissions' => $this->canEditPermissions($user),
             'blockers' => auth()->user()->can('user.delete') ? $this->deleteBlockers($user) : [],
         ]);
+    }
+
+    /** Separate screen for a user's individual permissions (Inherit / Allow / Deny). */
+    public function permissions(User $user)
+    {
+        $this->guardTarget($user);
+        abort_unless($this->canEditPermissions($user), 403, 'These permissions cannot be edited.');
+
+        return view('admin.users.permissions', ['user' => $user]);
+    }
+
+    public function updatePermissions(Request $r, User $user)
+    {
+        $this->guardTarget($user);
+        abort_unless($this->canEditPermissions($user), 403, 'These permissions cannot be edited.');
+
+        $old = ['extra_permissions' => $user->extra_permissions, 'denied_permissions' => $user->denied_permissions];
+        $r->merge(['perm_form' => 1]);
+        $this->saveOverrides($r, $user);
+        $user->refresh();
+        AuditLog::record('user.permissions_updated', $user, $old, ['extra_permissions' => $user->extra_permissions, 'denied_permissions' => $user->denied_permissions]);
+
+        return redirect()->route('admin.users.show', $user)->with('ok', 'Permissions updated.');
+    }
+
+    /** Individual permissions are edited by whoever can update roles - never on yourself, never on a System Administrator. */
+    protected function canEditPermissions(User $user): bool
+    {
+        return auth()->user()->can('role.update') && $user->id !== auth()->id() && ! $user->isRole('admin');
+    }
+
+    /**
+     * Every permission, grouped like the edit screen, with what applies to this user: [label, allowed?, source].
+     * Source is 'individual' (allowed or denied for this user only), 'role' (granted by a role) or '' (not granted).
+     * System Administrator-only permissions are hidden from everyone else.
+     */
+    protected function permissionSummary(User $user): array
+    {
+        $hidden = $this->actorIsAdmin() ? [] : config('itsm.privileged_permissions', []);
+        $groups = [];
+        foreach (config('itsm.permission_catalog') as $group => $items) {
+            foreach ($items as $key => $label) {
+                if (in_array($key, $hidden, true)) continue;
+                $allowed = $user->hasPermission($key);
+                $override = $user->permissionOverride($key);
+                $source = $override !== '' && ! ($allowed && $user->isRole('admin') && $override === 'deny') ? 'individual' : ($allowed ? 'role' : '');
+                $groups[$group][] = [$label, $allowed, $source];
+            }
+        }
+
+        return $groups;
     }
 
     public function edit(User $user)
@@ -105,12 +157,10 @@ class UserController extends Controller
         $old = $user->only(array_keys(collect($d)->except('password', 'password_changed_at')->all()));
         $user->update($d);
         $user->roles()->sync($roleIds);
-        $oldOverrides = ['extra_permissions' => $user->extra_permissions, 'denied_permissions' => $user->denied_permissions];
-        $changed = $this->saveOverrides($r, $user, $self);
         if ($r->boolean('unlock')) {
             $user->update(['locked_until' => null, 'failed_logins' => 0]);
         }
-        AuditLog::record('user.updated', $user, $old + ['role_ids' => $oldRoleIds] + ($changed ? $oldOverrides : []), collect($d)->except('password', 'password_changed_at')->all() + ['role_ids' => $roleIds] + ($changed ? ['extra_permissions' => $user->extra_permissions, 'denied_permissions' => $user->denied_permissions] : []));
+        AuditLog::record('user.updated', $user, $old + ['role_ids' => $oldRoleIds], collect($d)->except('password', 'password_changed_at')->all() + ['role_ids' => $roleIds]);
         return redirect()->route('admin.users.show', $user)->with('ok', 'User updated.');
     }
 
