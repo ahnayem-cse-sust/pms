@@ -229,6 +229,71 @@ class InventoryService
         });
     }
 
+    /**
+     * Delete one whole entry (RC-… or AL-…): its stock effect is reversed and its records are removed.
+     * Refused (nothing changes) when that would leave the books inconsistent: stock below zero, a serial unit that
+     * has later records, or items already returned by the holder.
+     *
+     * @param array<int,string> $types movement types that belong to this kind of entry
+     * @return array{lines:int,first:Movement}
+     */
+    public function deleteEntry(string $entry, array $types): array
+    {
+        return DB::transaction(function () use ($entry, $types) {
+            $lines = Movement::with('equipment')->where('entry_no', $entry)->whereIn('type', $types)->orderBy('id')->lockForUpdate()->get();
+            abort_if($lines->isEmpty(), 404);
+            $ids = $lines->pluck('id');
+
+            // a serial unit that was returned / handed out again afterwards: those records must go first
+            foreach ($lines->filter(fn ($l) => $l->serial_no) as $l) {
+                if (Movement::where('equipment_id', $l->equipment_id)->where('serial_no', $l->serial_no)->where('id', '>', $l->id)->whereNotIn('id', $ids)->exists()) {
+                    $this->fail('delete', "{$l->equipment->name} {$l->serial_no} has later records (returned or allocated again). Delete those entries first.");
+                }
+            }
+
+            // allocated quantities that the holder has already given back
+            $groups = $lines->where('type', 'ALLOCATE')->whereNull('serial_no')->groupBy(fn ($l) => implode('|', [$l->equipment_id, $l->holder_type, $l->holder_user_id, $l->holder_department_id]));
+            foreach ($groups as $g) {
+                $f = $g->first();
+                $held = $this->heldQty($f->equipment_id, ['type' => $f->holder_type, 'user_id' => $f->holder_user_id, 'department_id' => $f->holder_department_id]);
+                if ($held - abs((float) $g->sum('qty')) < -0.001) {
+                    $this->fail('delete', "Part of {$f->equipment->name} in this entry was already returned by {$f->holder_name}. Delete that return first.");
+                }
+            }
+
+            // stock: take the entry's effect back out, never below zero
+            $touched = [];
+            foreach ($lines->groupBy('equipment_id') as $equipmentId => $g) {
+                $e = Equipment::whereKey($equipmentId)->lockForUpdate()->firstOrFail();
+                $new = round((float) $e->stock_qty - (float) $g->sum('qty'), 2);
+                if ($new < -0.001) {
+                    $this->fail('delete', "{$e->name}: deleting {$entry} would make the stock negative (in stock: ".Inv::qty($e->stock_qty).'). Delete the later allocations first.');
+                }
+                $e->update(['stock_qty' => max($new, 0)]);
+                $touched[] = $e->id;
+            }
+
+            $first = $lines->first();
+            $snapshot = $lines->map(fn ($l) => ['equipment' => $l->equipment->name, 'type' => $l->type, 'qty' => (float) $l->qty, 'serial_no' => $l->serial_no, 'holder' => $l->holder_name])->all();
+            Movement::whereIn('id', $ids)->delete();
+
+            // the running balance shown on the later records follows the new history
+            $minId = $ids->min();
+            foreach (Equipment::whereIn('id', $touched)->get() as $e) {
+                $rows = Movement::where('equipment_id', $e->id)->orderBy('id')->get(['id', 'qty', 'balance_after']);
+                $run = round((float) $e->stock_qty - (float) $rows->sum('qty'), 2);
+                foreach ($rows as $m) {
+                    $run = round($run + (float) $m->qty, 2);
+                    if ($m->id > $minId && abs((float) $m->balance_after - $run) > 0.001) Movement::whereKey($m->id)->update(['balance_after' => $run]);
+                }
+            }
+
+            AuditLog::record('inventory.entry_deleted', $first->equipment, ['entry' => $entry, 'date' => $first->moved_on?->toDateString(), 'lines' => $snapshot], null);
+
+            return ['lines' => $lines->count(), 'first' => $first];
+        });
+    }
+
     /** What a holder still has of an equipment item (or of one serial): allocated minus returned. */
     public function heldQty(int $equipmentId, array $who, ?string $serial = null): float
     {

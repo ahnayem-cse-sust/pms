@@ -9,7 +9,11 @@ use App\Models\Designation;
 use App\Models\Location;
 use App\Models\Role;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -46,6 +50,17 @@ class UserController extends Controller
         $this->saveOverrides($r, $user);
         AuditLog::record('user.created', $user, null, collect($d)->except('password')->all() + ['role_ids' => $roleIds]);
         return redirect()->route('admin.users.index')->with('ok', 'User created.');
+    }
+
+    public function show(User $user)
+    {
+        $this->guardTarget($user);
+        $user->load(['roles', 'department', 'designation', 'location']);
+
+        return view('admin.users.show', [
+            'user' => $user,
+            'blockers' => auth()->user()->can('user.delete') ? $this->deleteBlockers($user) : [],
+        ]);
     }
 
     public function edit(User $user)
@@ -96,7 +111,73 @@ class UserController extends Controller
             $user->update(['locked_until' => null, 'failed_logins' => 0]);
         }
         AuditLog::record('user.updated', $user, $old + ['role_ids' => $oldRoleIds] + ($changed ? $oldOverrides : []), collect($d)->except('password', 'password_changed_at')->all() + ['role_ids' => $roleIds] + ($changed ? ['extra_permissions' => $user->extra_permissions, 'denied_permissions' => $user->denied_permissions] : []));
-        return redirect()->route('admin.users.index')->with('ok', 'User updated.');
+        return redirect()->route('admin.users.show', $user)->with('ok', 'User updated.');
+    }
+
+    /** Delete a user (System Administrator only). Refused for yourself and for anyone who already has records. */
+    public function destroy(User $user)
+    {
+        $this->guardTarget($user);
+        if ($user->id === auth()->id()) {
+            return back()->with('error', 'You cannot delete your own account.');
+        }
+        $blockers = $this->deleteBlockers($user);
+        if ($blockers) {
+            return back()->with('error', $user->name.' has '.implode(', ', $blockers).' and cannot be deleted. Disable the account instead (untick Active).');
+        }
+
+        $snapshot = $user->only(['name', 'email', 'employee_id', 'department_id', 'designation_id', 'location_id', 'is_active']) + ['role_ids' => $user->roles->pluck('id')->all()];
+        try {
+            DB::transaction(function () use ($user, $snapshot) {
+                DB::table('notifications')->where('notifiable_type', $user->getMorphClass())->where('notifiable_id', $user->id)->delete();
+                AuditLog::record('user.deleted', $user, $snapshot, null);
+                $user->roles()->detach();
+                $user->delete();
+            });
+        } catch (QueryException $e) {
+            // Something we do not know about still points at this user.
+            return back()->with('error', $user->name.' is still referenced by other records and cannot be deleted. Disable the account instead (untick Active).');
+        }
+        if ($user->avatar_path) {
+            Storage::disk('local')->delete($user->avatar_path);
+        }
+
+        return redirect()->route('admin.users.index')->with('ok', $user->name.' was deleted.');
+    }
+
+    /**
+     * What stops this user from being deleted: any history that would be left without its person.
+     * Login history, the audit log and request history keep their rows (the user link is simply cleared).
+     *
+     * @return string[]  e.g. ['requests', 'inventory records']
+     */
+    protected function deleteBlockers(User $user): array
+    {
+        $uses = [
+            'requests' => [['tickets', ['requester_id', 'created_by', 'assigned_to', 'closed_by', 'updated_by']]],
+            'request assignments' => [['ticket_assignments', ['employee_id', 'assigned_by']], ['ticket_assignment_log', ['assigned_to', 'assigned_from', 'assigned_by']]],
+            'work updates' => [['ticket_work_updates', ['user_id']]],
+            'comments or notes' => [['ticket_comments', ['user_id']], ['ticket_internal_notes', ['user_id']]],
+            'attachments' => [['ticket_attachments', ['uploaded_by']]],
+            'inventory records' => [['inv_movements', ['holder_user_id', 'created_by']]],
+        ];
+        $found = [];
+        foreach ($uses as $label => $tables) {
+            foreach ($tables as [$table, $columns]) {
+                if (! Schema::hasTable($table)) continue;
+                $columns = array_values(array_filter($columns, fn ($c) => Schema::hasColumn($table, $c)));
+                if (! $columns) continue;
+                $q = DB::table($table)->where(function ($w) use ($columns, $user) {
+                    foreach ($columns as $c) $w->orWhere($c, $user->id);
+                });
+                if ($q->exists()) {
+                    $found[] = $label;
+                    break;
+                }
+            }
+        }
+
+        return $found;
     }
 
     /** Individual permissions (Inherit / Allow / Deny per permission). Only users who can manage roles may change them. */

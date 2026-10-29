@@ -22,26 +22,24 @@
     </div>
 </form>
 <table class="table table-sm bg-white align-middle">
-    <thead class="table-light"><tr><th>Name</th><th>Employee ID</th><th>Email</th><th>Role</th><th>Department</th><th>Last login</th><th>Status</th><th></th></tr></thead>
+    <thead class="table-light"><tr><th>Name</th><th>Employee ID</th><th>Email</th><th>Department</th><th>Status</th><th></th></tr></thead>
     <tbody>
     @foreach($users as $u)
-        <tr>
-            <td>{{ $u->name }}@if($u->is_department_head) <span class="badge text-bg-info">Head</span>@endif</td>
+        <tr class="row-link" data-href="{{ route('admin.users.show', $u) }}">
+            <td><a href="{{ route('admin.users.show', $u) }}" class="ticket-link">{{ $u->name }}</a>@if($u->is_department_head) <span class="badge text-bg-info">Head</span>@endif</td>
             <td>{{ $u->employee_id }}</td>
             <td>{{ $u->email }}</td>
-            <td>@foreach($u->roles as $ro)<span class="pill pill-primary me-1 mb-1">{{ $ro->name }}</span>@endforeach
-                @if($u->hasCustomPermissions())<span class="pill pill-warning me-1 mb-1" title="Has individual permissions">+ custom</span>@endif</td>
             <td>{{ $u->department?->name }}</td>
-            <td>{{ $u->last_login_at?->format('d M Y h:i A') }}</td>
             <td>
                 @if(! $u->is_active)<span class="badge text-bg-secondary">Disabled</span>
                 @elseif($u->locked_until && $u->locked_until->isFuture())<span class="badge text-bg-danger">Locked</span>
                 @else<span class="badge text-bg-success">Active</span>@endif
             </td>
-            <td>@can('user.update')<a href="{{ route('admin.users.edit', $u) }}" class="btn btn-sm btn-outline-primary">Edit</a>@endcan</td>
+            <td class="text-end"><a href="{{ route('admin.users.show', $u) }}" class="btn btn-sm btn-outline-primary"><x-icon name="eye" :size="14"/> View</a></td>
         </tr>
     @endforeach
     </tbody>
 </table>
 {{ $users->links() }}
+@include('inventory._rowlink')
 @endsection

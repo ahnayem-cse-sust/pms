@@ -77,12 +77,14 @@ Route::middleware('auth')->group(function () {
 
     // Administration
     Route::prefix('admin')->name('admin.')->group(function () {
-        // Users: Read / Add / Update
+        // Users: Read / Add / Update / Delete (Delete: System Administrator only)
         Route::get('users', [UserController::class, 'index'])->middleware('can:user.view')->name('users.index');
         Route::get('users/create', [UserController::class, 'create'])->middleware('can:user.create')->name('users.create');
         Route::post('users', [UserController::class, 'store'])->middleware('can:user.create')->name('users.store');
+        Route::get('users/{user}', [UserController::class, 'show'])->middleware('can:user.view')->whereNumber('user')->name('users.show');
         Route::get('users/{user}/edit', [UserController::class, 'edit'])->middleware('can:user.update')->name('users.edit');
         Route::match(['put', 'patch'], 'users/{user}', [UserController::class, 'update'])->middleware('can:user.update')->name('users.update');
+        Route::delete('users/{user}', [UserController::class, 'destroy'])->middleware('can:user.delete')->whereNumber('user')->name('users.destroy');
 
         // Roles: Read / Add / Update / Delete
         Route::get('roles', [RoleController::class, 'index'])->middleware('can:role.view')->name('roles.index');

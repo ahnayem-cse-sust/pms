@@ -27,7 +27,7 @@
     <td><div class="inv-holder">@if($f->holder_type === 'EMPLOYEE')<x-avatar :name="$f->holder_name" :user="$f->holderUser"/>@else<span class="dept-ico"><x-icon name="building" :size="14"/></span>@endif<div><div class="inv-name">{{ $f->holder_name }}</div>@if($f->holderUser)<div class="inv-sub">{{ $f->holderUser->department->name ?? '' }}</div>@endif</div></div></td>
     <td class="text-end"><span class="inv-q">{{ \App\Support\Inv::qty($ls->sum(fn ($m) => abs($m->qty))) }}</span></td>
     <td>{{ $f->reference_no ?: '—' }}<div class="inv-sub">{{ $f->user->name ?? '' }}</div></td>
-    <td class="text-end"><div class="inv-actions-cell"><a class="btn btn-sm btn-outline-primary" href="{{ route('inv.allocations.show', $en->entry_no) }}"><x-icon name="eye" :size="14"/> View</a><a class="btn btn-sm btn-outline-secondary" href="{{ route('inv.allocations.pdf', $en->entry_no) }}"><x-icon name="file-text" :size="14"/> PDF</a></div></td>
+    <td class="text-end"><div class="inv-actions-cell"><a class="btn btn-sm btn-outline-primary" href="{{ route('inv.allocations.show', $en->entry_no) }}"><x-icon name="eye" :size="14"/> View</a></div></td>
 </tr>
 @empty
 <tr><td colspan="6">@if($activeFilters)@include('inventory._empty', ['icon' => 'search', 'msg' => 'No allocations match these filters', 'hint' => 'Try a different search, or reset the filters.'])@else @can('inv.create')@include('inventory._empty', ['icon' => 'clipboard', 'msg' => 'No allocations yet', 'ctaUrl' => route('inv.allocations.create'), 'ctaLabel' => '+ Allocate equipment'])@else @include('inventory._empty', ['icon' => 'clipboard', 'msg' => 'No allocations yet'])@endcan @endif</td></tr>

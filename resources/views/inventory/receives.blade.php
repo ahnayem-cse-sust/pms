@@ -27,7 +27,7 @@
     <td>@if($f->type === 'RETURN')<span class="pill pill-info">Return</span> {{ $f->holder_name }}@elseif($f->type === 'OPENING')<span class="pill pill-secondary">Previous item</span> {{ $f->party }}@else<span class="pill pill-success">Supplier</span> {{ $f->party }}@endif</td>
     <td class="text-end"><span class="inv-q">{{ \App\Support\Inv::qty($ls->sum(fn ($m) => abs($m->qty))) }}</span></td>
     <td>{{ $f->reference_no ?: '—' }}@if($f->remarks)<div class="inv-sub">{{ $f->remarks }}</div>@endif<div class="inv-sub">{{ $f->user->name ?? '' }}</div></td>
-    <td class="text-end"><div class="inv-actions-cell"><a class="btn btn-sm btn-outline-primary" href="{{ route('inv.receives.show', $en->entry_no) }}"><x-icon name="eye" :size="14"/> View</a><a class="btn btn-sm btn-outline-secondary" href="{{ route('inv.receives.pdf', $en->entry_no) }}"><x-icon name="file-text" :size="14"/> PDF</a></div></td>
+    <td class="text-end"><div class="inv-actions-cell"><a class="btn btn-sm btn-outline-primary" href="{{ route('inv.receives.show', $en->entry_no) }}"><x-icon name="eye" :size="14"/> View</a></div></td>
 </tr>
 @empty
 <tr><td colspan="6">@if($activeFilters)@include('inventory._empty', ['icon' => 'search', 'msg' => 'No receives match these filters', 'hint' => 'Try a different search, or reset the filters.'])@else @can('inv.create')@include('inventory._empty', ['icon' => 'inbox', 'msg' => 'Nothing received yet', 'hint' => 'Items you receive from a supplier or get back from people appear here.', 'ctaUrl' => route('inv.receive'), 'ctaLabel' => '+ Receive item'])@else @include('inventory._empty', ['icon' => 'inbox', 'msg' => 'Nothing received yet'])@endcan @endif</td></tr>

@@ -4,6 +4,7 @@
 <div class="d-flex flex-wrap gap-2 mb-3">
     <a href="{{ route('inv.receives') }}" class="btn btn-outline-secondary inv-back"><x-icon name="arrow-left" :size="15"/> Receives</a>
     <a href="{{ route('inv.receives.pdf', $entry) }}" class="btn btn-primary ms-md-auto inv-back"><x-icon name="download" :size="15"/> Download PDF</a>
+    @can('inv.delete')<form method="POST" action="{{ route('inv.receives.destroy', $entry) }}" onsubmit="return confirm('Delete {{ $entry }}? Its stock effect is reversed and the records are removed permanently.');">@csrf @method('DELETE')<button class="btn btn-outline-danger inv-back"><x-icon name="trash" :size="15"/> Delete</button></form>@endcan
 </div>
 <div class="card">
     <div class="inv-hero">

@@ -549,4 +549,10 @@ class TicketWorkflowTest extends TestCase
         $this->assertStringContainsString('Developed by MIS &amp; IT Department of JOPLC.', $html);
         $this->assertStringContainsString('Jamuna Oil PLC.', $html);
     }
+
+    public function test_a_notification_toast_pops_up_only_once_across_pages(): void
+    {
+        $this->actingAs($this->u('it_emp@joplc.com'))->get(route('tickets.index'))
+            ->assertOk()->assertSee('itsm-shown-notifs', false)->assertSee('remember(n.id)', false);
+    }
 }

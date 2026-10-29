@@ -154,4 +154,16 @@ class AllocationController extends InvController
         return Pdf::loadView('inventory.allocation-pdf', ['entry' => $entry, 'lines' => $lines, 'first' => $lines->first(), 'generatedAt' => now(), 'generatedBy' => auth()->user()->name])
             ->setPaper('a4', 'portrait')->download('Allocation_'.$entry.'.pdf');
     }
+
+    /** System Administrator only: delete a whole allocation entry; its stock effect is reversed (refused when that would break the records). */
+    public function destroy(string $entry)
+    {
+        try {
+            $this->svc()->deleteEntry($entry, ['ALLOCATE']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()->back()->with('error', collect($e->errors())->flatten()->first());
+        }
+
+        return redirect()->route('inv.allocations.entries')->with('ok', "{$entry} was deleted and the stock was adjusted.");
+    }
 }

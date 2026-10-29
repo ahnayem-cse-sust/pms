@@ -107,12 +107,12 @@ return [
         'admin' => [
             'ticket.create', 'ticket.create.behalf', 'ticket.view.own', 'ticket.view.all', 'ticket.list.all', 'ticket.comment.public',
             'ticket.note.internal', 'attachment.upload', 'attachment.download.internal',
-            'dashboard.officer', 'report.view', 'attendance.view', 'user.view', 'user.create', 'user.update',
+            'dashboard.officer', 'report.view', 'attendance.view', 'user.view', 'user.create', 'user.update', 'user.delete',
             'role.view', 'role.create', 'role.update', 'role.delete',
             'lookup.view', 'lookup.create', 'lookup.update',
             'settings.view', 'settings.update', 'audit.view',
             // IT Inventory
-            'inv.view', 'inv.view.own', 'inv.create', 'inv.update',
+            'inv.view', 'inv.view.own', 'inv.create', 'inv.update', 'inv.delete',
         ],
         'it_officer' => [
             'ticket.create', 'ticket.create.behalf', 'ticket.view.own', 'ticket.view.all', 'ticket.list.all', 'ticket.acknowledge',
@@ -152,7 +152,7 @@ return [
     ]),
 
     // Permissions that only a System Administrator may hand out (to a user through a role).
-    'privileged_permissions' => ['role.view', 'role.create', 'role.update', 'role.delete', 'settings.view', 'settings.update', 'audit.view', 'menu.roles', 'menu.settings', 'menu.audit', 'menu.logins'],
+    'privileged_permissions' => ['role.view', 'role.create', 'role.update', 'role.delete', 'settings.view', 'settings.update', 'audit.view', 'inv.delete', 'user.delete', 'menu.roles', 'menu.settings', 'menu.audit', 'menu.logins'],
 
     // Picking a permission automatically adds the ones it cannot work without (applied in the role form and on save).
     'sidebar_menus' => $sidebarMenus,
@@ -172,11 +172,11 @@ return [
         'ticket.comment.public' => ['ticket.view.own'],
         'dashboard.officer' => ['ticket.view.all'],
         'attendance.view' => ['report.view'],
-        'user.create' => ['user.view'], 'user.update' => ['user.view'],
+        'user.create' => ['user.view'], 'user.update' => ['user.view'], 'user.delete' => ['user.view'],
         'role.create' => ['role.view'], 'role.update' => ['role.view'], 'role.delete' => ['role.view'],
         'lookup.create' => ['lookup.view'], 'lookup.update' => ['lookup.view'],
         'settings.update' => ['settings.view'],
-        'inv.create' => ['inv.view'], 'inv.update' => ['inv.view'],
+        'inv.create' => ['inv.view'], 'inv.update' => ['inv.view'], 'inv.delete' => ['inv.view'],
     ],
 
     // Module-wise access matrix on the role screen: one row per module, one checkbox per Read / Add / Update / Delete.
@@ -204,11 +204,11 @@ return [
             ['label' => 'Own attendance', 'read' => 'attendance.own', 'add' => null, 'update' => null, 'delete' => null],
         ],
         'IT Inventory' => [
-            ['label' => 'Equipment stock & allocations', 'note' => 'Add = receive item (new or returned), allocate; Update = equipment, asset types and categories', 'read' => 'inv.view', 'add' => 'inv.create', 'update' => 'inv.update', 'delete' => null],
+            ['label' => 'Equipment stock & allocations', 'note' => 'Add = receive item (new or returned), allocate; Update = equipment, asset types and categories; Delete = receives and allocations (System Administrator only)', 'read' => 'inv.view', 'add' => 'inv.create', 'update' => 'inv.update', 'delete' => 'inv.delete'],
             ['label' => 'Own allocated equipment', 'read' => 'inv.view.own', 'add' => null, 'update' => null, 'delete' => null],
         ],
         'Administration' => [
-            ['label' => 'Users', 'read' => 'user.view', 'add' => 'user.create', 'update' => 'user.update', 'delete' => null],
+            ['label' => 'Users', 'note' => 'Delete = System Administrator only; a user who already has records can only be disabled', 'read' => 'user.view', 'add' => 'user.create', 'update' => 'user.update', 'delete' => 'user.delete'],
             ['label' => 'Roles & permissions', 'note' => 'Update also covers users\' individual permissions', 'read' => 'role.view', 'add' => 'role.create', 'update' => 'role.update', 'delete' => 'role.delete'],
             ['label' => 'Configuration lists', 'note' => 'Categories, departments, designations, locations ...', 'read' => 'lookup.view', 'add' => 'lookup.create', 'update' => 'lookup.update', 'delete' => null],
             ['label' => 'System settings & SLA', 'read' => 'settings.view', 'add' => null, 'update' => 'settings.update', 'delete' => null],
@@ -260,11 +260,13 @@ return [
             'inv.view.own' => 'View equipment allocated to themselves / their department',
             'inv.create' => 'Receive items (new or returned) and allocate items',
             'inv.update' => 'Manage equipment, asset types and categories',
+            'inv.delete' => 'Delete receives and allocations (stock is adjusted back)',
         ],
         'Administration' => [
             'user.view' => 'View users',
             'user.create' => 'Create users',
             'user.update' => 'Edit users',
+            'user.delete' => 'Delete users (only those with no records)',
             'role.view' => 'View roles and permissions',
             'role.create' => 'Create roles',
             'role.update' => 'Edit roles and users\' individual permissions',

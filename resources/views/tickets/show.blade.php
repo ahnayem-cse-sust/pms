@@ -19,16 +19,16 @@
         {{-- ───────── Top panel: id + subject, summary table, description, progress ───────── --}}
         <div class="card mb-4 req-head">
             <div class="card-header d-flex align-items-center gap-2">
-                <a class="fold-toggle flex-grow-1 min-w-0" data-bs-toggle="collapse" href="#fold-top" role="button" aria-expanded="true">
-                    <span class="d-flex align-items-center gap-2 min-w-0"><span class="req-subject">{{ $ticket->subject }}</span></span>
-                </a>
+                <div class="flex-grow-1 min-w-0">
+                    <span class="d-flex align-items-center gap-2 min-w-0"><span class="req-subject" title="{{ $ticket->subject }}">{{ $ticket->subject }}</span></span>
+                </div>
                 @if($ticket->status->code === 'CLOSED')
                     <a href="{{ route('tickets.pdf', $ticket) }}" class="btn btn-sm btn-primary flex-none d-inline-flex align-items-center gap-1"><x-icon name="download" :size="15"/> Download PDF</a>
                 @endif
                 @if(! empty($canEditDetails))<a href="{{ route('tickets.edit', $ticket) }}" class="btn btn-sm btn-primary flex-none d-inline-flex align-items-center gap-1"><x-icon name="edit" :size="15"/> Edit request</a>@endif
                 <a href="{{ route('tickets.index') }}" class="btn btn-sm btn-outline-secondary flex-none">← Back</a>
             </div>
-            <div class="collapse show" id="fold-top">
+            <div id="fold-top">
                 <table class="table table-sm info-table mb-0">
                     <tbody>
                         <tr><th>Status</th><td>

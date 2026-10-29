@@ -114,4 +114,16 @@ class ReceiveController extends InvController
 
         return redirect()->route('inv.receives')->with('ok', "Return received and recorded as {$entry}.");
     }
+
+    /** System Administrator only: delete a whole receive entry; its stock effect is reversed (refused when that would break the records). */
+    public function destroy(string $entry)
+    {
+        try {
+            $this->svc()->deleteEntry($entry, $this->types);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()->back()->with('error', collect($e->errors())->flatten()->first());
+        }
+
+        return redirect()->route('inv.receives')->with('ok', "{$entry} was deleted and the stock was adjusted.");
+    }
 }

@@ -212,6 +212,9 @@ window.toast = function (msg, type) {
     @if(session('ok'))
         window.toast(@json(session('ok')), 'success');
     @endif
+    @if(session('error'))
+        window.toast(@json(session('error')), 'danger');
+    @endif
     @if(session('denied'))
         window.toast(@json(session('denied')), 'danger');
     @endif
@@ -285,6 +288,16 @@ window.toast = function (msg, type) {
     // Over plain http the browser refuses desktop pop-ups (nothing a web page can change), so there the same button turns on
     // the alternatives that do work: a sound and a flashing tab title.
     var dbtn = document.getElementById('deskNotif'), secure = window.isSecureContext !== false, canDesk = secure && 'Notification' in window, ctx = null, flashTimer = null, baseTitle = document.title;
+    // A message pops up only once: every notification that has been shown (closed with the cross or faded away) is remembered
+    // by all pages and tabs for a day, so it does not pop up again on the next page. It stays in the Notifications list.
+    var SHOWN = 'itsm-shown-notifs';
+    function shownMap() { try { return JSON.parse(lsGet(SHOWN) || '{}') || {}; } catch (e) { return {}; } }
+    function remember(id) {
+        var d = shownMap(), now = Date.now();
+        d[id] = now;
+        Object.keys(d).forEach(function (k) { if (now - d[k] > 86400000) delete d[k]; });
+        lsSet(SHOWN, JSON.stringify(d));
+    }
     function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
     function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
     function audio() { try { var A = window.AudioContext || window.webkitAudioContext; if (A && !ctx) ctx = new A(); if (ctx && ctx.state === 'suspended') ctx.resume(); } catch (e) {} return ctx; }
@@ -346,8 +359,8 @@ window.toast = function (msg, type) {
                 since = d.now - 5;
                 badge(document.getElementById('navNotif'), 'badge bg-danger count', d.unread);
                 badge(document.getElementById('topNotif'), 'dot', d.unread);
-                var fresh = d.items.filter(function (n) { return !seen[n.id]; });
-                fresh.reverse().forEach(function (n) { seen[n.id] = 1; show(n); desktop(n); });
+                var fresh = d.items.filter(function (n) { return !seen[n.id] && !shownMap()[n.id]; });
+                fresh.reverse().forEach(function (n) { seen[n.id] = 1; if (shownMap()[n.id]) return; remember(n.id); show(n); desktop(n); });
                 if (fresh.length) refreshList();
             })
             .catch(function () {}).then(function () { busy = false; });

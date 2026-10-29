@@ -415,4 +415,104 @@ class InventoryTest extends TestCase
         $this->actingAs($this->person())->get(route('inv.records.show', $m))->assertRedirect()->assertSessionHas('denied');
         $this->actingAs($this->officer())->get(route('inv.records'))->assertOk()->assertSee('View');
     }
+
+    protected function sysadmin(): User { return User::where('email', 'nayem.jocl@gmail.com')->firstOrFail(); }
+
+    public function test_only_the_system_administrator_can_delete_a_receive_and_the_stock_is_reversed(): void
+    {
+        $this->receive(10);
+        $this->assertSame(10.0, $this->stock());
+
+        // the IT admin (officer) cannot delete
+        $this->actingAs($this->officer())->delete(route('inv.receives.destroy', 'RC-000001'))->assertRedirect()->assertSessionHas('denied');
+        $this->assertSame(1, Movement::count());
+
+        $this->actingAs($this->sysadmin())->delete(route('inv.receives.destroy', 'RC-000001'))->assertRedirect(route('inv.receives'))->assertSessionHas('ok');
+        $this->assertSame(0, Movement::count());
+        $this->assertSame(0.0, $this->stock());
+    }
+
+    public function test_deleting_an_allocation_puts_the_stock_back(): void
+    {
+        $this->receive(10);
+        $this->allocate(4);
+        $this->assertSame(6.0, $this->stock());
+
+        $this->actingAs($this->officer())->delete(route('inv.allocations.destroy', 'AL-000001'))->assertRedirect()->assertSessionHas('denied');
+        $this->assertSame(6.0, $this->stock());
+
+        $this->actingAs($this->sysadmin())->delete(route('inv.allocations.destroy', 'AL-000001'))->assertRedirect(route('inv.allocations.entries'))->assertSessionHas('ok');
+        $this->assertSame(10.0, $this->stock());
+        $this->assertSame(0, Movement::where('type', 'ALLOCATE')->count());
+    }
+
+    public function test_a_delete_that_would_break_the_records_is_refused(): void
+    {
+        $this->receive(10);
+        $this->allocate(4);
+
+        // stock would go to -4
+        $this->actingAs($this->sysadmin())->delete(route('inv.receives.destroy', 'RC-000001'))->assertRedirect()->assertSessionHas('error');
+        $this->assertSame(6.0, $this->stock());
+        $this->assertSame(2, Movement::count());
+
+        // part of the allocation was already returned
+        $this->actingAs($this->officer())->post(route('inv.receive.store'), ['source' => 'EMPLOYEE', 'user_id' => $this->person()->id, 'date' => today()->toDateString(), 'lines' => [['equipment_id' => $this->toner->id, 'qty' => 1]]]);
+        $this->actingAs($this->sysadmin())->delete(route('inv.allocations.destroy', 'AL-000001'))->assertRedirect()->assertSessionHas('error');
+        $this->assertSame(3, Movement::count());
+    }
+
+    public function test_running_balances_follow_the_history_after_a_delete(): void
+    {
+        $this->receive(10);
+        $this->receive(5);
+        $this->allocate(3);
+
+        $this->actingAs($this->sysadmin())->delete(route('inv.receives.destroy', 'RC-000001'))->assertSessionHas('ok');
+        $this->assertSame(2.0, $this->stock());
+        $this->assertSame(5.0, (float) Movement::where('entry_no', 'RC-000002')->value('balance_after'));
+        $this->assertSame(2.0, (float) Movement::where('entry_no', 'AL-000001')->value('balance_after'));
+    }
+
+    public function test_setup_rows_are_deleted_only_when_nothing_uses_them(): void
+    {
+        $this->actingAs($this->officer());
+
+        // HP Toner uses this type, category and sub category
+        foreach ([['types', $this->type], ['categories', $this->cat], ['subcategories', $this->sub]] as [$kind, $row]) {
+            $this->delete(route('inv.setup.destroy', [$kind, $row->id]))->assertSessionHas('error');
+            $this->assertNotNull(Category::find($row->id));
+        }
+
+        $t = Category::create(['name' => 'Spare', 'level' => 1]);
+        $c = Category::create(['name' => 'Spare parts', 'parent_id' => $t->id, 'level' => 2]);
+        $x = Category::create(['name' => 'Spare cables', 'parent_id' => $c->id, 'level' => 3]);
+
+        $this->delete(route('inv.setup.destroy', ['types', $t->id]))->assertSessionHas('error');          // still has a category
+        $this->delete(route('inv.setup.destroy', ['categories', $c->id]))->assertSessionHas('error');     // still has a sub category
+        $this->delete(route('inv.setup.destroy', ['subcategories', $x->id]))->assertSessionHas('ok');
+        $this->delete(route('inv.setup.destroy', ['categories', $c->id]))->assertSessionHas('ok');
+        $this->delete(route('inv.setup.destroy', ['types', $t->id]))->assertSessionHas('ok');
+        $this->assertSame(0, Category::whereIn('id', [$t->id, $c->id, $x->id])->count());
+    }
+
+    public function test_category_and_sub_category_pages_filter_by_asset_type_and_category(): void
+    {
+        $net = Category::create(['name' => 'Network', 'level' => 1]);
+        $sw = Category::create(['name' => 'Switches', 'parent_id' => $net->id, 'level' => 2]);
+        Category::create(['name' => 'Routers', 'parent_id' => $sw->id, 'level' => 3]);
+        $this->actingAs($this->officer());
+
+        // categories page: asset type filter
+        $this->get(route('inv.setup', ['categories', 'type_id' => $this->type->id]))->assertOk()->assertSee('Printing')->assertDontSee('Switches');
+        $this->get(route('inv.setup', ['categories', 'type_id' => $net->id]))->assertOk()->assertSee('Switches')->assertDontSee('Printing');
+
+        // sub categories page: asset type, then category
+        $this->get(route('inv.setup', ['subcategories', 'type_id' => $net->id]))->assertOk()->assertSee('Routers')->assertDontSee('Toner');
+        $this->get(route('inv.setup', ['subcategories', 'category_id' => $this->cat->id]))->assertOk()->assertSee('Toner')->assertDontSee('Routers');
+        $this->get(route('inv.setup', ['subcategories']))->assertOk()->assertSee('Toner')->assertSee('Routers');
+
+        // sub category form: asset type and category are two boxes, the asset type is read-only
+        $this->get(route('inv.setup', 'subcategories'))->assertSee('id="subType"', false)->assertSee('id="subCategory"', false)->assertSee('readonly', false);
+    }
 }
