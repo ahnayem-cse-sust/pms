@@ -6,17 +6,21 @@
     $person = fn ($p) => [
         'id' => $p->id, 'name' => $p->name, 'emp' => $p->employee_id, 'desig' => $p->designation?->name,
         'dept' => $p->department?->name, 'deptId' => $p->department_id, 'email' => $p->email,
-        'phone' => $p->whatsapp, 'locId' => $p->location_id,
+        'phone' => $p->whatsapp, 'locId' => $p->location_id, 'loc' => $p->location?->name,
+        'avatar' => $p->avatar_path ? route('avatar.show', $p) . '?v=' . optional($p->updated_at)->timestamp : null,
+        'hue' => crc32((string) $p->name) % 360,
     ];
-    $u->loadMissing(['department', 'designation']);
+    $u->loadMissing(['department', 'designation', 'location']);
     $cfg = [
         'me' => $person($u),
         'users' => $requesters->map($person)->values(),
         'maxKb' => \App\Services\AttachmentService::maxKb(),
         'categories' => $categories->map(fn ($c) => [
             'id' => $c->id, 'name' => $c->name,
-            'subs' => $c->subcategories->map(fn ($s) => ['id' => $s->id, 'name' => $s->name])->values(),
         ])->values(),
+        'subs' => $categories->flatMap(fn ($c) => $c->subcategories->map(fn ($s) => [
+            'id' => $s->id, 'name' => $s->name, 'catId' => $c->id, 'catName' => $c->name,
+        ]))->values(),
         'old' => [
             'requester' => (string) old('requester_id'),
             'phone' => old('phone'), 'location' => (string) old('location_id'), 'department' => (string) old('department_id'),
@@ -26,101 +30,116 @@
     ];
 @endphp
 
-<div class="row justify-content-center"><div class="col-xl-9">
+<div class="row justify-content-center"><div class="col-xl-10">
 <form id="ticketForm" method="POST" action="{{ route('tickets.store') }}" enctype="multipart/form-data" v-cloak v-on:submit="submitting = true">
     @csrf
-    <div class="card mb-3">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <span>Requester information</span>
-            <span v-if="behalf" class="pill pill-warning">Filing on behalf of another person</span>
-        </div>
-        <div class="card-body">
-            @if($requesters->isNotEmpty())
-            <div class="row g-3 mb-3 pb-3 border-bottom">
-                <div class="col-md-7">
-                    <label class="form-label">Request for</label>
-                    <div class="combo">
-                        <input type="hidden" name="requester_id" :value="requesterId">
-                        <input class="form-control" role="combobox" :aria-expanded="open ? 'true' : 'false'" autocomplete="off"
-                               placeholder="Search by name, employee ID or department…"
-                               v-model="search"
-                               v-on:focus="onFocus($event)" v-on:input="typing = true; open = true; hi = 0"
-                               v-on:keydown.down.prevent="move(1)" v-on:keydown.up.prevent="move(-1)"
-                               v-on:keydown.enter.prevent="pickHighlighted" v-on:keydown.esc="closeList" v-on:blur="closeList">
-                        <span class="chev">▼</span>
-                        <ul class="combo-list" v-show="open">
-                            <li v-for="(o, i) in options" :key="'o' + o.id" :class="{ active: i === hi }"
-                                v-on:mousedown.prevent="pick(o)" v-on:mouseenter="hi = i">
-                                [[ o.label ]]<small v-if="o.sub">[[ o.sub ]]</small>
-                            </li>
-                            <li v-if="!options.length" class="empty">No matching person</li>
-                        </ul>
+    <div class="card">
+        <div class="nr-sec nr-sec-a">
+
+            {{-- Requester --}}
+            <div class="nr-h"><span class="nr-ic"><x-icon name="user" :size="14"/></span>Who is the requester?<span v-if="behalf" class="pill pill-warning ms-auto text-capitalize" style="letter-spacing:0;font-weight:600">Filing on behalf of another person</span></div>
+            @php($has = $requesters->isNotEmpty())
+            <div class="nr-grid">
+                <div class="nr-left">
+                    @if($has)
+                    <div>
+                        <label class="form-label">Request for</label>
+                        <combo-select name="requester_id" v-model="requesterId" :options="personOptions" placeholder="Myself"></combo-select>
+                        <div class="form-text">Search by name or employee ID to file for someone else.</div>
+                    </div>
+                    @endif
+                    <div>
+                        <label class="form-label">WhatsApp number</label>
+                        <input name="phone" v-model="phone" class="form-control @error('phone') is-invalid @enderror" placeholder="+8801XXXXXXXXX" inputmode="tel">
+                    </div>
+                </div>
+                <div class="nr-right">
+                    <div class="nr-card">
+                        <div class="nr-top">
+                            <img v-if="who.avatar" :src="who.avatar" :alt="who.name" class="nr-photo">
+                            <span v-else class="nr-photo nr-ini" :style="{ '--h': who.hue }" v-text="initials"></span>
+                            <div class="nr-id">
+                                <div class="nm" v-text="who.name || '—'"></div>
+                                <div class="ds" v-text="who.desig || 'No designation'"></div>
+                            </div>
+                        </div>
+                        <div class="nr-facts">
+                            <div class="nr-fact">
+                                <span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg></span>
+                                <div><small>Employee ID</small><b v-text="who.emp || '—'"></b></div>
+                            </div>
+                            <div class="nr-fact">
+                                <span class="ic"><x-icon name="building" :size="15"/></span>
+                                {{-- Department comes from the requester's profile; only asked for when the profile has none --}}
+                                <div v-if="who.deptId"><small>Department</small><b v-text="who.dept"></b></div>
+                                <div v-else class="flex-grow-1">
+                                    <small>Department <span class="text-danger">*</span></small>
+                                    <select name="department_id" class="form-select form-select-sm @error('department_id') is-invalid @enderror" v-model="departmentId" required>
+                                        <option value="">Select…</option>
+                                        @foreach($departments as $d)<option value="{{ $d->id }}">{{ $d->name }}</option>@endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="nr-fact">
+                                <span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></span>
+                                <div><small>Location</small><b v-text="who.loc || '—'"></b></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-            @endif
 
-            <div class="row g-3">
-                <div class="col-md-6"><label class="form-label">Name</label><input class="form-control" :value="who.name" disabled></div>
-                <div class="col-md-6"><label class="form-label">Employee ID</label><input class="form-control" :value="who.emp" disabled></div>
-                <div class="col-md-6"><label class="form-label">Designation</label><input class="form-control" :value="who.desig" disabled></div>
-                <div class="col-md-6"><label class="form-label">WhatsApp number</label><input name="phone" v-model="phone" class="form-control" placeholder="+8801XXXXXXXXX" inputmode="tel"></div>
-                {{-- Department comes from the requester's profile; only asked for when the profile has none --}}
-                <div class="col-md-6" v-if="!who.deptId">
-                    <label class="form-label">Department *</label>
-                    <select name="department_id" class="form-select" v-model="departmentId" required>
-                        <option value="">Select…</option>
-                        @foreach($departments as $d)<option value="{{ $d->id }}">{{ $d->name }}</option>@endforeach
-                    </select>
-                </div>
-            </div>
         </div>
-    </div>
+        <div class="nr-sec nr-sec-b">
 
-    <div class="card mb-3">
-        <div class="card-header">What do you need?</div>
-        <div class="card-body">
+            {{-- Request --}}
+            <div class="nr-h"><span class="nr-ic"><x-icon name="clipboard" :size="14"/></span>Request details</div>
             <div class="row g-3">
-                <div class="col-md-4">
-                    <label class="form-label">Service type *</label>
-                    <select name="ticket_type_id" class="form-select" required>
+                <div class="col-md-6">
+                    <label class="form-label">Service type <span class="text-danger">*</span></label>
+                    <select name="ticket_type_id" class="form-select @error('ticket_type_id') is-invalid @enderror" required>
                         @foreach($types as $t)<option value="{{ $t->id }}" @selected(old('ticket_type_id') == $t->id)>{{ $t->name }}</option>@endforeach
                     </select>
+                    <div class="form-text">What kind of help is this?</div>
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label">Category *</label>
-                    <select name="category_id" class="form-select" v-model="category" required>
-                        <option value="">Select…</option>
-                        <option v-for="c in categories" :key="c.id" :value="String(c.id)">[[ c.name ]]</option>
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Sub-category</label>
-                    <select name="subcategory_id" class="form-select" v-model="sub" :disabled="!subs.length">
-                        <option value="">[[ subs.length ? '—' : 'Choose a category first' ]]</option>
-                        <option v-for="s in subs" :key="s.id" :value="String(s.id)">[[ s.name ]]</option>
-                    </select>
-                </div>
-
+                <div class="col-md-6 d-none d-md-block"></div>
                 <div class="col-12">
-                    <label class="form-label">Subject *</label>
-                    <input name="subject" v-model="subject" class="form-control" maxlength="200" placeholder="e.g. Unable to print Sales Invoice" required>
+                    <label class="form-label d-flex justify-content-between">Subject <span class="text-danger ms-1 me-auto">*</span><span class="text-muted fw-normal small">[[ subject.length ]]/200</span></label>
+                    <input name="subject" v-model="subject" class="form-control @error('subject') is-invalid @enderror" maxlength="200" placeholder="A short summary, e.g. Unable to print Sales Invoice" required v-on:keydown.enter.prevent>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Category <span class="text-danger">*</span></label>
+                        <select name="category_id" class="form-select @error('category_id') is-invalid @enderror" v-model="category" v-on:change="onCategory" required>
+                            <option value="">Select…</option>
+                            <option v-for="c in categories" :key="c.id" :value="String(c.id)">[[ c.name ]]</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">Sub-category <span class="text-muted fw-normal">(optional)</span></label>
+                        <combo-select name="subcategory_id" v-model="sub" :options="subOptions" empty-label="—" v-on:change="onSub"></combo-select>
+                    </div>
+                </div>
+                <div class="col-md-6 d-flex">
+                    <div class="nr-tip" :class="{ ok: catNote }">
+                        <b v-text="catNote ? 'Category filled in' : 'Tip'"></b>
+                        <span v-text="catNote || 'Not sure which category? Search the sub-category list by typing and the category is filled in for you.'"></span>
+                    </div>
                 </div>
                 <div class="col-12">
-                    <label class="form-label d-flex justify-content-between">Detailed description * <span class="text-muted fw-normal">[[ description.length ]] characters</span></label>
-                    <textarea name="description" v-model="description" rows="6" class="form-control" placeholder="What happened, what was expected, any error message, since when…" required></textarea>
+                    <label class="form-label d-flex justify-content-between">Detailed description <span class="text-danger ms-1 me-auto">*</span><span class="text-muted fw-normal small">[[ description.length ]] characters</span></label>
+                    <textarea name="description" v-model="description" rows="12" class="form-control @error('description') is-invalid @enderror" placeholder="What happened? What did you expect? Any error message? Since when?" required></textarea>
+                    <div class="form-text">The more detail you give, the faster IT can help. Include error messages and the steps that lead to the problem.</div>
                 </div>
-
                 <div class="col-12">
-                    <label class="form-label">Attachments</label>
-                    <div class="dropzone" :class="{ over: dragOver }"
+                    <label class="form-label d-flex justify-content-between">Attachments <span class="text-muted fw-normal small">Max [[ maxMb ]] MB per file</span></label>
+                    <div class="dropzone" :class="{ over: dragOver }" style="padding:.8rem"
                          v-on:click="$refs.file.click()"
                          v-on:dragover.prevent="dragOver = true" v-on:dragleave="dragOver = false"
                          v-on:drop.prevent="onDrop">
-                        Drop screenshots, error messages or documents here, or <b>click to browse</b>
+                        Drop files here, <b>click to browse</b>, or paste a screenshot with <b>Ctrl+V</b>
                     </div>
                     <input type="file" name="attachments[]" ref="file" multiple class="d-none" v-on:change="onPick">
-                    <div class="form-text">Maximum [[ maxMb ]] MB per file.</div>
                     <div v-if="fileError" class="text-danger small mt-1">[[ fileError ]]</div>
                     <div>
                         <span v-for="(f, i) in files" :key="f.name + f.size" class="file-chip">
@@ -131,68 +150,122 @@
                 </div>
             </div>
         </div>
-    </div>
-
-    <div class="d-flex gap-2 justify-content-end">
-        <a href="{{ route('dashboard') }}" class="btn btn-outline-secondary">Cancel</a>
-        <button class="btn btn-primary px-4" :disabled="submitting"><span v-if="submitting">Submitting…</span><span v-else>Submit request</span></button>
+        <div class="uf-foot">
+            <span class="note" v-if="missing"><span class="text-danger">*</span> [[ missing ]] required field[[ missing > 1 ? 's' : '' ]] left</span>
+            <span class="note text-success" v-else>All required fields are filled in.</span>
+            <a href="{{ route('dashboard') }}" class="btn btn-outline-secondary">Cancel</a>
+            <button class="btn btn-primary px-4" :disabled="submitting"><span v-if="submitting">Submitting…</span><span v-else>Submit request</span></button>
+        </div>
     </div>
 </form>
 </div></div>
 @endsection
 
 @push('scripts')
-<style>[v-cloak]{display:none}</style>
+<style>
+[v-cloak]{display:none}
+#ticketForm .form-label{ color:var(--text); font-weight:600; }
+.nr-body{ padding:1.1rem 1.25rem; }
+#ticketForm .uf-foot{ position:sticky; bottom:0; z-index:5; border-radius:0 0 var(--radius) var(--radius); }
+.nr-h{ display:flex; align-items:center; gap:.45rem; margin-bottom:.7rem; font-size:.98rem; font-weight:650; color:var(--text); }
+.nr-grid{ display:grid; grid-template-columns:1fr; gap:1rem; align-items:start; }
+.nr-left{ display:flex; flex-direction:column; gap:.9rem; min-width:0; }
+.nr-right{ min-width:0; }
+@media (min-width:992px){ .nr-grid{ grid-template-columns:5fr 7fr; } }
+.nr-card{ border:1px solid var(--border); border-radius:14px; background:color-mix(in srgb,var(--card) 70%,var(--bg)); overflow:hidden; }
+.nr-top{ display:flex; align-items:center; gap:.9rem; padding:.85rem 1rem; }
+.nr-photo{ width:60px; height:60px; border-radius:50%; flex:none; object-fit:cover; box-shadow:0 0 0 3px var(--card), 0 0 0 4px var(--border); }
+.nr-ini{ --h:230; display:grid; place-items:center; color:#fff; font-weight:700; font-size:1.2rem; background:hsl(var(--h) 55% 48%); }
+.nr-id{ min-width:0; } .nr-id .nm{ font-size:1.02rem; font-weight:700; line-height:1.25; overflow-wrap:anywhere; } .nr-id .ds{ color:var(--muted); font-size:.84rem; }
+.nr-facts{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:.6rem 1rem; padding:.7rem 1rem; border-top:1px solid var(--border); background:var(--card); }
+.nr-fact{ display:flex; align-items:center; gap:.55rem; min-width:0; }
+.nr-fact .ic{ width:30px; height:30px; border-radius:9px; display:grid; place-items:center; background:var(--primary-soft); color:var(--primary); flex:none; }
+.nr-fact small{ display:block; color:var(--muted); font-size:.7rem; line-height:1.2; } .nr-fact b{ display:block; font-size:.86rem; font-weight:600; line-height:1.25; overflow-wrap:anywhere; }
+/* colour scheme */
+#ticketForm > .card{ overflow:hidden; border-color:color-mix(in srgb,var(--primary) 22%,var(--border)); box-shadow:0 6px 24px color-mix(in srgb,var(--primary) 10%,transparent); }
+#ticketForm > .card::before{ content:''; display:block; height:4px; background:linear-gradient(90deg,var(--primary),#7c3aed 55%,#14b8a6); }
+.nr-sec{ padding:1.1rem 1.25rem; }
+.nr-sec-a{ background:color-mix(in srgb,var(--primary) 6%,var(--card)); border-bottom:1px solid color-mix(in srgb,var(--primary) 18%,var(--border)); }
+.nr-sec-b{ background:var(--card); }
+.nr-ic{ width:28px; height:28px; border-radius:9px; display:grid; place-items:center; color:#fff; background:linear-gradient(135deg,var(--primary),#7c3aed); flex:none; }
+.nr-sec-b .nr-ic{ background:linear-gradient(135deg,#0d9488,#14b8a6); }
+.nr-sec-a .nr-h{ color:var(--primary-600); } .nr-sec-b .nr-h{ color:#0f766e; }
+[data-bs-theme=dark] .nr-sec-b .nr-h{ color:#5eead4; } [data-bs-theme=dark] .nr-sec-a .nr-h{ color:#a5b4fc; }
+.nr-card{ background:var(--card); border-color:color-mix(in srgb,var(--primary) 22%,var(--border)); }
+.nr-top{ background:linear-gradient(135deg,color-mix(in srgb,var(--primary) 16%,var(--card)),color-mix(in srgb,#14b8a6 14%,var(--card))); }
+.nr-facts{ background:var(--card); }
+.nr-fact:nth-child(1) .ic{ background:color-mix(in srgb,var(--primary) 14%,var(--card)); color:var(--primary); }
+.nr-fact:nth-child(2) .ic{ background:color-mix(in srgb,#14b8a6 16%,var(--card)); color:#0f766e; }
+.nr-fact:nth-child(3) .ic{ background:color-mix(in srgb,#f59e0b 18%,var(--card)); color:#b45309; }
+[data-bs-theme=dark] .nr-fact:nth-child(2) .ic{ color:#5eead4; } [data-bs-theme=dark] .nr-fact:nth-child(3) .ic{ color:#fcd34d; }
+#ticketForm .form-control:focus,#ticketForm .form-select:focus,#ticketForm .ss-btn:focus{ border-color:var(--primary); box-shadow:0 0 0 .2rem color-mix(in srgb,var(--primary) 20%,transparent); }
+#ticketForm .dropzone{ border-color:color-mix(in srgb,var(--primary) 40%,var(--border)); background:color-mix(in srgb,var(--primary) 4%,var(--card)); }
+#ticketForm .dropzone b{ color:var(--primary); }
+#ticketForm .uf-foot{ background:color-mix(in srgb,var(--primary) 6%,var(--card)); border-top-color:color-mix(in srgb,var(--primary) 18%,var(--border)); }
+#ticketForm .btn-primary{ background:linear-gradient(135deg,var(--primary),#7c3aed); border:0; box-shadow:0 4px 12px color-mix(in srgb,var(--primary) 30%,transparent); }
+#ticketForm .btn-primary:hover:not(:disabled){ filter:brightness(1.08); }
+.nr-card{ margin-top:1.5rem; }
+@media (max-width:991.98px){ .nr-card{ margin-top:0; } }
+.nr-tip{ align-self:flex-end; width:100%; display:flex; flex-direction:column; gap:.15rem; padding:.6rem .85rem; border-radius:12px; font-size:.82rem; color:var(--text); background:color-mix(in srgb,#f59e0b 10%,var(--card)); border:1px dashed color-mix(in srgb,#f59e0b 45%,var(--border)); }
+.nr-tip b{ font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:#b45309; }
+.nr-tip.ok{ background:color-mix(in srgb,#14b8a6 10%,var(--card)); border-color:color-mix(in srgb,#14b8a6 45%,var(--border)); } .nr-tip.ok b{ color:#0f766e; }
+[data-bs-theme=dark] .nr-tip b{ color:#fcd34d; } [data-bs-theme=dark] .nr-tip.ok b{ color:#5eead4; }
+.nr-hr{ margin:1.15rem 0; border-color:var(--border); opacity:1; }
+.ss{ position:relative; }
+</style>
 <script>
 const CFG = @json($cfg);
-Vue.createApp({
+const app = Vue.createApp({
     delimiters: ['[[', ']]'],
     data() {
         var o = CFG.old;
         var start = o.requester ? (CFG.users.find(function (p) { return String(p.id) === o.requester; }) || CFG.me) : CFG.me;
         return {
             me: CFG.me, users: CFG.users, requesterId: o.requester,
-            search: '', typing: false, open: false, hi: 0,
             phone: o.phone !== null && o.phone !== '' ? o.phone : (start.phone || ''),
             departmentId: o.department,
-            categories: CFG.categories,
-            category: o.category, sub: o.sub,
+            categories: CFG.categories, allSubs: CFG.subs,
+            category: o.category, sub: o.sub, catNote: '',
             subject: o.subject, description: o.description,
             files: [], fileError: '', maxKb: CFG.maxKb, dragOver: false, submitting: false
         };
     },
-    created() { this.search = this.selectedLabel; },
     computed: {
+        // required fields still empty (the server validates again on submit)
+        missing() {
+            var n = 0;
+            if (!this.subject.trim()) n++;
+            if (!this.category) n++;
+            if (!this.description.trim()) n++;
+            if (!this.who.deptId && !this.departmentId) n++;
+            return n;
+        },
+        dirty() { return !this.submitting && (this.subject.trim() !== '' || this.description.trim() !== '' || this.files.length > 0); },
         maxMb() { return Math.round(this.maxKb / 1024 * 10) / 10; },
         who() {
             var id = this.requesterId;
             return id ? (this.users.find(function (p) { return String(p.id) === id; }) || this.me) : this.me;
         },
+        initials() {
+            var m = (this.who.name || '').trim().split(/\s+/);
+            return ((m[0] || '').charAt(0) + (m.length > 1 ? m[m.length - 1].charAt(0) : '')).toUpperCase() || '?';
+        },
         behalf() { return !!this.requesterId && this.who !== this.me; },
-        allOptions() {
+        personOptions() {
             var list = [{ id: '', label: 'Myself – ' + this.me.name, sub: '', hay: 'myself ' + this.me.name.toLowerCase() }];
             this.users.forEach(function (p) {
                 list.push({
-                    id: String(p.id), label: p.name + (p.emp ? ' (' + p.emp + ')' : ''),
-                    sub: [p.desig, p.dept].filter(Boolean).join(' · '),
-                    hay: [p.name, p.emp, p.dept, p.desig, p.email].join(' ').toLowerCase()
+                    id: String(p.id), label: p.name + (p.emp ? ' (' + p.emp + ')' : ''), sub: '',
+                    hay: [p.name, p.emp].join(' ').toLowerCase()
                 });
             });
             return list;
         },
-        selectedLabel() {
-            var id = this.requesterId;
-            var o = this.allOptions.find(function (x) { return x.id === id; });
-            return o ? o.label : '';
-        },
-        options() {
-            var t = this.typing ? this.search.trim().toLowerCase() : '';
-            if (!t) return this.allOptions;
-            return this.allOptions.filter(function (o) { return o.hay.indexOf(t) !== -1; });
-        },
-        subs() {
-            var c = this.categories.find(function (x) { return String(x.id) === this.category; }, this);
-            return c ? c.subs : [];
+        // every sub-category is always listed; its category is shown beside it and searchable
+        subOptions() {
+            return this.allSubs.map(function (s) {
+                return { id: String(s.id), label: s.name, sub: s.catName, hay: (s.name + ' ' + s.catName).toLowerCase() };
+            });
         }
     },
     watch: {
@@ -200,27 +273,41 @@ Vue.createApp({
         requesterId() {
             this.phone = this.who.phone || '';
             this.departmentId = '';
-        },
-        category() {
-            if (!this.subs.some(function (s) { return String(s.id) === this.sub; }, this)) this.sub = '';
         }
     },
+    mounted() {
+        this._paste = this.onPaste.bind(this); this._leave = this.onLeave.bind(this);
+        window.addEventListener('paste', this._paste); window.addEventListener('beforeunload', this._leave);
+    },
+    unmounted() { window.removeEventListener('paste', this._paste); window.removeEventListener('beforeunload', this._leave); },
     methods: {
-        onFocus(e) { this.typing = false; this.open = true; this.hi = 0; if (e && e.target) e.target.select(); },
-        closeList() { this.open = false; this.typing = false; this.search = this.selectedLabel; },
-        move(d) {
-            if (!this.open) { this.open = true; return; }
-            var n = this.options.length; if (!n) return;
-            this.hi = (this.hi + d + n) % n;
+        // choosing a sub-category fills in its category automatically
+        onSub(id) {
+            var s = this.allSubs.find(function (x) { return String(x.id) === String(id); });
+            if (s) {
+                this.category = String(s.catId);
+                this.catNote = 'Category set to \u201c' + s.catName + '\u201d from the sub-category you picked.';
+            } else {
+                this.catNote = '';
+            }
         },
-        pickHighlighted() { if (this.options[this.hi]) this.pick(this.options[this.hi]); },
-        pick(o) { this.requesterId = o.id; this.search = o.label; this.typing = false; this.open = false; },
-        fmt(m) {
-            if (!m) return '';
-            if (m < 60) return m + ' min';
-            if (m < 60 * 24) return Math.round(m / 60) + ' h';
-            return Math.round(m / 60 / 8) + ' working days';
+        // changing the category drops a sub-category that belongs to a different one
+        onCategory() {
+            var s = this.allSubs.find(function (x) { return String(x.id) === this.sub; }, this);
+            if (s && String(s.catId) !== this.category) this.sub = '';
+            this.catNote = '';
         },
+        // paste a screenshot straight from the clipboard
+        onPaste(e) {
+            var items = e.clipboardData && e.clipboardData.files ? Array.prototype.slice.call(e.clipboardData.files) : [];
+            if (!items.length) return;
+            var stamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+            this.add(items.map(function (f, i) {
+                return /^image\.\w+$/i.test(f.name) ? new File([f], 'screenshot-' + stamp + (i ? '-' + i : '') + '.' + (f.type.split('/')[1] || 'png'), { type: f.type }) : f;
+            }));
+        },
+        // warn before leaving a half-written request
+        onLeave(e) { if (this.dirty) { e.preventDefault(); e.returnValue = ''; } },
         sync(list) {
             var dt = new DataTransfer();
             list.forEach(function (f) { dt.items.add(f); });
@@ -243,6 +330,80 @@ Vue.createApp({
         onDrop(e) { this.dragOver = false; this.add(Array.prototype.slice.call(e.dataTransfer.files)); },
         remove(i) { var l = this.files.slice(); l.splice(i, 1); this.fileError = ''; this.sync(l); }
     }
-}).mount('#ticketForm');
+});
+
+// Searchable select, same look and behaviour as the sub category picker on the equipment page:
+// a select-style button opens a panel with a search box and a list (name left, path right).
+app.component('combo-select', {
+    props: {
+        modelValue: { default: '' }, options: { type: Array, default: function () { return []; } },
+        name: String, emptyLabel: { type: String, default: '' }, placeholder: { type: String, default: '' }
+    },
+    emits: ['update:modelValue', 'change'],
+    data() { return { open: false, q: '', hl: 0 }; },
+    mounted() {
+        this._away = (function (e) { if (this.open && !this.$el.contains(e.target)) this.open = false; }).bind(this);
+        document.addEventListener('mousedown', this._away);
+    },
+    unmounted() { document.removeEventListener('mousedown', this._away); },
+    computed: {
+        current() {
+            var v = String(this.modelValue == null ? '' : this.modelValue);
+            return this.options.find(function (o) { return String(o.id) === v && v !== ''; }) || null;
+        },
+        shown() {
+            var q = this.q.trim().toLowerCase();
+            if (q) return this.options.filter(function (o) { return o.hay.indexOf(q) !== -1; });
+            return this.emptyLabel ? [{ id: '', label: this.emptyLabel, sub: '', hay: '' }].concat(this.options) : this.options;
+        }
+    },
+    methods: {
+        toggle() { this.open ? this.close() : this.show(); },
+        show() {
+            this.open = true; this.q = '';
+            var v = String(this.modelValue == null ? '' : this.modelValue), self = this;
+            var i = this.shown.findIndex(function (o) { return String(o.id) === v; });
+            this.hl = i < 0 ? 0 : i;
+            this.$nextTick(function () { self.$refs.box.focus(); self.scroll(); });
+        },
+        close() { this.open = false; },
+        scroll() {
+            var el = this.$refs.list && this.$refs.list.children[this.hl];
+            if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+        },
+        move(d) {
+            var n = this.shown.length; if (!n) return;
+            this.hl = (this.hl + d + n) % n;
+            this.$nextTick(this.scroll);
+        },
+        pickHl() { var o = this.shown[this.hl]; if (o) this.pick(o); },
+        pick(o) {
+            this.$emit('update:modelValue', o.id); this.$emit('change', o.id);
+            this.open = false;
+            if (this.$refs.btn) this.$refs.btn.focus();
+        }
+    },
+    template: `
+        <div class="ss">
+            <input type="hidden" :name="name" :value="modelValue">
+            <button type="button" class="form-select ss-btn" :class="{ 'ss-placeholder': !current }"
+                    v-on:click="toggle" v-on:keydown.down.prevent="show" v-on:keydown.up.prevent="show" ref="btn"
+                    v-text="current ? current.label : (emptyLabel || placeholder)"></button>
+            <div class="ss-panel" v-show="open">
+                <input type="search" class="form-control form-control-sm" placeholder="Search…" autocomplete="off" ref="box"
+                       v-model="q" v-on:input="hl = 0"
+                       v-on:keydown.down.prevent="move(1)" v-on:keydown.up.prevent="move(-1)"
+                       v-on:keydown.enter.prevent="pickHl" v-on:keydown.esc.prevent="close(); $refs.btn.focus()">
+                <div class="ss-list" ref="list">
+                    <div v-for="(o, i) in shown" :key="'o' + o.id" class="ss-item" :class="{ hl: i === hl, active: String(o.id) === String(modelValue) }"
+                         v-on:mousedown.prevent="pick(o)" v-on:mouseenter="hl = i">
+                        <span v-text="o.label"></span><small v-text="o.sub"></small>
+                    </div>
+                    <div v-if="!shown.length" class="ss-none">Nothing matches.</div>
+                </div>
+            </div>
+        </div>`
+});
+app.mount('#ticketForm');
 </script>
 @endpush

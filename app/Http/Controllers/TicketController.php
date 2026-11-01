@@ -114,7 +114,7 @@ class TicketController extends Controller
     /** People the current user may file a request for (empty = may only file for themselves). */
     protected function eligibleRequesters(User $actor)
     {
-        $q = User::active()->with(['department', 'designation'])->where('id', '!=', $actor->id)->orderBy('name');
+        $q = User::active()->with(['department', 'designation', 'location'])->where('id', '!=', $actor->id)->orderBy('name');
 
         if ($actor->hasPermission('ticket.create.behalf')) {
             // IT staff and administrators: anyone (System Administrator accounts stay hidden from non-admins)
@@ -154,6 +154,11 @@ class TicketController extends Controller
             'department_id' => $requester->department_id ? 'nullable' : 'required|exists:departments,id',
             'attachments.*' => $this->fileRule(),
         ], $this->fileMessages(), ['ticket_type_id' => 'service type']);
+
+        // a sub-category always determines its category
+        if (! empty($d['subcategory_id'])) {
+            $d['category_id'] = \App\Models\TicketSubcategory::findOrFail($d['subcategory_id'])->category_id;
+        }
 
         $ticket = $this->svc->create($requester, $d, $r->file('attachments', []), $actor);
         $msg = $requester->id === $actor->id

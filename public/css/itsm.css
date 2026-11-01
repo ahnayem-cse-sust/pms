@@ -731,3 +731,47 @@ a.inv-chip:hover{ border-color:var(--primary); color:var(--primary); }
 .ss-item:hover,.ss-item.hl{ background:var(--primary-soft); }
 .ss-item.active{ font-weight:600; }
 .ss-none{ padding:.5rem .6rem; color:var(--muted); font-size:.85rem; }
+
+/* ---- User create / edit form (single card, tabular) ---- */
+.uf-wrap{ max-width:1000px; }
+.uf-table{ width:100%; border-collapse:collapse; table-layout:fixed; margin:0; }
+.uf-table th,.uf-table td{ padding:.45rem .75rem; border-bottom:1px solid var(--border); vertical-align:middle; }
+.uf-table tr:last-child th,.uf-table tr:last-child td{ border-bottom:0; }
+.uf-table th{ width:16%; font-size:.78rem; font-weight:600; color:var(--muted); background:color-mix(in srgb,var(--card) 70%,var(--bg)); text-align:left; }
+.uf-table th .req{ color:#dc2626; margin-left:.15rem; }
+.uf-table td{ width:34%; }
+.uf-table td.span3{ width:auto; }
+.uf-table .form-control,.uf-table .form-select{ background-color:var(--card); }
+.uf-table .invalid-feedback,.uf-table .err{ font-size:.74rem; }
+.uf-hint{ font-size:.72rem; color:var(--muted); font-weight:400; display:block; margin-top:.1rem; }
+.uf-roles{ display:flex; flex-wrap:wrap; gap:.4rem; }
+.uf-role{ position:relative; }
+.uf-role input{ position:absolute; opacity:0; pointer-events:none; }
+.uf-role label{ display:inline-flex; align-items:center; gap:.45rem; padding:.28rem .65rem; border:1.5px solid var(--border); border-radius:8px; background:var(--card); font-size:.82rem; font-weight:550; cursor:pointer; transition:.12s; }
+.uf-role label::before{ content:''; width:14px; height:14px; border-radius:4px; border:1.5px solid var(--border); background:var(--card); flex:none; transition:.12s; }
+.uf-role label:hover{ border-color:var(--primary); }
+.uf-role input:checked + label{ border-color:var(--primary); background:var(--primary-soft); color:var(--primary-600); }
+.uf-role input:checked + label::before{ background:var(--primary) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6L9 17l-5-5'/%3E%3C/svg%3E") center/10px no-repeat; border-color:var(--primary); }
+.uf-role input:focus-visible + label{ box-shadow:0 0 0 .2rem rgba(79,70,229,.2); }
+.uf-role input:disabled + label{ opacity:.55; cursor:not-allowed; }
+.uf-pw{ position:relative; }
+.uf-pw > .form-control{ padding-right:2.3rem; }
+.uf-pw-toggle{ position:absolute; right:.3rem; top:50%; transform:translateY(-50%); border:0; background:transparent; color:var(--muted); width:26px; height:26px; display:grid; place-items:center; border-radius:7px; cursor:pointer; }
+.uf-pw-toggle:hover{ background:var(--primary-soft); color:var(--primary); }
+.uf-pw-match{ font-size:.72rem; margin-top:.15rem; } .uf-pw-match:empty{ display:none; }
+.uf-pw-match.ok{ color:#16a34a; } .uf-pw-match.bad{ color:#dc2626; }
+.uf-checks{ display:flex; flex-wrap:wrap; gap:.4rem 1.4rem; }
+.uf-checks .form-check{ margin:0; font-size:.84rem; }
+.uf-checks .form-check-input:checked{ background-color:var(--primary); border-color:var(--primary); }
+.uf-foot{ display:flex; align-items:center; justify-content:flex-end; gap:.5rem; padding:.6rem .95rem; border-top:1px solid var(--border); background:color-mix(in srgb,var(--card) 70%,var(--bg)); }
+.uf-foot .note{ margin-right:auto; font-size:.76rem; color:var(--muted); }
+@media (max-width:767.98px){
+  .uf-table,.uf-table tbody,.uf-table tr,.uf-table th,.uf-table td{ display:block; width:100%!important; }
+  .uf-table th{ border-bottom:0; padding-bottom:.1rem; background:transparent; }
+  .uf-table td{ padding-top:.1rem; }
+}
+.uf-table .uf-band td{ width:auto; padding:.4rem .75rem; background:var(--primary-soft); border-bottom:1px solid var(--border); font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--primary-600); }
+.uf-table .uf-band td svg{ vertical-align:-3px; margin-right:.4rem; }
+.uf-table .uf-band small{ float:right; text-transform:none; letter-spacing:0; font-weight:500; color:var(--muted); font-size:.72rem; }
+.uf-table th{ width:15%; } .uf-table td{ width:35%; }
+.uf-table tr:not(.uf-band) + tr.uf-band td{ border-top:1px solid var(--border); }
