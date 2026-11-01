@@ -53,7 +53,10 @@ class ProfileController extends Controller
     /** Any signed-in user may view another user's picture (it appears next to names across the system). */
     public function avatar(User $user)
     {
-        abort_unless($user->avatar_path && Storage::disk('local')->exists($user->avatar_path), 404);
+        abort_unless($user->avatar_path, 404);
+        if (! Storage::disk('local')->exists($user->avatar_path)) {
+            return \App\Support\ImagePlaceholder::notFound('Image not found');
+        }
 
         return Storage::disk('local')->response($user->avatar_path, null, [
             'Cache-Control' => 'private, max-age=86400',

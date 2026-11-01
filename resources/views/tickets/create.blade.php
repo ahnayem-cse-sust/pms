@@ -31,7 +31,7 @@
 @endphp
 
 <div class="row justify-content-center"><div class="col-xl-10">
-<form id="ticketForm" method="POST" action="{{ route('tickets.store') }}" enctype="multipart/form-data" v-cloak v-on:submit="submitting = true">
+<form id="ticketForm" method="POST" action="{{ route('tickets.store') }}" enctype="multipart/form-data" v-cloak>
     @csrf
     <div class="card">
         <div class="nr-sec nr-sec-a">
@@ -276,10 +276,15 @@ const app = Vue.createApp({
         }
     },
     mounted() {
+        this._sub = (function (e) { if (e.target && e.target.id === 'ticketForm') this.onSubmit(); }).bind(this);
+        document.addEventListener('submit', this._sub, true);
         this._paste = this.onPaste.bind(this); this._leave = this.onLeave.bind(this);
         window.addEventListener('paste', this._paste); window.addEventListener('beforeunload', this._leave);
+        // coming back to the page via the browser's Back button: allow submitting again
+        this._show = (function () { this._sending = false; this.submitting = false; }).bind(this);
+        window.addEventListener('pageshow', this._show);
     },
-    unmounted() { window.removeEventListener('paste', this._paste); window.removeEventListener('beforeunload', this._leave); },
+    unmounted() { window.removeEventListener('paste', this._paste); window.removeEventListener('beforeunload', this._leave); window.removeEventListener('pageshow', this._show); document.removeEventListener('submit', this._sub, true); },
     methods: {
         // choosing a sub-category fills in its category automatically
         onSub(id) {
@@ -307,7 +312,9 @@ const app = Vue.createApp({
             }));
         },
         // warn before leaving a half-written request
-        onLeave(e) { if (this.dirty) { e.preventDefault(); e.returnValue = ''; } },
+        onSubmit() { this._sending = true; this.submitting = true; },
+        // never warn while the request is being submitted
+        onLeave(e) { if (!this._sending && this.dirty) { e.preventDefault(); e.returnValue = ''; } },
         sync(list) {
             var dt = new DataTransfer();
             list.forEach(function (f) { dt.items.add(f); });

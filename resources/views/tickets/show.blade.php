@@ -8,56 +8,110 @@
     $cur = $stepOf[$ticket->status->code] ?? null;
     $open = $ticket->status->is_open;
     $reqNo = str_replace('-', '', $ticket->ticket_no);
-    // Opened from My Requests: behave like the requester view, with only Conversation and Attachments
-    $fromMine = request('from') === 'mine';
-    $staffTabs = $seeInternal && ! $fromMine;
+    // Panels depend only on the viewer's roles and permissions, never on which menu the page was opened from
+    $staffTabs = $seeInternal;
 @endphp
 
 <div class="row g-4 align-items-start">
     {{-- ───────── Left: description + tabs ───────── --}}
-    <div class="col-lg-{{ $fromMine ? 12 : 8 }}">
-        {{-- ───────── Top panel: id + subject, summary table, description, progress ───────── --}}
-        <div class="card mb-4 req-head">
-            <div class="card-header d-flex align-items-center gap-2">
-                <div class="flex-grow-1 min-w-0">
-                    <span class="d-flex align-items-center gap-2 min-w-0"><span class="req-subject" title="{{ $ticket->subject }}">{{ $ticket->subject }}</span></span>
+    <div class="col-lg-8">
+        {{-- ───────── Top panel: progress + request information table ───────── --}}
+        @php
+            $overdue = $open && $ticket->sla_resolution_due_at && $ticket->sla_resolution_due_at->isPast();
+            $dueLate = $open && $ticket->due_date && $ticket->due_date->endOfDay()->isPast();
+            $phone = $ticket->requester_phone;
+        @endphp
+        <div class="card mb-4 req-head rd">
+            @php
+                $rq = $ticket->requester;
+                $rqHue = crc32((string) $ticket->requester_name) % 360;
+                $rqParts = preg_split('/\s+/', trim((string) $ticket->requester_name));
+                $rqIni = mb_strtoupper(mb_substr($rqParts[0] ?? '?', 0, 1) . (isset($rqParts[1]) ? mb_substr($rqParts[1], 0, 1) : ''));
+                $onBehalf = $ticket->created_by !== $ticket->requester_id;
+            @endphp
+            {{-- 1. Top bar --}}
+            <div class="rd-bar">
+                <a href="{{ route('tickets.index') }}" class="req-back" title="Back to requests" aria-label="Back to requests"><x-icon name="arrow-left" :size="18"/></a>
+                <h2 class="rd-bar-title" title="{{ $ticket->subject }}">{{ $ticket->subject }}</h2>
+                <div class="rd-bar-actions">
+                    @if($ticket->status->code === 'CLOSED')
+                        <a href="{{ route('tickets.pdf', $ticket) }}" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1" title="Download PDF"><x-icon name="download" :size="15"/><span class="d-none d-sm-inline">Download</span></a>
+                    @endif
+                    @if(! empty($canEditDetails))<a href="{{ route('tickets.edit', $ticket) }}" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1" title="Edit request"><x-icon name="edit" :size="15"/><span class="d-none d-sm-inline">Edit</span></a>@endif
+                    <button type="button" class="rd-toggle" id="rdToggle" data-bs-toggle="collapse" data-bs-target="#rdFold" aria-expanded="true" aria-controls="rdFold" title="Expand / collapse details">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>
+                    </button>
                 </div>
-                @if($ticket->status->code === 'CLOSED')
-                    <a href="{{ route('tickets.pdf', $ticket) }}" class="btn btn-sm btn-primary flex-none d-inline-flex align-items-center gap-1"><x-icon name="download" :size="15"/> Download PDF</a>
-                @endif
-                @if(! empty($canEditDetails))<a href="{{ route('tickets.edit', $ticket) }}" class="btn btn-sm btn-primary flex-none d-inline-flex align-items-center gap-1"><x-icon name="edit" :size="15"/> Edit request</a>@endif
-                <a href="{{ route('tickets.index') }}" class="btn btn-sm btn-outline-secondary flex-none">← Back</a>
             </div>
-            <div id="fold-top">
-                <table class="table table-sm info-table mb-0">
-                    <tbody>
-                        <tr><th>Status</th><td>
+
+            <div class="collapse show" id="rdFold">
+            {{-- 2. Requester information (same table style as Request information) --}}
+            <section class="rd-sec rd-requester">
+                <h3 class="rd-h rd-indigo"><span class="rd-ic"><x-icon name="user" :size="15"/></span>Requester information</h3>
+                <table class="rd-grid"><tbody>
+                    <tr>
+                        <th>Requester</th><td><span class="rd-who">@if($rq && $rq->avatar_path)<img src="{{ route('avatar.show', $rq) }}?v={{ optional($rq->updated_at)->timestamp }}" alt="" class="rd-mini">@else<span class="rd-mini rd-mini-ini" style="--h: {{ $rqHue }}">{{ $rqIni }}</span>@endif {{ $ticket->requester_name }}</span></td>
+                        <th>Designation</th><td>{{ $ticket->requester_designation ?: '—' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Employee ID</th><td>{{ $ticket->requester_employee_id ?: '—' }}</td>
+                        <th>Department</th><td>{{ $ticket->department->name ?? '—' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Location</th><td>{{ $ticket->location->name ?? '—' }}</td>
+                        <th>WhatsApp</th><td>@if($phone)<a href="tel:{{ preg_replace('/[^\d+]/', '', $phone) }}" class="text-decoration-none">{{ $phone }}</a>@else — @endif</td>
+                    </tr>
+                    <tr>
+                        <th>Filed by</th><td>{{ $onBehalf ? ($ticket->creator->name ?? 'IT') : 'Self' }}</td>
+                        <th>Submitted</th><td>{{ $ticket->created_at->format('d M Y, h:i A') }}</td>
+                    </tr>
+                </tbody></table>
+            </section>
+
+            @php
+                $stepDates = [0 => null, 1 => $ticket->assigned_at, 2 => $ticket->started_at, 3 => $ticket->resolved_at, 4 => $ticket->closed_at];
+                $stepHints = ['Waiting for the IT team to pick this up.', 'Assigned to the IT team.', 'The IT team is working on it.', 'A fix has been provided – please confirm.', 'Completed. Thank you!'];
+            @endphp
+            {{-- 3. Request information --}}
+            <section class="rd-sec rd-info-sec">
+                <h3 class="rd-h rd-teal"><span class="rd-ic"><x-icon name="clipboard" :size="15"/></span>Request information</h3>
+                <table class="rd-grid"><tbody>
+                    <tr>
+                        <th>Request no.</th><td><button type="button" class="ticket-id req-no" id="copyReqNo" data-no="{{ $reqNo }}" title="Click to copy the request number">{{ $reqNo }}</button></td>
+                        <th>Status</th><td>
                             <span class="pill pill-{{ $ticket->status->color ?? 'secondary' }}">{{ $ticket->status->name }}</span>
                             @if($ticket->reopen_count)<span class="pill pill-danger ms-1">Reopened ×{{ $ticket->reopen_count }}</span>@endif
-                        </td></tr>
-                        <tr><th>Service type</th><td>{{ $ticket->type->name ?? '—' }}</td></tr>
-                        <tr><th>Category</th><td>{{ $ticket->category->name }}@if($ticket->subcategory) / {{ $ticket->subcategory->name }}@endif</td></tr>
-                        <tr><th>Submitted at</th><td>{{ $ticket->created_at->format('d M Y, h:i A') }}</td></tr>
-                        <tr><th>Description</th><td><div class="ticket-body">{{ $ticket->description }}</div></td></tr>
-                        @if($ticket->resolution)
-                            <tr><th>Resolution</th><td><div class="ticket-body">{{ $ticket->resolution }}</div></td></tr>
-                        @endif
-                    </tbody>
-                </table>
-                @if($cur !== null)
-                    <div class="card-body border-top">
-                        <div class="stepper">
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Service type</th><td>{{ $ticket->type->name ?? '—' }}</td>
+                        <th>Category</th><td>{{ $ticket->category->name }}@if($ticket->subcategory) <span class="text-muted">/</span> {{ $ticket->subcategory->name }}@endif</td>
+                    </tr>
+                    <tr><th>Subject</th><td colspan="3" class="fw-semibold">{{ $ticket->subject }}</td></tr>
+                    <tr><th>Description</th><td colspan="3"><div class="ticket-body rd-text">{{ $ticket->description }}</div></td></tr>
+                    @if($ticket->resolution)
+                        <tr class="rd-res-row"><th>Resolution</th><td colspan="3"><div class="ticket-body rd-text">{{ $ticket->resolution }}</div></td></tr>
+                    @endif
+                </tbody></table>
+                <div class="rd-progress">
+                    @if($cur !== null)
+                        <div class="stepper stepper-lg">
                             @foreach($steps as $i => $label)
-                                <div class="step {{ $i < $cur ? 'done' : ($i === $cur ? 'current' : '') }}">
-                                    <div class="dot">@if($i < $cur)<x-icon name="check" :size="14"/>@else{{ $i + 1 }}@endif</div>
-                                    {{ $label }}
+                                <div class="step {{ $i < $cur ? 'done' : ($i === $cur ? 'current' : '') }}{{ $i === 4 && $i <= $cur ? ' final' : '' }}">
+                                    <div class="dot">@if($i < $cur || ($i === 4 && $cur === 4))<x-icon name="check" :size="16"/>@else{{ $i + 1 }}@endif</div>
+                                    <div class="slabel">{{ $label }}</div>
+                                    <div class="sdate">@if($i <= $cur && ! empty($stepDates[$i])){{ $stepDates[$i]->format('d M, h:i A') }}@else&nbsp;@endif</div>
                                 </div>
                             @endforeach
                         </div>
-                    </div>
-                @else
-                    <div class="card-body border-top text-muted small">Cancelled</div>
-                @endif
+                        <div class="stage-note">{{ $stepHints[$cur] }}</div>
+                    @else
+                        <div class="req-cancelled">This request was cancelled.</div>
+                    @endif
+                </div>
+            </section>
+
+
             </div>
         </div>
 
@@ -72,9 +126,7 @@
                         <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-work" type="button" role="tab"><x-icon name="check" :size="16"/> Team progress <span class="count">{{ $workUpdates->count() }}</span></button></li>
                     @endif
                     <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-files" type="button" role="tab"><x-icon name="paperclip" :size="16"/> Attachments <span class="count">{{ $attachments->count() }}</span></button></li>
-                    @unless($fromMine)
                         <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-history" type="button" role="tab"><x-icon name="clock" :size="16"/> History</button></li>
-                    @endunless
                 </ul>
             </div>
             <div class="card-body tab-content">
@@ -90,7 +142,7 @@
                             </div>
                         </div>
                     @empty
-                        <p class="text-muted mb-0">No comments yet.</p>
+                        <div class="empty-state"><x-icon name="message" :size="26"/><div>No comments yet.</div><small>Use the box below to ask a question or add an update.</small></div>
                     @endforelse
                     @can('ticket.comment.public')
                         <form method="POST" action="{{ route('tickets.comment', $ticket) }}" enctype="multipart/form-data" class="mt-3">@csrf
@@ -112,7 +164,7 @@
                                 </div>
                             </div>
                         @empty
-                            <p class="text-muted mb-0">No internal notes.</p>
+                            <div class="empty-state"><x-icon name="lock" :size="26"/><div>No internal notes.</div><small>Notes added here are visible to IT staff only.</small></div>
                         @endforelse
                         <form method="POST" action="{{ route('tickets.note', $ticket) }}" class="mt-3">@csrf
                             <textarea name="body" rows="2" class="form-control mb-2" placeholder="Add an internal note…" required></textarea>
@@ -148,7 +200,7 @@
                                 <div class="ticket-sub">{{ number_format($a->size_bytes / 1024, 0) }} KB · {{ $a->uploader->name }} · {{ $a->created_at->format('d M h:i A') }}</div>
                             </li>
                         @empty
-                            <li class="list-group-item px-0 text-muted">No attachments.</li>
+                            <li class="list-group-item px-0"><div class="empty-state"><x-icon name="paperclip" :size="26"/><div>No attachments.</div></div></li>
                         @endforelse
                     </ul>
                     @can('attachment.upload')
@@ -160,7 +212,6 @@
                     @endcan
                 </div>
 
-                @unless($fromMine)
                 {{-- History --}}
                 <div class="tab-pane fade" id="tab-history" role="tabpanel">
                     <div class="d-flex justify-content-end mb-3">
@@ -176,12 +227,10 @@
                         @endforeach
                     </ul>
                 </div>
-                @endunless
             </div>
         </div>
     </div>
 
-    @unless($fromMine)
     {{-- ───────── Right: actions, details, team ───────── --}}
     <div class="col-lg-4">
         <div class="sticky-side">
@@ -192,7 +241,7 @@
                     <div class="collapse show" id="fold-actions">
                     <div class="card-body">
                         <form method="POST" action="{{ route('tickets.transition', $ticket) }}">@csrf
-                            <textarea name="comment" rows="3" class="form-control mb-2" placeholder="Comment (* required for some actions)"></textarea>
+                            <textarea name="comment" rows="3" class="form-control mb-2" placeholder="Add a comment (required for actions marked *)"></textarea>
                             <div class="d-grid gap-2">
                                 @foreach($actionList as $tr)
                                     <button name="to" value="{{ $tr->code }}" class="btn btn-sm {{ in_array($tr->code, ['CLOSED', 'RESOLVED']) ? 'btn-success' : (in_array($tr->code, ['REOPENED', 'CANCELLED']) ? 'btn-outline-danger' : 'btn-outline-primary') }}">
@@ -205,31 +254,12 @@
                                     </button>
                                 @endforeach
                             </div>
+                            @if($actionList->where('requires_comment', true)->isNotEmpty())<div class="form-text mt-2">* A comment is required for this action.</div>@endif
                         </form>
                     </div>
                     </div>
                 </div>
             @endif
-
-            <div class="card mb-3">
-                <a class="card-header fold-toggle collapsed" data-bs-toggle="collapse" href="#fold-info" role="button" aria-expanded="false">Requester</a>
-                <div class="collapse" id="fold-info">
-                    <table class="table table-sm info-table mb-0">
-                        <tbody>
-                            <tr><th>Requester</th><td>{{ $ticket->requester_name }}</td></tr>
-                            @if($ticket->created_by !== $ticket->requester_id)
-                                <tr><th>Filed by</th><td>{{ $ticket->creator->name ?? 'IT' }}</td></tr>
-                            @endif
-                            <tr><th>Designation</th><td>{{ $ticket->requester_designation ?? '—' }}</td></tr>
-                            <tr><th>Employee ID</th><td>{{ $ticket->requester_employee_id ?? '—' }}</td></tr>
-                            <tr><th>WhatsApp</th><td>{{ $ticket->requester_phone ?? '—' }}</td></tr>
-                            <tr><th>Department</th><td>{{ $ticket->department->name }}</td></tr>
-                            <tr><th>Due date</th><td>{{ $ticket->due_date?->format('d M Y') ?? '—' }}</td></tr>
-                            <tr><th>Resolve by</th><td>{{ $ticket->sla_resolution_due_at?->format('d M, h:i A') ?? '—' }}</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
 
             @if($seeInternal)
             <div class="card mb-3">
@@ -291,7 +321,6 @@
             @endif
         </div>
     </div>
-    @endunless
 </div>
 @endsection
 
@@ -313,6 +342,26 @@
     }
     cat.addEventListener('change', sync);
     sync();
+})();
+// Remember whether the request card is collapsed
+(function () {
+    var el = document.getElementById('rdFold'), btn = document.getElementById('rdToggle');
+    if (!el || !btn) return;
+    var key = 'rd-fold', saved = null; try { saved = sessionStorage.getItem(key); } catch (e) {}
+    function mark(open) { btn.classList.toggle('collapsed', !open); btn.setAttribute('aria-expanded', open ? 'true' : 'false'); }
+    if (saved === 'closed') { el.classList.remove('show'); mark(false); }
+    el.addEventListener('shown.bs.collapse', function () { mark(true); try { sessionStorage.setItem(key, 'open'); } catch (e) {} });
+    el.addEventListener('hidden.bs.collapse', function () { mark(false); try { sessionStorage.setItem(key, 'closed'); } catch (e) {} });
+})();
+// Click the request number to copy it
+(function () {
+    var b = document.getElementById('copyReqNo');
+    if (!b) return;
+    b.addEventListener('click', function () {
+        var no = b.getAttribute('data-no'), old = b.textContent;
+        function done() { b.textContent = 'Copied ✓'; setTimeout(function () { b.textContent = old; }, 1200); }
+        if (navigator.clipboard) navigator.clipboard.writeText(no).then(done, function () {});
+    });
 })();
 // Remember which side panels are folded
 document.querySelectorAll('.fold-toggle').forEach(function (t) {

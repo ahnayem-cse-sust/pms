@@ -10,7 +10,7 @@
     <tbody>
     @forelse($tickets as $t)
         @php($canOpen = $t->canBeOpenedBy(auth()->user()))
-        @php($href = route('tickets.show', $mine ? ['ticket' => $t, 'from' => 'mine'] : $t))
+        @php($href = route('tickets.show', $t))
         <tr @if($canOpen) class="row-link" data-href="{{ $href }}" @else class="text-muted" title="Details are available only to the requester and the assigned IT team" @endif>
             <td class="text-nowrap">@if($canOpen)<a href="{{ $href }}" class="ticket-link">{{ $t->ticket_no }}</a>@else<span class="d-inline-flex align-items-center gap-1"><x-icon name="lock" :size="13"/> {{ $t->ticket_no }}</span>@endif</td>
             <td style="min-width:240px">{{ \Illuminate\Support\Str::limit($t->subject, 90) }}</td>

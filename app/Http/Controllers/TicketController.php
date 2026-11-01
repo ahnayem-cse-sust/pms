@@ -423,7 +423,12 @@ class TicketController extends Controller
         $ticket = $attachment->ticket;
         abort_unless(Ticket::visibleTo($u)->whereKey($ticket->id)->exists(), 403);
         abort_if($attachment->is_internal && ! $u->hasPermission('attachment.download.internal'), 403);
-        abort_unless(Storage::disk('local')->exists($attachment->stored_path), 404);
+        if (! Storage::disk('local')->exists($attachment->stored_path)) {
+            // A missing picture shows a "not found" placeholder instead of an error page
+            abort_unless(\App\Support\ImagePlaceholder::isImageName($attachment->original_name), 404, 'This file was not found on the server.');
+
+            return \App\Support\ImagePlaceholder::notFound('Image not found');
+        }
         \App\Models\AuditLog::record('attachment.download', $attachment);
         return Storage::disk('local')->download($attachment->stored_path, $attachment->original_name);
     }

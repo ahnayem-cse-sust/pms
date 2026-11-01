@@ -11,47 +11,64 @@
     @can('user.update')<a href="{{ route('admin.users.edit', $user) }}" class="btn btn-primary ms-md-auto inv-back"><x-icon name="edit" :size="15"/> Edit</a>@endcan
     @can('user.delete')@unless($isSelf)<form method="POST" action="{{ route('admin.users.destroy', $user) }}" @class(['ms-md-auto' => ! auth()->user()->can('user.update')]) onsubmit="return confirm('Delete {{ addslashes($user->name) }}? This cannot be undone.');">@csrf @method('DELETE')<span @if($why) title="{{ $why }}" @endif><button class="btn btn-outline-danger inv-back" @disabled($why !== '')><x-icon name="trash" :size="15"/> Delete</button></span></form>@endunless @endcan
 </div>
-<div class="card">
-    <div class="inv-hero">
+@php
+    $roleNames = $user->roles->pluck('name');
+    $yesNo = fn ($v) => $v ? '<span class="pill pill-success">Yes</span>' : '<span class="pill pill-secondary">No</span>';
+    $phone = $user->whatsapp ? preg_replace('/[^\d+]/', '', $user->whatsapp) : null;
+@endphp
+<div class="card ud-card">
+    <div class="ud-hero">
         <x-avatar :name="$user->name" :user="$user" class="avatar-xl"/>
-        <div><div class="inv-hero-title">{{ $user->name }}@if($user->is_department_head) <span class="badge text-bg-info align-middle">Head</span>@endif</div><div class="inv-sub">{{ $user->email }}</div></div>
-        <div class="ms-auto">
+        <div class="min-w-0">
+            <div class="inv-hero-title">{{ $user->name }}@if($user->is_department_head) <span class="badge text-bg-info align-middle">Head</span>@endif @if($isSelf)<span class="badge text-bg-light align-middle border">You</span>@endif</div>
+            <div class="ud-role">{{ $user->designation->name ?? 'No designation' }}@if($user->department) · {{ $user->department->name }}@endif</div>
+            <div class="ud-chips">
+                <a href="mailto:{{ $user->email }}" class="ud-chip"><x-icon name="inbox" :size="14"/> {{ $user->email }}</a>
+                @if($phone)<a href="tel:{{ $phone }}" class="ud-chip"><x-icon name="user" :size="14"/> {{ $user->whatsapp }}</a>@endif
+            </div>
+        </div>
+        <div class="ms-auto text-end">
             @if(! $user->is_active)<span class="pill pill-secondary">Disabled</span>
-            @elseif($locked)<span class="pill pill-danger">Locked</span>
+            @elseif($locked)<span class="pill pill-danger">Locked</span><div class="ticket-sub mt-1">until {{ $user->locked_until->format('d M, h:i A') }}</div>
             @else<span class="pill pill-success">Active</span>@endif
         </div>
     </div>
-    @php
-        $roles = $user->roles->map(fn ($ro) => '<span class="pill pill-primary me-1">'.e($ro->name).'</span>')->implode('');
-        if ($user->hasCustomPermissions()) $roles .= '<span class="pill pill-warning" title="Has individual permissions">+ custom</span>';
-        $yes = fn ($v) => $v ? 'Yes' : 'No';
-        $pairs = collect([
-            ['Employee ID', e($user->employee_id ?: '—')],
-            ['Email', e($user->email)],
-            ['WhatsApp', e($user->whatsapp ?: '—')],
-            ['Roles', $roles ?: '—'],
-            ['Department', e($user->department->name ?? '—')],
-            ['Designation', e($user->designation->name ?? '—')],
-            ['Location', e($user->location->name ?? '—')],
-            ['Department head', $yes($user->is_department_head)],
-            ['Shown on IT attendance', $yes($user->show_in_attendance)],
-            ['Last login', $user->last_login_at ? e($user->last_login_at->format('d M Y h:i A')).($user->last_login_ip ? ' <span class="text-muted fw-normal">('.e($user->last_login_ip).')</span>' : '') : 'Never'],
-            ['Password changed', $user->password_changed_at ? e($user->password_changed_at->format('d M Y')) : '—'],
-            ['Created', $user->created_at ? e($user->created_at->format('d M Y')) : '—'],
-        ]);
-        $half = (int) ceil($pairs->count() / 2);   // same number of rows on both sides; an odd total leaves the right side blank
-        $left = $pairs->take($half)->values();
-        $right = $pairs->slice($half)->values();
-    @endphp
-    <div class="table-responsive inv-lines">
-    <table class="table table-bordered align-middle inv-info mb-0"><tbody>
-        @for($i = 0; $i < $half; $i++)
-        <tr>
-            <th>{{ $left[$i][0] }}</th><td>{!! $left[$i][1] !!}</td>
-            @if(isset($right[$i]))<th>{{ $right[$i][0] }}</th><td>{!! $right[$i][1] !!}</td>@else<th></th><td></td>@endif
-        </tr>
-        @endfor
-    </tbody></table>
+
+    <div class="ud-grid">
+        <section class="ud-panel">
+            <h3><span class="ud-ic ud-ic-a"><x-icon name="user" :size="14"/></span>Contact</h3>
+            <dl class="detail-list">
+                <div><dt>Employee ID</dt><dd>{{ $user->employee_id ?: '—' }}</dd></div>
+                <div><dt>Email</dt><dd><a href="mailto:{{ $user->email }}" class="text-decoration-none">{{ $user->email }}</a></dd></div>
+                <div><dt>WhatsApp</dt><dd>@if($phone)<a href="tel:{{ $phone }}" class="text-decoration-none">{{ $user->whatsapp }}</a>@else — @endif</dd></div>
+            </dl>
+        </section>
+
+        <section class="ud-panel">
+            <h3><span class="ud-ic ud-ic-b"><x-icon name="building" :size="14"/></span>Work</h3>
+            <dl class="detail-list">
+                <div><dt>Department</dt><dd>{{ $user->department->name ?? '—' }}</dd></div>
+                <div><dt>Designation</dt><dd>{{ $user->designation->name ?? '—' }}</dd></div>
+                <div><dt>Location</dt><dd>{{ $user->location->name ?? '—' }}</dd></div>
+                <div><dt>Department head</dt><dd>{!! $yesNo($user->is_department_head) !!}</dd></div>
+            </dl>
+        </section>
+
+        <section class="ud-panel">
+            <h3><span class="ud-ic ud-ic-c"><x-icon name="shield" :size="14"/></span>Access &amp; activity</h3>
+            <dl class="detail-list">
+                <div><dt>Roles</dt><dd>
+                    @forelse($roleNames as $rn)<span class="pill pill-primary ms-1">{{ $rn }}</span>@empty — @endforelse
+                    @if($user->hasCustomPermissions())<span class="pill pill-warning ms-1" title="Has individual permissions">+ custom</span>@endif
+                </dd></div>
+                <div><dt>Shown on IT attendance</dt><dd>{!! $yesNo($user->show_in_attendance) !!}</dd></div>
+                <div><dt>Last login</dt><dd>
+                    @if($user->last_login_at){{ $user->last_login_at->format('d M Y, h:i A') }}<div class="ticket-sub">{{ $user->last_login_at->diffForHumans() }}@if($user->last_login_ip) · {{ $user->last_login_ip }}@endif</div>@else Never @endif
+                </dd></div>
+                <div><dt>Password changed</dt><dd>{{ $user->password_changed_at?->format('d M Y') ?? '—' }}</dd></div>
+                <div><dt>Account created</dt><dd>{{ $user->created_at?->format('d M Y') ?? '—' }}</dd></div>
+            </dl>
+        </section>
     </div>
 </div>
 
