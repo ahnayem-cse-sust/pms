@@ -70,6 +70,11 @@
 
             @php
                 $stepDates = [0 => null, 1 => $ticket->assigned_at, 2 => $ticket->started_at, 3 => $ticket->resolved_at, 4 => $ticket->closed_at];
+                $pauses = [
+                    'ON_HOLD' => ['On hold', 'Work is paused and will continue once the request is resumed.'],
+                    'WAITING_USER' => ['Waiting for reply', 'The IT team is waiting for a response from the requester.'],
+                ];
+                $paused = $pauses[$ticket->status->code] ?? null;
                 $stepHints = ['Waiting for the IT team to pick this up.', 'Assigned to the IT team.', 'The IT team is working on it.', 'A fix has been provided – please confirm.', 'Completed. Thank you!'];
             @endphp
             {{-- 3. Request information --}}
@@ -97,14 +102,14 @@
                     @if($cur !== null)
                         <div class="stepper stepper-lg">
                             @foreach($steps as $i => $label)
-                                <div class="step {{ $i < $cur ? 'done' : ($i === $cur ? 'current' : '') }}{{ $i === 4 && $i <= $cur ? ' final' : '' }}">
-                                    <div class="dot">@if($i < $cur || ($i === 4 && $cur === 4))<x-icon name="check" :size="16"/>@else{{ $i + 1 }}@endif</div>
-                                    <div class="slabel">{{ $label }}</div>
+                                <div class="step {{ $i < $cur ? 'done' : ($i === $cur ? 'current' : '') }}{{ $i === 4 && $i <= $cur ? ' final' : '' }}{{ $paused && $i === $cur ? ' paused' : '' }}">
+                                    <div class="dot">@if($paused && $i === $cur)<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>@elseif($i < $cur || ($i === 4 && $cur === 4))<x-icon name="check" :size="16"/>@else{{ $i + 1 }}@endif</div>
+                                    <div class="slabel">{{ $paused && $i === $cur ? $paused[0] : $label }}</div>
                                     <div class="sdate">@if($i <= $cur && ! empty($stepDates[$i])){{ $stepDates[$i]->format('d M, h:i A') }}@else&nbsp;@endif</div>
                                 </div>
                             @endforeach
                         </div>
-                        <div class="stage-note">{{ $stepHints[$cur] }}</div>
+                        <div class="stage-note {{ $paused ? 'is-paused' : ($cur === 4 ? 'is-done' : '') }}"><span class="stage-dot"></span><span class="stage-tag">{{ $paused ? $paused[0] : ($cur === 4 ? 'Completed' : 'Current stage') }}</span><span class="stage-text">{{ $paused ? $paused[1] : $stepHints[$cur] }}</span></div>
                     @else
                         <div class="req-cancelled">This request was cancelled.</div>
                     @endif
@@ -115,7 +120,15 @@
             </div>
         </div>
 
-        <div class="card tab-card">
+        {{-- Request activity log: its own card --}}
+        @php
+            $dayLabel = function ($dt) {
+                if ($dt->isToday()) return 'Today';
+                if ($dt->isYesterday()) return 'Yesterday';
+                return $dt->format('d M Y');
+            };
+        @endphp
+        <div class="card tab-card tab-in-card">
             <div class="card-header">
                 <ul class="nav nav-tabs" role="tablist">
                     <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-conv" type="button" role="tab"><x-icon name="message" :size="16"/> Conversation <span class="count">{{ $ticket->comments->count() }}</span></button></li>
@@ -133,21 +146,31 @@
 
                 {{-- Conversation (visible to the requester) --}}
                 <div class="tab-pane fade show active" id="tab-conv" role="tabpanel">
+                    @php($prevDay = null)
+                    @if($ticket->comments->isNotEmpty())<div class="thread" data-thread>@endif
                     @forelse($ticket->comments as $c)
-                        <div class="comment">
+                        @if($prevDay !== $c->created_at->format('Y-m-d'))
+                            @php($prevDay = $c->created_at->format('Y-m-d'))
+                            <div class="day-sep"><span>{{ $dayLabel($c->created_at) }}</span></div>
+                        @endif
+                        <div class="comment{{ $c->user->id === auth()->id() ? ' mine' : '' }}">
                             <x-avatar :name="$c->user->name" :user="$c->user"/>
                             <div class="comment-bubble">
-                                <div class="comment-meta"><b>{{ $c->user->name }}</b>{{ $c->created_at->format('d M Y h:i A') }}</div>
+                                <div class="comment-meta"><b>{{ $c->user->id === auth()->id() ? 'You' : $c->user->name }}</b><span title="{{ $c->created_at->format('d M Y, h:i A') }}">{{ $c->created_at->format('h:i A') }}</span></div>
                                 <div class="ticket-body">{{ $c->body }}</div>
                             </div>
                         </div>
                     @empty
                         <div class="empty-state"><x-icon name="message" :size="26"/><div>No comments yet.</div><small>Use the box below to ask a question or add an update.</small></div>
                     @endforelse
+                    @if($ticket->comments->isNotEmpty())</div>@endif
                     @can('ticket.comment.public')
-                        <form method="POST" action="{{ route('tickets.comment', $ticket) }}" enctype="multipart/form-data" class="mt-3">@csrf
-                            <textarea name="body" rows="3" class="form-control mb-2" placeholder="Write a comment…" required></textarea>
-                            <div class="d-flex gap-2"><input type="file" name="attachments[]" class="form-control form-control-sm" multiple><button class="btn btn-primary btn-sm text-nowrap">Add comment</button></div>
+                        <form method="POST" action="{{ route('tickets.comment', $ticket) }}" enctype="multipart/form-data" class="composer">@csrf
+                            <textarea name="body" rows="3" placeholder="Write a comment…" required></textarea>
+                            <div class="composer-bar">
+                                <label class="composer-attach"><x-icon name="paperclip" :size="15"/> <span data-attach-label>Attach files</span><input type="file" name="attachments[]" multiple></label>
+                                <span class="composer-hint ms-auto d-none d-md-inline">Ctrl + Enter to send</span><button class="btn btn-primary btn-sm text-nowrap" data-once>Send comment</button>
+                            </div>
                         </form>
                     @endcan
                 </div>
@@ -155,20 +178,28 @@
                 {{-- Internal notes (IT staff only – never sent to the requester) --}}
                 @if($staffTabs)
                     <div class="tab-pane fade" id="tab-notes" role="tabpanel">
+                        <div class="note-banner"><x-icon name="lock" :size="15"/> Internal notes are visible to IT staff only – the requester never sees them.</div>
+                        @php($prevDay = null)
+                        @if($notes->isNotEmpty())<div class="thread" data-thread>@endif
                         @forelse($notes as $n)
-                            <div class="comment">
+                            @if($prevDay !== $n->created_at->format('Y-m-d'))
+                                @php($prevDay = $n->created_at->format('Y-m-d'))
+                                <div class="day-sep"><span>{{ $dayLabel($n->created_at) }}</span></div>
+                            @endif
+                            <div class="comment note{{ $n->user->id === auth()->id() ? ' mine' : '' }}">
                                 <x-avatar :name="$n->user->name" :user="$n->user"/>
                                 <div class="comment-bubble">
-                                    <div class="comment-meta"><b>{{ $n->user->name }}</b>{{ $n->created_at->format('d M Y h:i A') }}</div>
+                                    <div class="comment-meta"><b>{{ $n->user->id === auth()->id() ? 'You' : $n->user->name }}</b><span title="{{ $n->created_at->format('d M Y, h:i A') }}">{{ $n->created_at->format('h:i A') }}</span></div>
                                     <div class="ticket-body">{{ $n->body }}</div>
                                 </div>
                             </div>
                         @empty
                             <div class="empty-state"><x-icon name="lock" :size="26"/><div>No internal notes.</div><small>Notes added here are visible to IT staff only.</small></div>
                         @endforelse
-                        <form method="POST" action="{{ route('tickets.note', $ticket) }}" class="mt-3">@csrf
-                            <textarea name="body" rows="2" class="form-control mb-2" placeholder="Add an internal note…" required></textarea>
-                            <button class="btn btn-warning btn-sm">Add internal note</button>
+                        @if($notes->isNotEmpty())</div>@endif
+                        <form method="POST" action="{{ route('tickets.note', $ticket) }}" class="composer composer-note">@csrf
+                            <textarea name="body" rows="2" placeholder="Add an internal note…" required></textarea>
+                            <div class="composer-bar"><span class="composer-hint"><x-icon name="lock" :size="14"/> IT only</span><span class="composer-hint ms-auto d-none d-md-inline">Ctrl + Enter to send</span><button class="btn btn-warning btn-sm" data-once>Add internal note</button></div>
                         </form>
                     </div>
                 @endif
@@ -192,19 +223,22 @@
 
                 {{-- Attachments --}}
                 <div class="tab-pane fade" id="tab-files" role="tabpanel">
-                    <ul class="list-group list-group-flush mb-3">
+                    <div class="file-list">
                         @forelse($attachments as $a)
-                            <li class="list-group-item px-0">
-                                <a href="{{ route('attachments.download', $a) }}" class="fw-semibold text-decoration-none">{{ $a->original_name }}</a>
-                                @if($a->is_internal)<span class="pill pill-warning ms-1">IT only</span>@endif
-                                <div class="ticket-sub">{{ number_format($a->size_bytes / 1024, 0) }} KB · {{ $a->uploader->name }} · {{ $a->created_at->format('d M h:i A') }}</div>
-                            </li>
+                            <a href="{{ route('attachments.download', $a) }}" class="file-card">
+                                <span class="file-ic"><x-icon name="file-text" :size="20"/></span>
+                                <span class="file-info">
+                                    <span class="file-name">{{ $a->original_name }}@if($a->is_internal) <span class="pill pill-warning ms-1">IT only</span>@endif</span>
+                                    <span class="ticket-sub">{{ number_format($a->size_bytes / 1024, 0) }} KB · {{ $a->uploader->name }} · {{ $a->created_at->format('d M h:i A') }}</span>
+                                </span>
+                                <span class="file-dl"><x-icon name="download" :size="16"/></span>
+                            </a>
                         @empty
-                            <li class="list-group-item px-0"><div class="empty-state"><x-icon name="paperclip" :size="26"/><div>No attachments.</div></div></li>
+                            <div class="empty-state"><x-icon name="paperclip" :size="26"/><div>No attachments.</div></div>
                         @endforelse
-                    </ul>
+                    </div>
                     @can('attachment.upload')
-                        <form method="POST" action="{{ route('tickets.upload', $ticket) }}" enctype="multipart/form-data" class="row g-2 align-items-center">@csrf
+                        <form method="POST" action="{{ route('tickets.upload', $ticket) }}" enctype="multipart/form-data" class="row g-2 align-items-center upload-box">@csrf
                             <div class="col"><input type="file" name="attachments[]" class="form-control form-control-sm" multiple required></div>
                             @if($staffTabs)<div class="col-auto form-check"><input type="checkbox" name="internal" value="1" class="form-check-input" id="int"><label class="form-check-label small" for="int">IT only</label></div>@endif
                             <div class="col-auto"><button class="btn btn-secondary btn-sm">Upload</button></div>
@@ -352,6 +386,21 @@
     if (saved === 'closed') { el.classList.remove('show'); mark(false); }
     el.addEventListener('shown.bs.collapse', function () { mark(true); try { sessionStorage.setItem(key, 'open'); } catch (e) {} });
     el.addEventListener('hidden.bs.collapse', function () { mark(false); try { sessionStorage.setItem(key, 'closed'); } catch (e) {} });
+})();
+// Activity log: jump to newest message, Ctrl+Enter sends, auto-grow, attach count, no double submit
+(function () {
+    function toEnd(root) { (root || document).querySelectorAll('[data-thread]').forEach(function (t) { t.scrollTop = t.scrollHeight; }); }
+    toEnd();
+    document.querySelectorAll('.tab-in-card [data-bs-toggle="tab"]').forEach(function (b) { b.addEventListener('shown.bs.tab', function () { toEnd(); }); });
+    document.querySelectorAll('.composer').forEach(function (f) {
+        var ta = f.querySelector('textarea'), file = f.querySelector('input[type=file]'), lab = f.querySelector('[data-attach-label]');
+        if (ta) {
+            ta.addEventListener('input', function () { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 220) + 'px'; });
+            ta.addEventListener('keydown', function (e) { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); if (f.reportValidity()) f.requestSubmit(); } });
+        }
+        if (file && lab) file.addEventListener('change', function () { lab.textContent = file.files.length ? file.files.length + ' file' + (file.files.length > 1 ? 's' : '') + ' selected' : 'Attach files'; });
+        f.addEventListener('submit', function () { var b = f.querySelector('[data-once]'); if (b) setTimeout(function () { b.disabled = true; }, 0); });
+    });
 })();
 // Click the request number to copy it
 (function () {

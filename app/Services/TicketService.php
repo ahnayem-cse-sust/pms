@@ -96,11 +96,9 @@ class TicketService
 
             $suffix = $behalf ? " (for {$requester->name}, filed by {$actor->name})" : '';
             $this->notify($this->officers(), $ticket, "New request {$ticketNo}: {$ticket->subject}{$suffix}", $actor);
-            $this->notify([$requester], $ticket, $behalf
-                ? "{$actor->name} submitted request {$ticketNo} on your behalf."
-                : "Your request {$ticketNo} was submitted.");
+            // Only when somebody else filed it – a person is not told about a request they just submitted themselves
             if ($behalf) {
-                $this->notify([$actor], $ticket, "Request {$ticketNo} was submitted for {$requester->name}.");
+                $this->notify([$requester], $ticket, "{$actor->name} submitted request {$ticketNo} on your behalf.");
             }
 
             return $ticket;
@@ -213,12 +211,16 @@ class TicketService
 
         $t->refresh()->load('status');
 
-        $msg = "{$t->ticket_no}: {$old->name} → {$to->name}";
-        $recipients = [$t->requester, $t->assignee];
-        if (in_array($code, ['REOPENED', 'ESCALATED', 'RESOLVED'], true)) {
-            $recipients = array_merge($recipients, $this->officers()->all());
+        // RESOLVED is only a stop on the way to USER_CONFIRMATION, so it sends nothing of its own (one notice, not two)
+        if ($code === 'USER_CONFIRMATION') {
+            $this->notify([$t->requester], $t, "{$t->ticket_no} was resolved – please confirm or reopen it", $user);
+        } elseif ($code !== 'RESOLVED') {
+            $recipients = [$t->requester, $t->assignee];
+            if (in_array($code, ['REOPENED', 'ESCALATED'], true)) {
+                $recipients = array_merge($recipients, $this->officers()->all());
+            }
+            $this->notify($recipients, $t, "{$t->ticket_no}: {$old->name} → {$to->name}", $user);
         }
-        $this->notify($recipients, $t, $msg, $user);
 
         if ($code === 'RESOLVED') {
             return $this->changeStatus($t, 'USER_CONFIRMATION', $user, null, true);
@@ -272,7 +274,6 @@ class TicketService
 
         $t->refresh()->load('status');
         $this->notify($team->pluck('employee')->all(), $t, "{$t->ticket_no}: you were taken off this request", $by);
-        $this->notify([$t->requester], $t, "{$t->ticket_no} is waiting to be assigned again", $by);
 
         return $t;
     }
@@ -384,9 +385,6 @@ class TicketService
         $this->notify($added, $t, "{$t->ticket_no}: you were added as a supporting employee ({$primary->name} is primary){$tail}", $by);
         $this->notify($removed, $t, "{$t->ticket_no}: you were removed from the team", $by);
         $this->notify($demoted, $t, "{$t->ticket_no}: you are now a supporting employee ({$primary->name} is primary)", $by);
-        if ($primaryChanged) {
-            $this->notify([$t->requester], $t, "{$t->ticket_no} has been assigned to {$primary->name}", $by);
-        }
         return $t;
     }
 
@@ -418,7 +416,7 @@ class TicketService
         });
         AuditLog::record('ticket.work_update', $t, ['work_status' => $old], ['work_status' => $status, 'note' => $note]);
 
-        if ($t->assigned_to && $t->assigned_to !== $user->id) {
+        if ($t->assigned_to && $t->assigned_to !== $user->id && in_array($status, ['DONE', 'WAITING'], true)) {
             $label = self::WORK_STATUSES[$status];
             $this->notify([$t->assignee ?? User::find($t->assigned_to)], $t, "{$user->name} updated their work on {$t->ticket_no}: {$label}", $user);
         }
@@ -625,6 +623,10 @@ class TicketService
         $users = collect($users)->filter()->unique('id')
             ->reject(fn ($u) => $except && $u->id === $except->id)
             ->filter(fn ($u) => $u->is_active);
+        // Do not stack an identical notice while the person still has the same one unread
+        $users = $users->reject(fn ($u) => $u->unreadNotifications()
+            ->where('data', 'like', '%"ticket_id":' . (int) $t->id . ',%')->get()
+            ->contains(fn ($n) => ($n->data['message'] ?? null) === $message));
         if ($users->isNotEmpty()) {
             Notification::send($users, new TicketNotification($t->id, $t->ticket_no, $message));
         }

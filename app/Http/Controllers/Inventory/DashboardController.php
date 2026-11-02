@@ -8,7 +8,7 @@ class DashboardController extends InvController
 {
     public function index()
     {
-        $items = Equipment::with('assetType')->where('is_active', true)->get();
+        $items = Equipment::with('assetType')->selectable()->get();
         $out = $items->filter(fn ($e) => (float) $e->stock_qty <= 0)->values();
         $low = $items->filter(fn ($e) => (float) $e->stock_qty > 0 && $e->is_low)->values();
 

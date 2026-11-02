@@ -31,6 +31,7 @@
     ])->values();
 @endphp
 @push('scripts')
+<script src="{{ asset('js/searchable-select.js') }}"></script>
 <script>
 var E = @json($equipmentJs), n = 0;
 function count() { document.getElementById('cnt').textContent = document.querySelectorAll('#lines .inv-line').length; }
@@ -66,6 +67,7 @@ function addLine() {
       '<div class="col-md-2 d-flex align-items-end"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'.inv-line\').remove(); serials(); count()">Remove</button></div></div>' +
       '<div class="inv-hint"></div>';
     document.getElementById('lines').appendChild(d);
+    searchableSelect(d.querySelector('select'), 'Equipment…');
     count();
 }
 addLine();

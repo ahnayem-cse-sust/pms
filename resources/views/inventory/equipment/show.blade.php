@@ -9,7 +9,7 @@
     <div class="inv-hero">
         <span class="type-ico ti-primary"><x-icon name="box" :size="20"/></span>
         <div><div class="inv-hero-title">{{ $e->name }}</div><div class="inv-sub"><span class="inv-code">{{ $e->code }}</span>@if(trim($e->brand.' '.$e->model)) · {{ trim($e->brand.' '.$e->model) }}@endif</div></div>
-        <div class="ms-auto d-flex align-items-center gap-3">@if(! $e->is_active)<span class="pill pill-secondary">Inactive</span>@endif<span class="inv-q fs-5">{{ \App\Support\Inv::qty($e->stock_qty) }} <span class="text-muted fs-6 fw-normal">{{ $e->unit }} in stock</span></span></div>
+        <div class="ms-auto d-flex align-items-center gap-3">@if(! $e->is_live)<span class="pill pill-secondary">Inactive</span>@endif<span class="inv-q fs-5">{{ \App\Support\Inv::qty($e->stock_qty) }} <span class="text-muted fs-6 fw-normal">{{ $e->unit }} in stock</span></span></div>
     </div>
     @php
         $fields = [
@@ -21,7 +21,7 @@
             'Model' => $e->model ?: '—',
             'Unit' => $e->unit ?: '—',
             'Serialisable' => $e->is_serialized ? 'Yes (each unit has an Asset ID)' : 'No',
-            'Status' => $e->is_active ? 'Active' : 'Inactive',
+            'Status' => $e->is_live ? 'Active' : 'Inactive',
             'Notes' => $e->notes ?: '—',
         ];
         $pairs = collect($fields)->map(fn ($v, $k) => [$k, $v])->values();

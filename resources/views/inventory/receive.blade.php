@@ -44,6 +44,7 @@
 <div class="inv-actionbar"><button class="btn btn-primary"><x-icon name="check" :size="15"/> Save &amp; receive</button><a href="{{ route('inv.equipment.index') }}" class="btn btn-outline-secondary">Cancel</a></div>
 </form>
 @push('scripts')
+<script src="{{ asset('js/searchable-select.js') }}"></script>
 <script>
 var ALL = @json($allJs),
     HOLD = @json($holders->mapWithKeys(fn ($h) => [$h['key'] => $h['items']])),
@@ -78,7 +79,7 @@ function rebuild() {
     var ready = isNew() || options().length > 0;
     document.getElementById('none').style.display = ready ? 'none' : '';
     document.getElementById('addbtn').style.display = ready ? '' : 'none';
-    if (ready) { addLine(); if (!isNew() && PRESET) { var s = document.querySelector('#lines select'), list = options(); if (s) { list.forEach(function (x, k) { if (String(x.id) === String(PRESET) && (!PSERIAL || x.serial === PSERIAL)) { if (s.selectedIndex === 0) s.selectedIndex = k + 1; } }); lineChanged(s); } PRESET = null; } }
+    if (ready) { addLine(); if (!isNew() && PRESET) { var s = document.querySelector('#lines select'), list = options(); if (s) { list.forEach(function (x, k) { if (String(x.id) === String(PRESET) && (!PSERIAL || x.serial === PSERIAL)) { if (s.selectedIndex === 0) s.selectedIndex = k + 1; } }); s.dispatchEvent(new Event('ss:refresh')); lineChanged(s); } PRESET = null; } }
     count();
 }
 function lineChanged(sel) {
@@ -102,6 +103,7 @@ function addLine() {
       '<div class="col-md-3 text-md-end"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'.inv-line\').remove(); count()">Remove</button></div></div>' +
       '<div class="inv-hint"></div>';
     document.getElementById('lines').appendChild(d);
+    searchableSelect(d.querySelector('select'), 'Item…');
     count();
 }
 sw();

@@ -14,15 +14,21 @@ class ProfileController extends Controller
         return view('profile.password', ['user' => auth()->user()->load(['roles', 'department'])]);
     }
 
+    /** Separate page for the profile picture (the password page no longer carries it). */
+    public function editPicture()
+    {
+        return view('profile.picture', ['user' => auth()->user()->load(['roles', 'department'])]);
+    }
+
     /** Upload or replace the signed-in user's profile picture (private storage, served through avatar()). */
     public function updatePhoto(Request $r)
     {
         $r->validate([
-            'photo' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'photo' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192'],
         ], [
             'photo.image' => 'Please choose a JPG, PNG or WEBP image.',
             'photo.mimes' => 'Please choose a JPG, PNG or WEBP image.',
-            'photo.max' => 'The picture must be 2 MB or smaller.',
+            'photo.max' => 'The picture must be 8 MB or smaller.',
         ]);
 
         $user = $r->user();
@@ -35,7 +41,7 @@ class ProfileController extends Controller
         }
         AuditLog::record('user.avatar_changed', $user);
 
-        return redirect()->route('profile.password')->with('ok', 'Your profile picture has been updated.');
+        return redirect()->route('profile.picture')->with('ok', 'Your profile picture has been updated.');
     }
 
     public function removePhoto(Request $r)
@@ -47,7 +53,7 @@ class ProfileController extends Controller
             AuditLog::record('user.avatar_removed', $user);
         }
 
-        return redirect()->route('profile.password')->with('ok', 'Your profile picture has been removed.');
+        return redirect()->route('profile.picture')->with('ok', 'Your profile picture has been removed.');
     }
 
     /** Any signed-in user may view another user's picture (it appears next to names across the system). */

@@ -96,6 +96,7 @@ class ReceiveController extends InvController
             'lines' => 'required|array|min:1', 'lines.*.equipment_id' => 'required|exists:inv_equipment,id', 'lines.*.serial_no' => 'nullable|string|max:60',
             'lines.*.qty' => [Rule::requiredIf(fn () => in_array($r->source, ['SUPPLIER', 'PREVIOUS'])), 'nullable', 'numeric', 'gt:0']]);   // a returned serialisable unit needs no quantity
         $lines = array_values($d['lines']);
+        if (in_array($d['source'], ['SUPPLIER', 'PREVIOUS'])) $this->assertSelectable($lines);   // returns of items already held stay possible
 
         if ($d['source'] === 'SUPPLIER') {
             $entry = $this->svc()->receive($d, $lines);

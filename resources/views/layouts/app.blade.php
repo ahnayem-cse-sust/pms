@@ -78,6 +78,11 @@
                 <x-icon name="bell"/> Notifications @if($unread)<span class="badge bg-danger count">{{ $unread }}</span>@endif</a></li>
             @endcan
 
+            {{-- Configuration --}}
+            @can('menu.configuration')
+                <li><a class="nav-link {{ request()->routeIs('admin.lookups') ? 'active' : '' }}" href="{{ route('admin.lookups', 'service_types') }}"><x-icon name="folder"/> Configuration</a></li>
+            @endcan
+
             {{-- Management --}}
             @canany(['menu.unassigned', 'menu.board', 'menu.it_attendance', 'menu.reports'])
                 <x-nav-group id="mgmt" icon="shield" label="Management" :open="$mgmtOpen">
@@ -120,11 +125,6 @@
                 </x-nav-group>
             @endcanany
 
-            {{-- Configuration --}}
-            @can('menu.configuration')
-                <li><a class="nav-link {{ request()->routeIs('admin.lookups') ? 'active' : '' }}" href="{{ route('admin.lookups', 'service_types') }}"><x-icon name="folder"/> Configuration</a></li>
-            @endcan
-
             {{-- Administration --}}
             @canany(['menu.users', 'menu.roles', 'menu.settings', 'menu.audit', 'menu.logins'])
                 <x-nav-group id="admin" icon="users" label="Administration" :open="$adminOpen">
@@ -159,17 +159,38 @@
             <button type="button" id="deskNotif" class="btn btn-sm btn-outline-light d-none" title="Show a desktop notification when a new one arrives">Enable desktop alerts</button>
             <button class="btn-icon" id="themeToggle" type="button" title="Light / dark" aria-label="Toggle theme"><x-icon name="moon"/></button>
             <a id="topNotif" class="btn-icon" href="{{ route('notifications.index') }}" title="Notifications"><x-icon name="bell"/>@if($unread)<span class="dot">{{ $unread }}</span>@endif</a>
-            <a href="{{ route('profile.password') }}" class="top-user d-none d-md-flex text-decoration-none" title="My account">
-                <x-avatar :name="auth()->user()->name" :user="auth()->user()" class="avatar-lg"/>
-                <div class="lh-sm">
-                    <div class="fw-semibold">{{ auth()->user()->name }}</div>
-                    <div class="small text-muted">{{ auth()->user()->role_names }}</div>
-                </div>
-            </a>
-            <a class="btn-icon" href="{{ route('profile.password') }}" title="Change password" aria-label="Change password"><x-icon name="key"/></a>
-            <form method="POST" action="{{ route('logout') }}" class="m-0">@csrf
-                <button class="btn btn-outline-danger btn-sm d-inline-flex align-items-center gap-1" title="Sign out"><x-icon name="logout" :size="16"/> <span class="d-none d-sm-inline">Sign out</span></button>
-            </form>
+            <div class="dropdown top-menu">
+                <button class="top-user" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Account menu">
+                    <x-avatar :name="auth()->user()->name" :user="auth()->user()" class="avatar-lg"/>
+                    <span class="lh-sm d-none d-md-block text-start">
+                        <span class="d-block fw-semibold">{{ auth()->user()->name }}</span>
+                        @if(auth()->user()->designation)<span class="d-block small text-muted">{{ auth()->user()->designation->name }}</span>@endif
+                    </span>
+                    <svg class="d-none d-md-block" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end top-dropdown">
+                    <li class="top-dropdown-head">
+                        <x-avatar :name="auth()->user()->name" :user="auth()->user()" class="avatar-lg"/>
+                        <div class="min-w-0"><div class="fw-semibold text-truncate">{{ auth()->user()->name }}</div>@if(auth()->user()->designation)<div class="small text-muted text-truncate">{{ auth()->user()->designation->name }}</div>@endif</div>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <button type="button" class="dropdown-item d-flex align-items-center gap-2" id="rolesToggle" aria-expanded="false" aria-controls="rolesList"><x-icon name="shield" :size="16"/> Roles <span class="badge text-bg-light border ms-1">{{ auth()->user()->roles->count() }}</span>
+                            <svg class="ms-auto roles-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+                        <div class="roles-list" id="rolesList" hidden>
+                            @forelse(auth()->user()->roles as $ro)<span class="pill pill-primary">{{ $ro->name }}</span>@empty<span class="small text-muted">No role assigned</span>@endforelse
+                        </div>
+                    </li>
+                    <li><a class="dropdown-item d-flex align-items-center gap-2" href="{{ route('profile.picture') }}"><x-icon name="user" :size="16"/> Change profile picture</a></li>
+                    <li><a class="dropdown-item d-flex align-items-center gap-2" href="{{ route('profile.password') }}"><x-icon name="key" :size="16"/> Change password</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <form method="POST" action="{{ route('logout') }}" class="m-0">@csrf
+                            <button class="dropdown-item d-flex align-items-center gap-2 text-danger"><x-icon name="logout" :size="16"/> Sign out</button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
         </div>
     </header>
     <main class="content">
@@ -192,6 +213,18 @@
 <script src="{{ asset('vendor/js/bootstrap.bundle.min.js') }}"></script>
 <script src="{{ asset('vendor/js/vue.global.prod.js') }}"></script>
 <script>
+(function () {
+    // Roles sub-menu inside the account menu: opens in place without closing the dropdown
+    var t = document.getElementById('rolesToggle'), l = document.getElementById('rolesList');
+    if (!t || !l) return;
+    t.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var open = l.hasAttribute('hidden');
+        if (open) l.removeAttribute('hidden'); else l.setAttribute('hidden', '');
+        t.setAttribute('aria-expanded', open ? 'true' : 'false');
+        t.classList.toggle('open', open);
+    });
+})();
 window.toast = function (msg, type) {
     var el = document.createElement('div');
     el.className = 'toast align-items-center text-bg-' + (type || 'success') + ' border-0';

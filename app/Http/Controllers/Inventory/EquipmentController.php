@@ -14,22 +14,36 @@ class EquipmentController extends InvController
 
     public function index(Request $r)
     {
-        $rows = Equipment::with($this->with)
+        // one tab at a time; Active is the default. Low / Out of stock look at the active list only.
+        $tab = in_array($r->tab, ['all', 'active', 'inactive', 'low', 'out'], true) ? $r->tab : 'active';
+        $lowSql = fn ($q) => $q->where('stock_qty', '>', 0)->where('min_stock', '>', 0)->whereColumn('stock_qty', '<=', 'min_stock');
+
+        $query = Equipment::with($this->with)
             ->when($r->q, fn ($q, $s) => $q->where(fn ($w) => $w->where('name', 'like', "%$s%")->orWhere('code', 'like', "%$s%")->orWhere('brand', 'like', "%$s%")->orWhere('model', 'like', "%$s%")))
             ->when($r->asset_type_id, fn ($q, $v) => $q->where('asset_type_id', $v))->when($r->category_id, fn ($q, $v) => $q->where('category_id', $v))
             ->when($r->subcategory_id, fn ($q, $v) => $q->where('subcategory_id', $v))
-            ->when($r->boolean('low'), fn ($q) => $q->where('min_stock', '>', 0)->whereColumn('stock_qty', '<=', 'min_stock'))   // dashboard link
-            ->when(! $r->boolean('inactive'), fn ($q) => $q->where('is_active', true))->orderBy('name')->get();
+            ->when($r->boolean('low'), fn ($q) => $q->where('min_stock', '>', 0)->whereColumn('stock_qty', '<=', 'min_stock'))   // dashboard link: low or out
+            ->when($tab === 'low', $lowSql)
+            ->when($tab === 'out', fn ($q) => $q->where('stock_qty', '<=', 0))
+            ->when($tab === 'inactive', fn ($q) => $q->notLive())
+            ->when(in_array($tab, ['active', 'low', 'out'], true), fn ($q) => $q->selectable())   // active = active item under active type, category and sub category
+            ->orderBy('name');
 
         if ($r->input('format') === 'csv') {
+            $rows = $query->get();
+
             return $this->csv('equipment_stock', ['Equipment ID', 'Equipment', 'Asset type', 'Category', 'Sub category', 'Serialisable', 'Brand', 'Model', 'In stock', 'Unit'],
                 $rows->map(fn ($e) => [$e->code, $e->name, $e->assetType->name ?? '', $e->category->name ?? '', $e->subcategory->name ?? '', $e->is_serialized ? 'Yes' : 'No', $e->brand, $e->model, $e->stock_qty, $e->unit]));
         }
 
-        return view('inventory.equipment.index', ['rows' => $rows, 'types' => $this->types(), 'cats' => $this->categories(), 'subs' => $this->subcategories()]);
+        $live = fn () => Equipment::selectable();
+        $tabs = ['all' => Equipment::count(), 'active' => $live()->count(), 'inactive' => Equipment::notLive()->count(),
+            'low' => $lowSql($live())->count(), 'out' => $live()->where('stock_qty', '<=', 0)->count()];
+
+        return view('inventory.equipment.index', ['rows' => $query->paginate(15)->withQueryString(), 'tabs' => $tabs, 'tab' => $tab,
+            'types' => $this->types(), 'cats' => $this->categories(), 'subs' => $this->subcategories()]);
     }
 
-    /** Everything about one equipment item, with its allocation and receive history in two separate lists. */
     public function show(Request $request, Equipment $equipment)
     {
         $equipment->load($this->with);
@@ -54,8 +68,9 @@ class EquipmentController extends InvController
     }
 
     /** Category must sit under the asset type, sub category under the category. */
-    protected function checkTree(array $d): void
+    protected function checkTree(array $d, ?Equipment $current = null): void
     {
+        $this->checkActive($d, $current);
         if (! empty($d['category_id']) && Category::whereKey($d['category_id'])->value('parent_id') != $d['asset_type_id']) {
             throw ValidationException::withMessages(['category_id' => 'That category does not belong to the chosen asset type.']);
         }
@@ -67,7 +82,29 @@ class EquipmentController extends InvController
         }
     }
 
-    protected function form(Equipment $e) { return view('inventory.equipment.form', ['equipment' => $e, 'types' => $this->types(), 'cats' => $this->categories(), 'subs' => $this->subcategories()]); }
+    /**
+     * A newly chosen asset type / category / sub category must be active, and so must everything above it.
+     * Values the record already holds are left alone, so an old record can still be saved after its type goes inactive.
+     */
+    protected function checkActive(array $d, ?Equipment $current): void
+    {
+        foreach (['asset_type_id' => 'asset type', 'category_id' => 'category', 'subcategory_id' => 'sub category'] as $field => $label) {
+            $id = $d[$field] ?? null;
+            if (! $id || ($current && $current->{$field} == $id)) continue;
+            $c = Category::with('parent.parent')->find($id);
+            for ($n = $c; $n; $n = $n->parent) {
+                if (! $n->is_active) throw ValidationException::withMessages([$field => "That $label is inactive, so it cannot be chosen."]);
+            }
+        }
+    }
+
+    protected function form(Equipment $e)
+    {
+        // an existing record keeps showing what it already has, even if that has since been made inactive
+        $keep = $e->exists ? [$e->asset_type_id, $e->category_id, $e->subcategory_id] : [];
+
+        return view('inventory.equipment.form', ['equipment' => $e, 'types' => $this->types($keep), 'cats' => $this->categories($keep), 'subs' => $this->subcategories($keep)]);
+    }
     public function create() { return $this->form(new Equipment(['is_active' => true])); }
     public function edit(Equipment $equipment) { return $this->form($equipment); }
 
@@ -84,7 +121,7 @@ class EquipmentController extends InvController
     public function update(Request $r, Equipment $equipment)
     {
         $d = $r->validate($this->rules($equipment));
-        $this->checkTree($d);
+        $this->checkTree($d, $equipment);
         $d['is_active'] = $r->boolean('is_active');
         $old = $equipment->only(array_keys($d));
         $equipment->update($d);

@@ -27,6 +27,7 @@ Route::middleware('auth')->group(function () {
 
     // Own account
     Route::get('/profile/password', [ProfileController::class, 'editPassword'])->name('profile.password');
+    Route::get('/profile/picture', [ProfileController::class, 'editPicture'])->name('profile.picture');
     Route::post('/profile/photo', [ProfileController::class, 'updatePhoto'])->middleware('throttle:20,1')->name('profile.photo.update');
     Route::delete('/profile/photo', [ProfileController::class, 'removePhoto'])->name('profile.photo.remove');
     Route::get('/avatars/{user}', [ProfileController::class, 'avatar'])->name('avatar.show');
@@ -58,8 +59,10 @@ Route::middleware('auth')->group(function () {
     // Notifications
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.readAll');
+    Route::post('/notifications/clear-read', [NotificationController::class, 'clearRead'])->name('notifications.clearRead');
     Route::get('/notifications/poll', [NotificationController::class, 'poll'])->name('notifications.poll');
     Route::get('/notifications/{id}', [NotificationController::class, 'read'])->name('notifications.read');
+    Route::delete('/notifications/{id}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
 
     // Keep-alive ping sent by the page while the user is active (see layout script)
     Route::post('/session/keepalive', fn () => response()->noContent())->name('session.keepalive');

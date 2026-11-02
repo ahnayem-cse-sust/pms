@@ -82,6 +82,7 @@ class AllocationController extends InvController
             'department_id' => 'required_if:to_type,DEPARTMENT|nullable|exists:departments,id', 'date' => 'required|date|before_or_equal:today', 'reference_no' => 'nullable|string|max:255',
             'lines' => 'required|array|min:1', 'lines.*.equipment_id' => 'required|exists:inv_equipment,id', 'lines.*.qty' => 'nullable|numeric|gt:0', 'lines.*.purpose' => 'nullable|string|max:500', 'lines.*.device_serial_no' => 'nullable|string|max:120']);
         $lines = array_values($d['lines']);
+        $this->assertSelectable($lines);
 
         // Serialisable items need no quantity (always one unit, serial generated); every other item needs one.
         foreach ($lines as $i => $l) {

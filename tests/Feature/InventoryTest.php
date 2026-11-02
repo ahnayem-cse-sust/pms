@@ -219,6 +219,66 @@ class InventoryTest extends TestCase
         $this->assertSame(0.0, (float) $e->fresh()->min_stock);
     }
 
+    public function test_inactive_asset_type_hides_its_categories_and_sub_categories_from_the_selects(): void
+    {
+        $this->actingAs($this->officer());
+        $this->get(route('inv.equipment.create'))->assertOk()->assertSee('Consumables')->assertSee('Printing')->assertSee('Toner');
+
+        $this->type->update(['is_active' => false]);                       // type off: its category and sub category disappear too
+        $this->get(route('inv.equipment.create'))->assertOk()->assertDontSee('Consumables')->assertDontSee('Printing')->assertDontSee('Toner');
+
+        $this->type->update(['is_active' => true]);
+        $this->cat->update(['is_active' => false]);                        // category off: its sub category disappears, the type stays
+        $this->get(route('inv.equipment.create'))->assertOk()->assertSee('Consumables')->assertDontSee('Printing')->assertDontSee('Toner');
+    }
+
+    public function test_new_equipment_cannot_be_saved_under_an_inactive_parent(): void
+    {
+        $this->actingAs($this->officer());
+        $this->type->update(['is_active' => false]);
+        $this->post(route('inv.equipment.store'), ['name' => 'Blocked', 'asset_type_id' => $this->type->id, 'category_id' => $this->cat->id, 'subcategory_id' => ''])
+            ->assertSessionHasErrors('asset_type_id');
+        $this->assertNull(Equipment::where('name', 'Blocked')->first());
+    }
+
+    public function test_equipment_under_an_inactive_level_is_hidden_from_receives_and_allocations(): void
+    {
+        $this->actingAs($this->officer());
+        $this->get(route('inv.receive'))->assertOk()->assertSee('HP Toner');
+        $this->get(route('inv.allocations.create'))->assertOk();
+
+        foreach ([$this->type, $this->cat, $this->sub] as $level) {
+            $level->update(['is_active' => false]);
+            $this->get(route('inv.receive'))->assertOk()->assertDontSee('HP Toner');
+            $this->post(route('inv.receive.store'), ['source' => 'SUPPLIER', 'date' => today()->toDateString(), 'lines' => [['equipment_id' => $this->toner->id, 'qty' => 5]]])->assertSessionHasErrors('lines');
+            $this->post(route('inv.allocations.store'), ['to_type' => 'EMPLOYEE', 'user_id' => $this->person()->id, 'date' => today()->toDateString(), 'lines' => [['equipment_id' => $this->toner->id, 'qty' => 1]]])->assertSessionHasErrors('lines');
+            $this->flushSession();   // the refusal message names the item; don't let it show up on the next page load
+            $level->update(['is_active' => true]);
+        }
+    }
+
+    public function test_equipment_under_an_inactive_level_leaves_the_active_list(): void
+    {
+        $this->actingAs($this->officer());
+        $this->get(route('inv.equipment.index'))->assertOk()->assertSee('HP Toner');
+
+        foreach ([$this->type, $this->cat, $this->sub] as $level) {
+            $level->update(['is_active' => false]);
+            $this->get(route('inv.equipment.index'))->assertOk()->assertDontSee('HP Toner');           // not on the active list
+            $this->get(route('inv.equipment.index', ['tab' => 'inactive']))->assertOk()->assertSee('HP Toner');   // still reachable on the Inactive tab
+            $level->update(['is_active' => true]);
+        }
+    }
+
+    public function test_equipment_list_has_stock_tabs_and_pages(): void
+    {
+        $this->actingAs($this->officer());
+        $this->get(route('inv.equipment.index'))->assertOk()->assertSee('Out of stock')->assertSee('Low stock');
+        $this->get(route('inv.equipment.index', ['tab' => 'out']))->assertOk()->assertSee('HP Toner');   // no stock received yet
+        $this->receive(10);
+        $this->get(route('inv.equipment.index', ['tab' => 'out']))->assertOk()->assertDontSee('HP Toner');
+    }
+
     public function test_receives_lists_supplier_receipts_and_returns(): void
     {
         $this->receive(10);

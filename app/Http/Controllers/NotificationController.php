@@ -4,10 +4,33 @@ namespace App\Http\Controllers;
 
 class NotificationController extends Controller
 {
-    public function index()
+    public function index(\Illuminate\Http\Request $r)
     {
-        $notifications = auth()->user()->notifications()->paginate(25);
-        return view('notifications.index', compact('notifications'));
+        $u = auth()->user();
+        $filter = $r->query('filter') === 'unread' ? 'unread' : 'all';
+        $q = $filter === 'unread' ? $u->unreadNotifications() : $u->notifications();
+        $notifications = $q->paginate(20)->withQueryString();
+
+        return view('notifications.index', [
+            'notifications' => $notifications,
+            'filter' => $filter,
+            'unreadCount' => $u->unreadNotifications()->count(),
+            'readCount' => $u->readNotifications()->count(),
+        ]);
+    }
+
+    /** Remove one notification from the list. */
+    public function destroy(string $id)
+    {
+        auth()->user()->notifications()->findOrFail($id)->delete();
+        return back();
+    }
+
+    /** Remove every notification that has already been read. */
+    public function clearRead()
+    {
+        auth()->user()->readNotifications()->delete();
+        return back()->with('ok', 'Read notifications cleared.');
     }
 
     /** Polled by every open page: the unread count plus the notifications that arrived since the last poll. */

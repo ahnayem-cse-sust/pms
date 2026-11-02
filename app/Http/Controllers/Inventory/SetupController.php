@@ -28,7 +28,10 @@ class SetupController extends InvController
             ->when($level === 3 && $typeId && ! $categoryId, fn ($q) => $q->whereHas('parent', fn ($p) => $p->where('parent_id', $typeId)))
             ->orderBy('name')->get()
             ->sortBy(fn ($c) => ($c->parent?->parent?->name ?? '').'|'.($c->parent->name ?? '').'|'.$c->name)->values();
-        $parents = $level === 1 ? collect() : Category::with('parent')->where('level', $level - 1)->where('is_active', true)->orderBy('name')->get();
+        // parents offered when adding a category / sub category: active, and (for sub categories) under an active asset type too
+        $parents = $level === 1 ? collect() : Category::with('parent')->where('level', $level - 1)->where('is_active', true)
+            ->when($level === 3, fn ($q) => $q->whereHas('parent', fn ($p) => $p->where('is_active', true)))
+            ->orderBy('name')->get();
 
         // how much each row is used (equipment) or holds (children): a row can be deleted only when both are zero
         $items = Equipment::selectRaw($this->equipmentColumn[$level].' as cid, COUNT(*) as n')->whereIn($this->equipmentColumn[$level], $rows->pluck('id'))->groupBy($this->equipmentColumn[$level])->pluck('n', 'cid');

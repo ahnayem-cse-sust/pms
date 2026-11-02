@@ -442,7 +442,8 @@ class TicketWorkflowTest extends TestCase
         $this->assertSame('IN_PROGRESS', $row->work_status);
         $this->assertSame('Checked the printer driver', $row->remarks);
         $this->assertDatabaseHas('ticket_work_updates', ['ticket_id' => $t->id, 'user_id' => $support->id, 'note' => 'Checked the printer driver']);
-        $this->assertTrue($primary->fresh()->notifications()->where('data', 'like', '%updated their work%')->exists());
+        // a routine "in progress" update is not worth a notification; only DONE / WAITING updates notify the primary
+        $this->assertFalse($primary->fresh()->notifications()->where('data', 'like', '%updated their work%')->exists());
 
         // ...but cannot move or resolve the request
         $this->actingAs($support)->post(route('tickets.transition', $t), ['to' => 'IN_PROGRESS'])->assertSessionHasErrors('status');
