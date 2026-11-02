@@ -26,10 +26,25 @@ class TicketController extends Controller
         return $this->listing($r, Ticket::listableTo(auth()->user()), 'all');
     }
 
-    /** My Requests (IT staff): only requests where the user is the requester, whether they filed it or someone filed it for them. */
+    /**
+     * My Requests (IT staff), in three tabs: My Requests (the user is the requester, whether they filed it or someone filed it
+     * for them; the default), Filled by me (filed for other people; listed only, the details page stays closed) and All.
+     */
     public function mine(Request $r)
     {
-        return $this->listing($r, Ticket::where('requester_id', auth()->id()), 'mine');
+        $id = auth()->id();
+        $tab = in_array($r->tab, ['all', 'mine', 'filled'], true) ? $r->tab : 'mine';
+        $own = fn () => Ticket::where('requester_id', $id);
+        $filled = fn () => Ticket::where('created_by', $id)->where('requester_id', '!=', $id);
+
+        $base = match ($tab) {
+            'mine' => $own(),
+            'filled' => $filled(),
+            default => Ticket::where(fn ($w) => $w->where('requester_id', $id)->orWhere('created_by', $id)),
+        };
+        $tabs = ['all' => Ticket::where(fn ($w) => $w->where('requester_id', $id)->orWhere('created_by', $id))->count(), 'mine' => $own()->count(), 'filled' => $filled()->count()];
+
+        return $this->listing($r, $base, 'mine', ['tab' => $tab, 'tabs' => $tabs]);
     }
 
     /** My Tasks (IT staff): every request the user is on the team of, as the primary responsible employee or in support. */
@@ -46,10 +61,10 @@ class TicketController extends Controller
         return $this->listing($r, $base, 'completed');
     }
 
-    protected function listing(Request $r, $base, string $mode)
+    protected function listing(Request $r, $base, string $mode, array $extra = [])
     {
         $u = auth()->user();
-        $q = $base->with(['department', 'category', 'subcategory', 'priority', 'status', 'assignee', 'requester', 'team', 'type']);
+        $q = $base->with(['department', 'category', 'subcategory', 'priority', 'status', 'assignee', 'requester', 'creator', 'team', 'type']);
 
         if ($s = trim((string) $r->q)) {
             $q->where(function ($w) use ($s) {
@@ -86,7 +101,7 @@ class TicketController extends Controller
 
         $tickets = $q->latest()->paginate(20)->withQueryString();
 
-        return view('tickets.index', [
+        return view('tickets.index', $extra + [
             'mode' => $mode,
             'tickets' => $tickets,
             'departments' => Department::orderBy('name')->get(),
@@ -164,7 +179,8 @@ class TicketController extends Controller
         $msg = $requester->id === $actor->id
             ? "Request {$ticket->ticket_no} submitted."
             : "Request {$ticket->ticket_no} submitted for {$requester->name}.";
-        return redirect()->route('tickets.show', $ticket)->with('ok', $msg);
+        // IT staff who filed it for someone else cannot open the details page: take them to their list instead
+        return redirect()->route($ticket->canBeOpenedBy($actor) ? 'tickets.show' : 'tickets.mine', $ticket->canBeOpenedBy($actor) ? [$ticket] : [])->with('ok', $msg);
     }
 
     public function show(Ticket $ticket)

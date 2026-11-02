@@ -42,12 +42,18 @@ class Ticket extends Model
     /** The requester (or whoever filed it for them) and a System Administrator may edit the request itself until it is assigned. */
     public function canEditDetails(User $u): bool
     {
-        if (! $u->isRole('admin') && (int) $this->requester_id !== $u->id && (int) $this->created_by !== $u->id) {
+        if (! $u->isRole('admin') && (int) $this->requester_id !== $u->id && ! $this->filedByForAccess($u)) {
             return false;
         }
         $this->loadMissing('status');
 
         return (bool) $this->status->is_open && $this->assigned_to === null && ! $this->assignees()->exists();
+    }
+
+    /** Filing a request for someone else opens its details page only for department users; IT staff (ticket.work) just see it in My Requests. */
+    protected function filedByForAccess(User $u): bool
+    {
+        return (int) $this->created_by === $u->id && ! $u->hasPermission('ticket.work');
     }
 
     /** Plain relation (no ordering/eager loading) for existence checks in scopes. */
@@ -76,8 +82,9 @@ class Ticket extends Model
             return $q;
         }
         return $q->where(function ($w) use ($u) {
-            // the requester, and whoever filed it on their behalf
-            $w->where('requester_id', $u->id)->orWhere('created_by', $u->id);
+            // the requester, and (department users only) whoever filed it on their behalf; IT staff who filed it for someone else get a list entry only
+            $w->where('requester_id', $u->id);
+            if (! $u->hasPermission('ticket.work')) $w->orWhere('created_by', $u->id);
             if ($u->hasPermission('ticket.view.department') && $u->department_id) {
                 $w->orWhere('department_id', $u->department_id);
             }
@@ -102,7 +109,7 @@ class Ticket extends Model
     public function canBeOpenedBy(User $u): bool
     {
         if ($u->hasPermission('ticket.view.all')) return true;
-        if ($this->requester_id === $u->id || $this->created_by === $u->id) return true;
+        if ($this->requester_id === $u->id || $this->filedByForAccess($u)) return true;
         if ($u->hasPermission('ticket.view.department') && $u->department_id && $this->department_id === $u->department_id) return true;
         if ($u->hasPermission('ticket.view.assigned')) {
             if ($this->assigned_to === $u->id) return true;

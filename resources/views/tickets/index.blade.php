@@ -1,14 +1,14 @@
 @extends('layouts.app')
 @php
     $titles = ['all' => 'Requests', 'mine' => 'My Requests', 'tasks' => 'My Tasks', 'completed' => 'Completed Tasks'];
-    $notes = ['mine' => 'Requests you submitted, or that someone submitted on your behalf.', 'tasks' => 'Every request assigned to you.', 'completed' => 'Resolved and closed requests you worked on, as primary or supporting employee.'];
+    $notes = ['mine' => 'My requests: yours, whether you or someone else filled them. Filled by me: requests you filled for other people (listed only; their details are not available to you).', 'tasks' => 'Every request assigned to you.', 'completed' => 'Resolved and closed requests you worked on, as primary or supporting employee.'];
     $self = ['all' => 'tickets.index', 'mine' => 'tickets.mine', 'tasks' => 'tasks.index', 'completed' => 'tasks.completed'][$mode];
 @endphp
 @section('title', $titles[$mode])
 @section('content')
-@php($activeFilters = collect(request()->only(['q','department_id','category_id','status_id','ticket_type_id','assigned_to','role','from','to']))->filter(fn ($v) => $v !== null && $v !== '')->count())
+@php($activeFilters = collect(request()->only(['q','department_id','category_id','status_id','ticket_type_id','assigned_to','role','from','to']))->filter(fn ($v) => $v !== null && $v !== '')->count() + (($mode === 'mine' && ($tab ?? 'mine') !== 'mine') ? 1 : 0))
 @isset($notes[$mode])<div class="text-muted small mb-2">{{ $notes[$mode] }}</div>@endisset
-<form method="GET" class="card filter-card mb-3">
+<form method="GET" class="card filter-card mb-3">@if($mode === 'mine')<input type="hidden" name="tab" value="{{ $tab }}">@endif
     <div class="filter-body">
         <div class="row g-2 align-items-end">
             <div class="col-12 col-md-8 col-xl-4">
@@ -75,6 +75,15 @@
     </div>
 </form>
 
+@if($mode === 'mine')
+@php($tabUrl = fn ($t) => route('tickets.mine', collect(request()->except(['page', 'tab']))->filter(fn ($v) => $v !== null && $v !== '')->all() + ['tab' => $t]))
+<div class="inv-summary">
+    <a href="{{ $tabUrl('all') }}" class="inv-chip {{ $tab === 'all' ? 'active' : '' }}">All <strong>{{ $tabs['all'] }}</strong></a>
+    <a href="{{ $tabUrl('mine') }}" class="inv-chip {{ $tab === 'mine' ? 'active' : '' }}">My requests <strong>{{ $tabs['mine'] }}</strong></a>
+    <a href="{{ $tabUrl('filled') }}" class="inv-chip {{ $tab === 'filled' ? 'active' : '' }}" title="Requests you filled for other people">Filled by me <strong>{{ $tabs['filled'] }}</strong></a>
+    <span class="ms-auto">Showing <strong class="text-body">{{ $tickets->total() }}</strong> {{ \Illuminate\Support\Str::plural('request', $tickets->total()) }}</span>
+</div>
+@endif
 @include('tickets._table', ['tickets' => $tickets])
 {{ $tickets->links() }}
 @endsection

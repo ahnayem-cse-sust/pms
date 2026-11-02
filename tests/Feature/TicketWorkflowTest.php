@@ -141,6 +141,25 @@ class TicketWorkflowTest extends TestCase
         $this->actingAs($sales)->get(route('tickets.show', $t))->assertOk();
     }
 
+    public function test_it_employee_sees_requests_filed_for_others_in_my_requests_without_details_access(): void
+    {
+        $emp = $this->u('it_emp@joplc.com');
+        $sales = $this->u('sales_user@joplc.com');
+
+        $this->actingAs($emp)->post(route('tickets.store'), [
+            'requester_id' => $sales->id, 'ticket_type_id' => 1, 'category_id' => 1, 'priority_id' => 3,
+            'subject' => 'Filed for Sales by phone', 'description' => 'Reported by phone',
+        ])->assertRedirect(route('tickets.mine'));                                   // not sent to a details page they cannot open
+        $t = Ticket::latest('id')->firstOrFail();
+
+        $this->get(route('tickets.mine'))->assertOk()->assertDontSee('Filed for Sales by phone');                 // default tab is My requests
+        $this->get(route('tickets.mine', ['tab' => 'all']))->assertOk()->assertSee('Filed for Sales by phone')->assertSee('On behalf of');
+        $this->get(route('tickets.mine', ['tab' => 'mine']))->assertOk()->assertDontSee('Filed for Sales by phone');
+        $this->get(route('tickets.mine', ['tab' => 'filled']))->assertOk()->assertSee('Filed for Sales by phone');
+        $this->get(route('tickets.show', $t))->assertRedirect()->assertSessionHas('denied');    // no access to the details page
+        $this->actingAs($sales)->get(route('tickets.show', $t))->assertOk();                      // the requester still has it
+    }
+
     public function test_plain_user_cannot_submit_on_behalf(): void
     {
         $this->actingAs($this->u('acct_user@joplc.com'))->post(route('tickets.store'), [

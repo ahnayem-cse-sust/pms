@@ -21,14 +21,15 @@ class UserController extends Controller
 {
     public function index(Request $r)
     {
-        $users = User::with(['roles', 'department'])
+        $users = User::with(['roles', 'department', 'designation'])
             ->when($r->q, fn ($q, $s) => $q->where(fn ($w) => $w->where('name', 'like', "%$s%")
                 ->orWhere('email', 'like', "%$s%")->orWhere('employee_id', 'like', "%$s%")))
+            ->when($r->department_id, fn ($q, $v) => $q->where('department_id', $v))
             ->when($r->role_id, fn ($q, $v) => $q->whereHas('roles', fn ($x) => $x->where('roles.id', $v)))
             // Only a System Administrator can see System Administrator accounts
             ->when(! $this->actorIsAdmin(), fn ($q) => $q->whereDoesntHave('roles', fn ($x) => $x->whereIn('roles.id', $this->privilegedRoleIds())))
             ->orderBy('name')->paginate(25)->withQueryString();
-        return view('admin.users.index', ['users' => $users, 'roles' => $this->assignableRoles()]);
+        return view('admin.users.index', ['users' => $users, 'roles' => $this->assignableRoles(), 'departments' => \App\Models\Department::orderBy('name')->get(['id', 'name'])]);
     }
 
     public function create()
