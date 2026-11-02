@@ -6,7 +6,7 @@
         <div class="row g-2 align-items-end">
             <div class="col-12 col-md-4">
                 <label class="form-label">Search</label>
-                <div class="input-icon"><x-icon name="search" :size="15"/><input name="q" value="{{ request('q') }}" class="form-control" placeholder="Name, email, employee ID"></div>
+                <div class="input-icon"><x-icon name="search" :size="15"/><input name="q" value="{{ request('q') }}" class="form-control" placeholder="Name, designation, email, employee ID"></div>
             </div>
             <div class="col-6 col-md-3">
                 <label class="form-label">Department</label>
@@ -26,6 +26,7 @@
         </div>
     </div>
 </form>
+<div class="inv-summary"><span>@if(request()->hasAny(['q', 'department_id', 'role_id']) && collect(request()->only(['q', 'department_id', 'role_id']))->filter()->isNotEmpty())Found @else Total @endif<strong class="text-body">{{ $users->total() }}</strong> {{ \Illuminate\Support\Str::plural('user', $users->total()) }}</span></div>
 <table class="table table-sm bg-white align-middle">
     <thead class="table-light"><tr><th>Employee ID</th><th>Name</th><th>Designation</th><th>Email</th><th>Status</th><th></th></tr></thead>
     <tbody>

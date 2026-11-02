@@ -23,7 +23,8 @@ class UserController extends Controller
     {
         $users = User::with(['roles', 'department', 'designation'])
             ->when($r->q, fn ($q, $s) => $q->where(fn ($w) => $w->where('name', 'like', "%$s%")
-                ->orWhere('email', 'like', "%$s%")->orWhere('employee_id', 'like', "%$s%")))
+                ->orWhere('email', 'like', "%$s%")->orWhere('employee_id', 'like', "%$s%")
+                ->orWhereHas('designation', fn ($d) => $d->where('name', 'like', "%$s%"))))
             ->when($r->department_id, fn ($q, $v) => $q->where('department_id', $v))
             ->when($r->role_id, fn ($q, $v) => $q->whereHas('roles', fn ($x) => $x->where('roles.id', $v)))
             // Only a System Administrator can see System Administrator accounts
