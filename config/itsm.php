@@ -31,6 +31,9 @@ $sidebarMenus = [
         'menu.inv_records'     => ['Records', ['inv.view']],
         'menu.inv_setup'       => ['Types & Categories', ['inv.view']],
     ],
+    'File Management' => [
+        'menu.files' => ['File Management', ['file.view']],
+    ],
     'Configuration' => [
         'menu.configuration' => ['Configuration', ['lookup.view']],
     ],
@@ -113,6 +116,8 @@ return [
             'settings.view', 'settings.update', 'audit.view',
             // IT Inventory
             'inv.view', 'inv.view.own', 'inv.create', 'inv.update', 'inv.delete',
+            // File Management
+            'file.view', 'file.create', 'file.update', 'file.delete',
         ],
         'it_officer' => [
             'ticket.create', 'ticket.create.behalf', 'ticket.view.own', 'ticket.view.all', 'ticket.list.all', 'ticket.acknowledge',
@@ -123,6 +128,8 @@ return [
             'user.view', 'user.create', 'user.update',
             // IT Inventory
             'inv.view', 'inv.create', 'inv.update',
+            // File Management
+            'file.view', 'file.create', 'file.update',
         ],
         'it_member' => [
             'ticket.create', 'ticket.create.behalf', 'ticket.view.own', 'ticket.view.assigned', 'ticket.list.all', 'ticket.work',
@@ -152,7 +159,7 @@ return [
     ]),
 
     // Permissions that only a System Administrator may hand out (to a user through a role).
-    'privileged_permissions' => ['role.view', 'role.create', 'role.update', 'role.delete', 'settings.view', 'settings.update', 'audit.view', 'inv.delete', 'user.delete', 'menu.roles', 'menu.settings', 'menu.audit', 'menu.logins'],
+    'privileged_permissions' => ['role.view', 'role.create', 'role.update', 'role.delete', 'settings.view', 'settings.update', 'audit.view', 'inv.delete', 'file.delete', 'user.delete', 'menu.roles', 'menu.settings', 'menu.audit', 'menu.logins'],
 
     // Picking a permission automatically adds the ones it cannot work without (applied in the role form and on save).
     'sidebar_menus' => $sidebarMenus,
@@ -177,6 +184,7 @@ return [
         'lookup.create' => ['lookup.view'], 'lookup.update' => ['lookup.view'],
         'settings.update' => ['settings.view'],
         'inv.create' => ['inv.view'], 'inv.update' => ['inv.view'], 'inv.delete' => ['inv.view'],
+        'file.create' => ['file.view'], 'file.update' => ['file.view'], 'file.delete' => ['file.view'],
     ],
 
     // Module-wise access matrix on the role screen: one row per module, one checkbox per Read / Add / Update / Delete.
@@ -206,6 +214,9 @@ return [
         'IT Inventory' => [
             ['label' => 'Equipment stock & allocations', 'note' => 'Add = receive item (new or returned), allocate; Update = equipment, asset types and categories; Delete = receives and allocations (System Administrator only)', 'read' => 'inv.view', 'add' => 'inv.create', 'update' => 'inv.update', 'delete' => 'inv.delete'],
             ['label' => 'Own allocated equipment', 'read' => 'inv.view.own', 'add' => null, 'update' => null, 'delete' => null],
+        ],
+        'File Management' => [
+            ['label' => 'Department files', 'note' => 'File number, title, shelf number and section; Delete = System Administrator only', 'read' => 'file.view', 'add' => 'file.create', 'update' => 'file.update', 'delete' => 'file.delete'],
         ],
         'Administration' => [
             ['label' => 'Users', 'note' => 'Delete = System Administrator only; a user who already has records can only be disabled', 'read' => 'user.view', 'add' => 'user.create', 'update' => 'user.update', 'delete' => 'user.delete'],
@@ -261,6 +272,12 @@ return [
             'inv.create' => 'Receive items (new or returned) and allocate items',
             'inv.update' => 'Manage equipment, asset types and categories',
             'inv.delete' => 'Delete receives and allocations (stock is adjusted back)',
+        ],
+        'File Management' => [
+            'file.view' => 'View department files',
+            'file.create' => 'Add department files',
+            'file.update' => 'Edit department files',
+            'file.delete' => 'Delete department files',
         ],
         'Administration' => [
             'user.view' => 'View users',

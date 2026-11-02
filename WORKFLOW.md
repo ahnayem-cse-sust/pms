@@ -87,6 +87,7 @@ Legend: ● = yes, ◐ = limited (see note), blank = no.
 Notes on ◐:
 - **IT Member** can change priority/category only if the Officer enables it; `ticket.work` applies only to tickets where `assigned_to` = self.
 - **IT Admin user.view/create/update**: can create and edit users and assign any role except System Administrator. System Administrator accounts are listed and can be viewed (read-only), but the System Administrator role is hidden from the role pickers, and the server rejects attempts to edit such an account or grant the role.
+- **File Management** (`file.*`): System Administrator = view/add/edit/delete; IT Admin = view/add/edit; delete is System Administrator only. Other roles have no access unless it is granted on the Roles screen.
 - **Department Users / Heads** never see which IT employees are assigned: the Primary (assigned employee) column is hidden in their request lists, as it already is on the request page.
 - **Department Users / Heads** do not see a request's History tab, its history PDF, or the History section of the closed-request PDF.
 - **Dept Head ticket.create.behalf**: may file requests only for users of their own department. Admin, IT Admin and IT Team Member may file for any user (System Administrator accounts are included).

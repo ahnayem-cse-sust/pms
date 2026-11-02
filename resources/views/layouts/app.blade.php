@@ -78,6 +78,11 @@
                 <x-icon name="bell"/> Notifications @if($unread)<span class="badge bg-danger count">{{ $unread }}</span>@endif</a></li>
             @endcan
 
+            {{-- File Management --}}
+            @can('menu.files')
+                <li><a class="nav-link {{ request()->routeIs('files.*') ? 'active' : '' }}" href="{{ route('files.index') }}"><x-icon name="folder"/> File Management</a></li>
+            @endcan
+
             {{-- Configuration --}}
             @can('menu.configuration')
                 <li><a class="nav-link {{ request()->routeIs('admin.lookups') ? 'active' : '' }}" href="{{ route('admin.lookups', 'service_types') }}"><x-icon name="folder"/> Configuration</a></li>

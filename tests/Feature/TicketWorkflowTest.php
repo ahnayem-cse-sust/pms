@@ -161,7 +161,9 @@ class TicketWorkflowTest extends TestCase
         $sales = $this->u('sales_user@joplc.com');
         $t = $this->submit($sales);
         $member = $this->u('it_emp@joplc.com');
-        $this->actingAs($this->u('it_admin@joplc.com'))->post(route('tickets.assign', $t), ['assignee_id' => $member->id]);
+        // Set directly (not through the assign screen): that screen flashes "Assigned to <name>." into the next page, which would show the name for another reason.
+        $t->forceFill(['assigned_to' => $member->id])->save();
+        $this->assertSame($member->id, $t->fresh()->assigned_to);
 
         $this->actingAs($sales)->get(route('dashboard'))->assertOk()->assertDontSee('<th>Primary</th>', false)->assertDontSee($member->name);
         $this->actingAs($this->u('it_admin@joplc.com'))->get(route('tickets.index'))->assertOk()->assertSee('<th>Primary</th>', false);

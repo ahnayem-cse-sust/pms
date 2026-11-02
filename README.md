@@ -210,3 +210,6 @@ To get real desktop pop-ups on the office PCs without HTTPS, allow the site in t
 - **Chrome / Edge, single PC:** open `chrome://flags/#unsafe-treat-insecure-origin-as-secure` (Edge: `edge://flags/...`), add `http://your-server-address`, set it to *Enabled* and relaunch the browser.
 - **Chrome / Edge, all PCs (Group Policy):** policy `OverrideSecurityRestrictionsOnInsecureOrigin` (Chrome) / `OverrideSecurityRestrictionsOnInsecureOrigin` (Edge) with the value `http://your-server-address`.
 - After that the button reads **Enable desktop alerts** and the pop-ups work.
+
+## File Management
+Tracks physical department files: file title, file number (unique), shelf no and section. Menu: File Management (`menu.files`). Permissions: `file.view`, `file.create`, `file.update`, `file.delete`. By default the System Administrator has all four and IT Admin has view/add/edit; delete is System Administrator only. Any role or single user can be given access on the Roles / Users screens. The list can be downloaded as a PDF (same search and section filter as the screen). Changes are written to the audit log.

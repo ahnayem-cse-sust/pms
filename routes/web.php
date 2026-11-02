@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\FileController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
@@ -32,6 +33,15 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile/photo', [ProfileController::class, 'removePhoto'])->name('profile.photo.remove');
     Route::get('/avatars/{user}', [ProfileController::class, 'avatar'])->name('avatar.show');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->middleware('throttle:10,1')->name('profile.password.update');
+
+    // File Management (department files)
+    Route::get('files', [FileController::class, 'index'])->middleware('can:file.view')->name('files.index');
+    Route::get('files/pdf', [FileController::class, 'pdf'])->middleware('can:file.view')->name('files.pdf');
+    Route::get('files/create', [FileController::class, 'create'])->middleware('can:file.create')->name('files.create');
+    Route::post('files', [FileController::class, 'store'])->middleware('can:file.create')->name('files.store');
+    Route::get('files/{file}/edit', [FileController::class, 'edit'])->middleware('can:file.update')->whereNumber('file')->name('files.edit');
+    Route::match(['put', 'patch'], 'files/{file}', [FileController::class, 'update'])->middleware('can:file.update')->whereNumber('file')->name('files.update');
+    Route::delete('files/{file}', [FileController::class, 'destroy'])->middleware('can:file.delete')->whereNumber('file')->name('files.destroy');
 
     // Tickets
     Route::get('/tickets', [TicketController::class, 'index'])->name('tickets.index');
