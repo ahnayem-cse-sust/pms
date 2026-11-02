@@ -141,6 +141,43 @@ class TicketWorkflowTest extends TestCase
         $this->actingAs($sales)->get(route('tickets.show', $t))->assertOk();
     }
 
+    public function test_system_administrator_can_be_chosen_as_the_requester_on_behalf_of(): void
+    {
+        $officer = $this->u('it_admin@joplc.com');
+        $sysadmin = $this->u('nayem.jocl@gmail.com');
+
+        $this->actingAs($officer)->get(route('tickets.create'))->assertOk()->assertSee($sysadmin->name);
+
+        $this->actingAs($officer)->post(route('tickets.store'), [
+            'requester_id' => $sysadmin->id, 'ticket_type_id' => 1, 'category_id' => 1, 'priority_id' => 3,
+            'subject' => 'Laptop issue (phone call)', 'description' => 'Reported by phone', 'department_id' => $sysadmin->department_id ?: 1,
+        ])->assertRedirect();
+
+        $this->assertSame($sysadmin->id, Ticket::latest('id')->firstOrFail()->requester_id);
+    }
+
+    public function test_department_users_do_not_see_the_assigned_it_employee_column(): void
+    {
+        $sales = $this->u('sales_user@joplc.com');
+        $t = $this->submit($sales);
+        $member = $this->u('it_emp@joplc.com');
+        $this->actingAs($this->u('it_admin@joplc.com'))->post(route('tickets.assign', $t), ['assignee_id' => $member->id]);
+
+        $this->actingAs($sales)->get(route('dashboard'))->assertOk()->assertDontSee('<th>Primary</th>', false)->assertDontSee($member->name);
+        $this->actingAs($this->u('it_admin@joplc.com'))->get(route('tickets.index'))->assertOk()->assertSee('<th>Primary</th>', false);
+    }
+
+    public function test_department_users_do_not_see_the_request_history(): void
+    {
+        $sales = $this->u('sales_user@joplc.com');
+        $t = $this->submit($sales);
+        $officer = $this->u('it_admin@joplc.com');
+
+        $this->actingAs($sales)->get(route('tickets.show', $t))->assertOk()->assertDontSee('tab-history', false);
+        $this->actingAs($sales)->get(route('tickets.history.pdf', $t))->assertRedirect()->assertSessionHas('denied');
+        $this->actingAs($officer)->get(route('tickets.show', $t))->assertOk()->assertSee('tab-history', false);
+    }
+
     public function test_it_employee_sees_requests_filed_for_others_in_my_requests_without_details_access(): void
     {
         $emp = $this->u('it_emp@joplc.com');

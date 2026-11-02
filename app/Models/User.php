@@ -86,6 +86,12 @@ class User extends Authenticatable
         return $this->roles->contains('slug', $slug);
     }
 
+    /** A Department User / Department Head who is not IT staff or management (they never see which IT employees are assigned). */
+    public function isDepartmentUser(): bool
+    {
+        return ($this->isRole('dept_user') || $this->isRole('dept_head')) && ! $this->hasPermission('ticket.list.all');
+    }
+
     public function scopeActive($q) { return $q->where('is_active', true); }
 
     /** Staff who can be assigned tickets: IT Team Members and IT Admins (config itsm.assignable_roles). */

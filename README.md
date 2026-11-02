@@ -29,7 +29,7 @@ These passwords are weak: change them after the first login (key icon in the top
 Scheduler (SLA checks every 5 min, auto-close hourly): add to cron  
 `* * * * * cd /path/to/app && php artisan schedule:run >> /dev/null 2>&1`
 
-Audit log, Login history and System Settings are restricted to the System Administrator role. IT Admin can create and edit users, but System Administrator accounts and the System Administrator role are hidden from them. User records hold a WhatsApp number (not a phone number); all user fields are mandatory when creating a user.
+Audit log, Login history and System Settings are restricted to the System Administrator role. IT Admin can create and edit users. System Administrator accounts appear in the users list and can be viewed by anyone with user access, but only a System Administrator can edit them or assign that role. User records hold a WhatsApp number (not a phone number); all user fields are mandatory when creating a user.
 
 Upgrading an existing install: run `php artisan migrate` (renames the user phone column to `whatsapp` and refreshes role names/permissions), then `php artisan optimize:clear`.
 

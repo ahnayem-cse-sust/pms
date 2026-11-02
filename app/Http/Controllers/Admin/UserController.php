@@ -27,10 +27,8 @@ class UserController extends Controller
                 ->orWhereHas('designation', fn ($d) => $d->where('name', 'like', "%$s%"))))
             ->when($r->department_id, fn ($q, $v) => $q->where('department_id', $v))
             ->when($r->role_id, fn ($q, $v) => $q->whereHas('roles', fn ($x) => $x->where('roles.id', $v)))
-            // Only a System Administrator can see System Administrator accounts
-            ->when(! $this->actorIsAdmin(), fn ($q) => $q->whereDoesntHave('roles', fn ($x) => $x->whereIn('roles.id', $this->privilegedRoleIds())))
             ->orderBy('name')->paginate(25)->withQueryString();
-        return view('admin.users.index', ['users' => $users, 'roles' => $this->assignableRoles(), 'departments' => \App\Models\Department::orderBy('name')->get(['id', 'name'])]);
+        return view('admin.users.index', ['users' => $users, 'roles' => Role::orderBy('name')->get(), 'departments' => \App\Models\Department::orderBy('name')->get(['id', 'name'])]);
     }
 
     public function create()
@@ -55,13 +53,14 @@ class UserController extends Controller
 
     public function show(User $user)
     {
-        $this->guardTarget($user);
+        // Every account (System Administrators included) can be viewed; editing stays guarded.
         $user->load(['roles', 'department', 'designation', 'location']);
 
         return view('admin.users.show', [
             'user' => $user,
             'permGroups' => $this->permissionSummary($user),
             'canEditPermissions' => $this->canEditPermissions($user),
+            'canManage' => $this->actorIsAdmin() || ! $user->roles->contains(fn ($r) => $this->isPrivileged($r)),
             'blockers' => auth()->user()->can('user.delete') ? $this->deleteBlockers($user) : [],
         ]);
     }

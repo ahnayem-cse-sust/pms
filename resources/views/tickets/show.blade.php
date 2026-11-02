@@ -139,7 +139,7 @@
                         <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-work" type="button" role="tab"><x-icon name="check" :size="16"/> Team progress <span class="count">{{ $workUpdates->count() }}</span></button></li>
                     @endif
                     <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-files" type="button" role="tab"><x-icon name="paperclip" :size="16"/> Attachments <span class="count">{{ $attachments->count() }}</span></button></li>
-                        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-history" type="button" role="tab"><x-icon name="clock" :size="16"/> History</button></li>
+                        @unless(auth()->user()->isDepartmentUser())<li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-history" type="button" role="tab"><x-icon name="clock" :size="16"/> History</button></li>@endunless
                 </ul>
             </div>
             <div class="card-body tab-content">
@@ -246,6 +246,7 @@
                     @endcan
                 </div>
 
+                @unless(auth()->user()->isDepartmentUser())
                 {{-- History --}}
                 <div class="tab-pane fade" id="tab-history" role="tabpanel">
                     <div class="d-flex justify-content-end mb-3">
@@ -261,6 +262,7 @@
                         @endforeach
                     </ul>
                 </div>
+                @endunless
             </div>
         </div>
     </div>

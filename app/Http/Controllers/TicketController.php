@@ -132,16 +132,12 @@ class TicketController extends Controller
         $q = User::active()->with(['department', 'designation', 'location'])->where('id', '!=', $actor->id)->orderBy('name');
 
         if ($actor->hasPermission('ticket.create.behalf')) {
-            // IT staff and administrators: anyone (System Administrator accounts stay hidden from non-admins)
-            if (! $actor->isRole('admin')) {
-                $q->whereDoesntHave('roles', fn ($x) => $x->where('slug', 'admin'));
-            }
+            // IT staff and administrators: anyone, System Administrator accounts included
             return $q->get();
         }
         if ($actor->hasPermission('ticket.create.behalf.dept') && $actor->department_id) {
             // Department heads: their own department only
-            return $q->where('department_id', $actor->department_id)
-                ->whereDoesntHave('roles', fn ($x) => $x->where('slug', 'admin'))->get();
+            return $q->where('department_id', $actor->department_id)->get();
         }
         return collect();
     }
@@ -239,7 +235,7 @@ class TicketController extends Controller
         $reqNo = str_replace('-', '', $ticket->ticket_no);
 
         return Pdf::loadView('tickets.request_pdf', [
-            'ticket' => $ticket, 'reqNo' => $reqNo, 'seeInternal' => $seeInternal,
+            'ticket' => $ticket, 'reqNo' => $reqNo, 'seeInternal' => $seeInternal, 'hideHistory' => $u->isDepartmentUser(),
             'notes' => $seeInternal ? $ticket->notes()->with('user')->get() : collect(),
             'workUpdates' => $seeInternal ? $ticket->workUpdates()->with('user')->get() : collect(),
             'workStatuses' => TicketService::WORK_STATUSES,
@@ -254,6 +250,7 @@ class TicketController extends Controller
     {
         $this->authorizeView($ticket);
         $u = auth()->user();
+        abort_if($u->isDepartmentUser(), 403, 'The request history is not available to department users.');
         $ticket->load(['department', 'category', 'subcategory', 'status', 'requester', 'creator', 'history']);
         $reqNo = str_replace('-', '', $ticket->ticket_no);
 

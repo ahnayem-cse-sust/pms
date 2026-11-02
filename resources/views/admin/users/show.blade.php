@@ -8,7 +8,7 @@
 @endphp
 <div class="d-flex flex-wrap gap-2 mb-3">
     <a href="{{ route('admin.users.index') }}" class="btn btn-outline-secondary inv-back"><x-icon name="arrow-left" :size="15"/> Users</a>
-    @can('user.update')<a href="{{ route('admin.users.edit', $user) }}" class="btn btn-primary ms-md-auto inv-back"><x-icon name="edit" :size="15"/> Edit</a>@endcan
+    @can('user.update')@if($canManage)<a href="{{ route('admin.users.edit', $user) }}" class="btn btn-primary ms-md-auto inv-back"><x-icon name="edit" :size="15"/> Edit</a>@endif @endcan
     @can('user.delete')@unless($isSelf)<form method="POST" action="{{ route('admin.users.destroy', $user) }}" @class(['ms-md-auto' => ! auth()->user()->can('user.update')]) onsubmit="return confirm('Delete {{ addslashes($user->name) }}? This cannot be undone.');">@csrf @method('DELETE')<span @if($why) title="{{ $why }}" @endif><button class="btn btn-outline-danger inv-back" @disabled($why !== '')><x-icon name="trash" :size="15"/> Delete</button></span></form>@endunless @endcan
 </div>
 @php

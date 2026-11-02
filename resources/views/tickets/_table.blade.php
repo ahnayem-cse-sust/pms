@@ -1,11 +1,12 @@
 @php($mine = ($mode ?? '') === 'mine')
 @php($showType = $mine || ($mode ?? '') === '')
+@php($showAssignee = ! $mine && ! auth()->user()->isDepartmentUser())
 @php($showRole = in_array($mode ?? '', ['tasks', 'completed'], true))
 <div class="table-card">
 <div class="table-responsive">
 <table class="table table-hover align-middle">
     <thead>
-        <tr><th>Request ID</th><th>Subject</th>@if($showType)<th>Service type</th>@endif<th>Category</th>@unless($mine)<th>Primary</th>@endunless @if($showRole)<th>My role</th>@endif <th>Status</th><th>{{ ($mode ?? '') === 'completed' ? 'Completed' : 'Created' }}</th></tr>
+        <tr><th>Request ID</th><th>Subject</th>@if($showType)<th>Service type</th>@endif<th>Category</th>@if($showAssignee)<th>Primary</th>@endif @if($showRole)<th>My role</th>@endif <th>Status</th><th>{{ ($mode ?? '') === 'completed' ? 'Completed' : 'Created' }}</th></tr>
     </thead>
     <tbody>
     @forelse($tickets as $t)
@@ -16,7 +17,7 @@
             <td style="min-width:240px">{{ \Illuminate\Support\Str::limit($t->subject, 90) }}@if($mine && $t->created_by !== $t->requester_id)<div class="ticket-sub">@if($t->created_by === auth()->id())On behalf of {{ $t->requester->name ?? $t->requester_name }}@else Filed by {{ $t->creator->name ?? '—' }}@endif</div>@endif</td>
             @if($showType)<td class="text-nowrap">{{ $t->type->name ?? '—' }}</td>@endif
             <td>{{ $t->category->name ?? '' }}@if($t->subcategory)<div class="ticket-sub">{{ $t->subcategory->name }}</div>@endif</td>
-            @unless($mine)
+            @if($showAssignee)
             <td>
                 @if($t->assignee)
                     <span class="d-inline-flex align-items-center gap-2"><x-avatar :name="$t->assignee->name" :user="$t->assignee"/> {{ $t->assignee->name }}</span>
@@ -24,7 +25,7 @@
                     @if($sup->isNotEmpty())<span class="pill pill-secondary" title="Supporting: {{ $sup->map(fn ($m) => $m->employee->name)->implode(', ') }}">+{{ $sup->count() }}</span>@endif
                 @else <span class="text-muted">Unassigned</span> @endif
             </td>
-            @endunless
+            @endif
             @if($showRole)
                 <td><span class="pill pill-{{ $t->assigned_to === auth()->id() ? 'primary' : 'secondary' }}">{{ $t->assigned_to === auth()->id() ? 'Primary' : 'Support' }}</span></td>
             @endif
@@ -32,7 +33,7 @@
             <td class="text-nowrap text-muted">{{ (($mode ?? '') === 'completed' ? ($t->resolved_at ?? $t->closed_at ?? $t->updated_at) : $t->created_at)->format('d M Y h:i A') }}</td>
         </tr>
     @empty
-        <tr><td colspan="{{ 5 + ($showType ? 1 : 0) + ($mine ? 0 : 1) + ($showRole ? 1 : 0) }}" class="text-center text-muted py-5">No requests found.</td></tr>
+        <tr><td colspan="{{ 5 + ($showType ? 1 : 0) + ($showAssignee ? 1 : 0) + ($showRole ? 1 : 0) }}" class="text-center text-muted py-5">No requests found.</td></tr>
     @endforelse
     </tbody>
 </table>

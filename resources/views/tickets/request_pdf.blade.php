@@ -93,6 +93,7 @@
     <div class="muted">No attachments.</div>
 @endforelse
 
+@unless($hideHistory ?? false)
 <h2>History</h2>
 <table class="data">
     <thead><tr><th style="width:24%">Date &amp; time</th><th>Activity</th></tr></thead>
@@ -107,6 +108,7 @@
     @endforelse
     </tbody>
 </table>
+@endunless
 
 <div class="foot">Request {{ $reqNo }} &middot; generated {{ $generatedAt->format('d M Y h:i A') }} (GMT+6) by {{ $generatedBy }}</div>
 </body>

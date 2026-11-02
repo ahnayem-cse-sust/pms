@@ -51,9 +51,19 @@ class UserManagementTest extends TestCase
         $this->actingAs($this->person())->get(route('admin.users.show', $this->officer()))->assertRedirect()->assertSessionHas('denied');
     }
 
-    public function test_it_admin_cannot_open_the_details_of_a_system_administrator(): void
+    public function test_the_users_list_includes_system_administrators_for_everyone_who_can_view_users(): void
     {
-        $this->actingAs($this->officer())->get(route('admin.users.show', $this->sysadmin()))->assertRedirect()->assertSessionHas('denied');
+        $admin = $this->sysadmin();
+        $this->actingAs($this->officer())->get(route('admin.users.index'))->assertOk()->assertSee(route('admin.users.show', $admin), false);
+        $this->actingAs($admin)->get(route('admin.users.index'))->assertOk()->assertSee(route('admin.users.show', $admin), false);
+    }
+
+    public function test_it_admin_can_view_but_not_edit_a_system_administrator(): void
+    {
+        $admin = $this->sysadmin();
+        $res = $this->actingAs($this->officer())->get(route('admin.users.show', $admin))->assertOk();
+        $res->assertSee($admin->email)->assertDontSee(route('admin.users.edit', $admin), false);
+        $this->actingAs($this->officer())->get(route('admin.users.edit', $admin))->assertRedirect()->assertSessionHas('denied');
     }
 
     public function test_saving_an_edit_returns_to_the_details_page(): void
