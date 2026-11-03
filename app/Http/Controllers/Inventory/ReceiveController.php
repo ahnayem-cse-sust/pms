@@ -90,9 +90,6 @@ class ReceiveController extends InvController
         $d = $r->validate(['source' => 'required|in:SUPPLIER,EMPLOYEE,DEPARTMENT,PREVIOUS', 'date' => 'required|date|before_or_equal:today',
             'supplier' => 'nullable|string|max:255', 'user_id' => 'required_if:source,EMPLOYEE|nullable|exists:users,id',
             'department_id' => 'required_if:source,DEPARTMENT|nullable|exists:departments,id', 'reference_no' => 'nullable|string|max:255', 'remarks' => 'nullable|string|max:1000',
-            'held_type' => 'nullable|in:NONE,EMPLOYEE,DEPARTMENT',
-            'held_user_id' => [Rule::requiredIf(fn () => $r->source === 'PREVIOUS' && $r->held_type === 'EMPLOYEE'), 'nullable', 'exists:users,id'],
-            'held_department_id' => [Rule::requiredIf(fn () => $r->source === 'PREVIOUS' && $r->held_type === 'DEPARTMENT'), 'nullable', 'exists:departments,id'],
             'lines' => 'required|array|min:1', 'lines.*.equipment_id' => 'required|exists:inv_equipment,id', 'lines.*.serial_no' => 'nullable|string|max:60',
             'lines.*.qty' => [Rule::requiredIf(fn () => in_array($r->source, ['SUPPLIER', 'PREVIOUS'])), 'nullable', 'numeric', 'gt:0']]);   // a returned serialisable unit needs no quantity
         $lines = array_values($d['lines']);
@@ -105,8 +102,7 @@ class ReceiveController extends InvController
         }
 
         if ($d['source'] === 'PREVIOUS') {
-            $held = $d['held_type'] ?? 'NONE';
-            $entry = $this->svc()->receivePrevious($d, $lines, $held === 'NONE' ? null : ['type' => $held, 'user_id' => $d['held_user_id'] ?? null, 'department_id' => $d['held_department_id'] ?? null]);
+            $entry = $this->svc()->receivePrevious($d, $lines, null);   // previous items received here always go to the store; ones already in use are entered as a previous allocation
 
             return redirect()->route('inv.receives')->with('ok', "Previous items added and recorded as {$entry}.");
         }

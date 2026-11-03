@@ -1273,3 +1273,11 @@ a.inv-chip:hover{ border-color:var(--primary); color:var(--primary); }
 .inv-line .ss-panel{ min-width:min(380px,92vw); }
 .inv-line .ss-btn{ min-height:31px; }
 .inv-line .ss-item span{ white-space:normal; overflow-wrap:anywhere; }
+
+.board-col.onhold{ border-color:#e11d48; background:color-mix(in srgb,#ffe4e6 55%,var(--card)); }
+[data-bs-theme=dark] .board-col.onhold{ border-color:#e11d48; background:color-mix(in srgb,#881337 35%,var(--card)); }
+.board-col.onhold .board-head{ color:#9f1239; border-bottom-color:#fda4af; }
+[data-bs-theme=dark] .board-col.onhold .board-head{ color:#fecdd3; border-bottom-color:#9f1239; }
+.board-col.onhold .tcard{ border-left-color:#e11d48; }
+
+.inv-form-card .t .ss-btn{ min-height:38px; font-size:1rem; }

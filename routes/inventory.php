@@ -40,6 +40,7 @@ Route::middleware('auth')->prefix('inventory')->name('inv.')->group(function () 
     Route::get('allocations/holder/{holder}', [I\AllocationController::class, 'holder'])->middleware('can:inv.view')->where('holder', '[ED]-[0-9]+')->name('allocations.holder');
     Route::delete('allocations/{entry}', [I\AllocationController::class, 'destroy'])->middleware('can:inv.delete')->where('entry', '[A-Z]{2,3}-[0-9]+')->name('allocations.destroy');
     Route::get('allocations/{entry}/pdf', [I\AllocationController::class, 'pdf'])->name('allocations.pdf');
+    Route::get('allocations/{entry}/pdf-bn', [I\AllocationController::class, 'pdfBn'])->name('allocations.pdf.bn');
     Route::get('allocations/{entry}', [I\AllocationController::class, 'show'])->where('entry', '[A-Z]{2,3}-[0-9]+')->name('allocations.show');
     Route::get('my-items', [I\AllocationController::class, 'mine'])->name('mine');
 

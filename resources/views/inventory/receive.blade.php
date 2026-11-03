@@ -21,10 +21,6 @@
             </select></div>
         <div class="col-md-3"><label class="form-label">Date *</label><input type="date" name="date" value="{{ old('date', today()->format('Y-m-d')) }}" max="{{ today()->format('Y-m-d') }}" class="form-control" required></div>
         <div class="col-md-6 s s-SUPPLIER s-PREVIOUS"><label class="form-label">Supplier <span class="text-muted small" id="suplabel"></span></label><input name="supplier" value="{{ old('supplier') }}" class="form-control"></div>
-        <div class="col-md-3 s s-PREVIOUS" style="display:none"><label class="form-label">Currently with</label><select name="held_type" id="ht" class="form-select" onchange="held()">
-            <option value="NONE" @selected(old('held_type', 'NONE') === 'NONE')>In store</option><option value="EMPLOYEE" @selected(old('held_type') === 'EMPLOYEE')>An employee</option><option value="DEPARTMENT" @selected(old('held_type') === 'DEPARTMENT')>A department</option></select></div>
-        <div class="col-md-3 s s-PREVIOUS h h-EMPLOYEE" style="display:none"><label class="form-label">Employee *</label><select name="held_user_id" class="form-select"><option value="">Select…</option>@foreach($people as $p)<option value="{{ $p->id }}" @selected(old('held_user_id') == $p->id)>{{ $p->name }} ({{ $p->employee_id }})</option>@endforeach</select></div>
-        <div class="col-md-3 s s-PREVIOUS h h-DEPARTMENT" style="display:none"><label class="form-label">Department *</label><select name="held_department_id" class="form-select"><option value="">Select…</option>@foreach($departments as $d)<option value="{{ $d->id }}" @selected(old('held_department_id') == $d->id)>{{ $d->name }}</option>@endforeach</select></div>
         <div class="col-md-6 s s-EMPLOYEE" style="display:none"><label class="form-label">Employee returning *</label><select name="user_id" id="hu" class="form-select" onchange="holderChanged()"><option value="">Select…</option>@foreach($holders->filter(fn ($h) => str_starts_with($h['key'], 'E:')) as $h)<option value="{{ substr($h['key'], 2) }}" @selected($from === $h['key'])>{{ $h['label'] }}</option>@endforeach</select></div>
         <div class="col-md-6 s s-DEPARTMENT" style="display:none"><label class="form-label">Department returning *</label><select name="department_id" id="hd" class="form-select" onchange="holderChanged()"><option value="">Select…</option>@foreach($holders->filter(fn ($h) => str_starts_with($h['key'], 'D:')) as $h)<option value="{{ substr($h['key'], 2) }}" @selected($from === $h['key'])>{{ $h['label'] }}</option>@endforeach</select></div>
         <div class="col-md-6"><label class="form-label" id="reflabel">Invoice / challan / PO no.</label><input name="reference_no" value="{{ old('reference_no') }}" class="form-control"></div>
@@ -56,20 +52,15 @@ function esc(s) { return String(s).replace(/</g, '&lt;'); }
 function count() { document.getElementById('cnt').textContent = document.querySelectorAll('#lines .inv-line').length; }
 function options() {
     if (isNew()) return ALL.map(function (x) { return {id: x.id, label: x.label}; });
-    return (HOLD[holderKey()] || []).map(function (x) { return {id: x.id, label: x.label + ' – holds ' + x.held, held: x.held}; });
-}
-function held() {
-    var on = mode() === 'PREVIOUS', t = document.getElementById('ht').value;
-    document.querySelectorAll('.h').forEach(function (e) { var show = on && e.classList.contains('h-' + t); e.style.display = show ? '' : 'none'; e.querySelectorAll('select').forEach(function (s) { s.disabled = !show; }); });
+    return (HOLD[holderKey()] || []).map(function (x) { return {id: x.id, label: x.label + ' – holds ' + x.held, held: x.held, serial: x.serial, serialized: x.serialized}; });
 }
 function sw() {
     var m = mode();
     document.querySelectorAll('.s').forEach(function (e) { var on = e.classList.contains('s-' + m); e.style.display = on ? '' : 'none'; e.querySelectorAll('select,input').forEach(function (s) { s.disabled = !on; }); });
-    held();
     document.getElementById('reflabel').textContent = m === 'SUPPLIER' ? 'Invoice / challan / PO no.' : (m === 'PREVIOUS' ? 'Old invoice / voucher no.' : 'Return slip / reference');
     document.getElementById('suplabel').textContent = m === 'PREVIOUS' ? '(original supplier, optional)' : '';
     document.getElementById('hint').textContent = m === 'SUPPLIER' ? 'Stock is added as soon as you save, and a record is written.'
-        : (m === 'PREVIOUS' ? 'Use the date the item was originally received. If it is already with an employee or department, choose who: stock stays unchanged and they can return it later through Receives.'
+        : (m === 'PREVIOUS' ? 'Use the date the item was originally received. It is added to the store. If it is already with an employee or department, record it from Allocate Equipment as a previous allocation.'
         : 'Returned items go back into stock as soon as you save. Only items the person / department holds can be returned, up to the quantity they hold.');
     rebuild();
 }

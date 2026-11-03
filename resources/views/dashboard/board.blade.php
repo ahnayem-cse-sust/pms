@@ -7,7 +7,7 @@
 <div id="board" v-cloak>
     <div class="board">
         <div v-for="col in cols" :key="col.id === null ? col.key : col.id"
-             class="board-col" :class="{ unassigned: col.key === 'unassigned', backlog: col.key === 'backlog', 'col-over': colOver === col.id && colDrag && colDrag.id !== col.id, 'col-moving': colDrag && colDrag.id === col.id }"
+             class="board-col" :class="{ unassigned: col.key === 'unassigned', backlog: col.key === 'backlog', onhold: col.key === 'onhold', 'col-over': colOver === col.id && colDrag && colDrag.id !== col.id, 'col-moving': colDrag && colDrag.id === col.id }"
              v-on:dragover.prevent="onDragOver(col)"
              v-on:dragleave="colOver = null"
              v-on:drop.prevent="moveColumn(col)">
@@ -31,10 +31,11 @@
                     </div>
                     <div class="subj">[[ t.subject ]]</div>
                     <div v-if="t.role === 'support'" class="ticket-sub mb-1">Primary: [[ t.primary || '—' ]]</div>
+                    <div v-else-if="col.key === 'onhold'" class="ticket-sub mb-1">Assigned: [[ t.primary || 'Unassigned' ]]</div>
                     <div v-else-if="t.support && t.support.length" class="ticket-sub mb-1">+ support: [[ t.support.join(', ') ]]</div>
                     <div class="meta"><span>[[ t.dept ]]<template v-if="t.due"> · due [[ t.due ]]</template></span></div>
                 </a>
-                <div v-if="!col.tickets.length" class="empty-hint">[[ col.key === 'backlog' ? 'Backlog is empty' : (col.id === null ? 'Nothing waiting 🎉' : 'No open tickets') ]]</div>
+                <div v-if="!col.tickets.length" class="empty-hint">[[ col.key === 'backlog' ? 'Backlog is empty' : col.key === 'onhold' ? 'Nothing on hold' : (col.id === null ? 'Nothing waiting 🎉' : 'No open tickets') ]]</div>
             </div>
         </div>
     </div>
@@ -65,7 +66,7 @@ Vue.createApp({
             var moving = this.colDrag; this.colDrag = null; this.colOver = null;
             if (!moving || target.id === null || target.id === moving.id) return;
             var from = this.cols.indexOf(moving), to = this.cols.indexOf(target);
-            this.cols.splice(from, 1); this.cols.splice(to, 0, moving);   // the Backlog and Unassigned columns always stay first
+            this.cols.splice(from, 1); this.cols.splice(to, 0, moving);   // the Backlog and Unassigned columns stay first, On Hold stays last
             var ids = this.cols.filter(function (c) { return c.id !== null; }).map(function (c) { return c.id; });
             try {
                 var res = await fetch(BOARD.orderUrl, { method: 'POST',

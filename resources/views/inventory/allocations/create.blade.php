@@ -11,6 +11,9 @@
         <div class="col-md-4 t t-DEPARTMENT" style="display:none"><label class="form-label">Department</label><select name="department_id" class="form-select"><option value="">Select…</option>@foreach($departments as $d)<option value="{{ $d->id }}" @selected(old('department_id') == $d->id)>{{ $d->name }}</option>@endforeach</select></div>
         <div class="col-md-2"><label class="form-label">Date *</label><input type="date" name="date" value="{{ old('date', today()->format('Y-m-d')) }}" max="{{ today()->format('Y-m-d') }}" class="form-control" required></div>
         <div class="col-md-3"><label class="form-label">Reference (request no., voucher)</label><input name="reference_no" value="{{ old('reference_no') }}" class="form-control"></div>
+        <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" name="previous" value="1" id="prev" onchange="prevMode()" @checked(old('previous'))>
+            <label class="form-check-label" for="prev"><strong>Previous allocation</strong> – the equipment was already with them before this system</label></div>
+            <div class="form-text" id="prevhelp" style="display:none">Use the date it was originally handed over. Stock is not reduced: the item is added to stock and allocated on that date, so it shows in "Who has what" and can be returned later. Asset IDs are generated as usual.</div></div>
     </div></div>
 </div>
 
@@ -19,7 +22,7 @@
     <div class="card-body">
         <div id="lines" class="inv-lines"></div>
         <button type="button" class="btn btn-sm btn-outline-primary" onclick="addLine()">+ Add equipment</button>
-        <div class="form-text">Stock reduces as soon as you save, and the allocation is recorded. Serialisable equipment is one unit per line and its Asset ID is shown (read-only) on the line; other equipment needs a quantity.</div>
+        <div class="form-text" id="stocknote">Stock reduces as soon as you save, and the allocation is recorded. Serialisable equipment is one unit per line and its Asset ID is shown (read-only) on the line; other equipment needs a quantity.</div>
     </div>
 </div>
 <div class="inv-actionbar"><button class="btn btn-primary"><x-icon name="check" :size="15"/> Allocate</button><a href="{{ route('inv.allocations.index') }}" class="btn btn-outline-secondary">Cancel</a></div>
@@ -33,17 +36,30 @@
 @push('scripts')
 <script src="{{ asset('js/searchable-select.js') }}"></script>
 <script>
-var E = @json($equipmentJs), n = 0;
+var ALL = @json($equipmentJs), E = ALL, n = 0;
+function isPrev() { return document.getElementById('prev').checked; }
+// A normal allocation can only use what is in stock; a previous allocation can use any equipment. Changing the mode restarts the equipment list.
+function prevMode(init) {
+    var p = isPrev();
+    E = p ? ALL : ALL.filter(function (x) { return x.stock > 0; });
+    document.getElementById('prevhelp').style.display = p ? '' : 'none';
+    document.getElementById('stocknote').style.display = p ? 'none' : '';
+    if (init !== true) { document.getElementById('lines').innerHTML = ''; n = 0; addLine(); }
+}
 function count() { document.getElementById('cnt').textContent = document.querySelectorAll('#lines .inv-line').length; }
 function sw() { var v = document.getElementById('tt').value; document.querySelectorAll('.t').forEach(function (e) { var on = e.classList.contains('t-' + v); e.style.display = on ? '' : 'none'; e.querySelectorAll('select').forEach(function (s) { s.disabled = !on; }); }); }
 sw();
+// searchable employee / department pickers (type to filter by name or employee ID)
+searchableSelect(document.querySelector('select[name=user_id]'), 'Select…');
+searchableSelect(document.querySelector('select[name=department_id]'), 'Select…');
 function pick(sel) {
     var row = sel.closest('.row'), q = row.querySelector('input[type=number]'), sn = row.querySelector('.snum'), lb = row.querySelector('.lbl-q'), x = E.find(function (e) { return String(e.id) === sel.value; }),
         hint = sel.closest('.inv-line').querySelector('.inv-hint');
     var dsn = row.querySelector('.dsn'); dsn.style.display = (x && x.serialized) ? '' : 'none'; dsn.querySelector('input').disabled = !(x && x.serialized); if (!(x && x.serialized)) dsn.querySelector('input').value = '';
     if (x && x.serialized) { q.value = ''; q.disabled = true; q.required = false; q.style.display = 'none'; sn.style.display = ''; lb.textContent = 'Asset ID'; }
     else { q.disabled = false; q.required = true; q.style.display = ''; sn.style.display = 'none'; sn.value = ''; lb.textContent = 'Quantity'; if (x) q.max = x.stock; else q.removeAttribute('max'); }
-    hint.textContent = x ? (x.serialized ? 'One unit per line, Asset ID assigned automatically.' : 'Available: ' + x.stock) : '';
+    if (x && !x.serialized && isPrev()) q.removeAttribute('max');
+    hint.textContent = x ? (x.serialized ? 'One unit per line, Asset ID assigned automatically.' : (isPrev() ? 'Previous allocation: stock is not reduced.' : 'Available: ' + x.stock)) : '';
     serials();
 }
 // Shows the serial each serialisable line will get: units that came back first, then new numbers, in line order.
@@ -53,7 +69,7 @@ function serials() {
         var sel = row.querySelector('select'), sn = row.querySelector('.snum'), x = E.find(function (e) { return String(e.id) === sel.value; });
         if (!x || !x.serialized || !x.serial) return;
         var k = used[x.id] || 0; used[x.id] = k + 1;
-        var s = k < x.serial.pool.length ? x.serial.pool[k] : x.serial.code + String(x.serial.next + k - x.serial.pool.length).padStart(4, '0');
+        var pool = isPrev() ? [] : x.serial.pool, s = k < pool.length ? pool[k] : x.serial.code + String(x.serial.next + k - pool.length).padStart(4, '0');
         sn.value = s;
     });
 }
@@ -70,6 +86,7 @@ function addLine() {
     searchableSelect(d.querySelector('select'), 'Equipment…');
     count();
 }
+prevMode(true);
 addLine();
 </script>
 @endpush

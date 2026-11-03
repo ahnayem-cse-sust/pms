@@ -70,7 +70,8 @@ class AllocationController extends InvController
 
     public function create()
     {
-        $equipment = $this->equipment()->where('stock_qty', '>', 0)->values();
+        // All equipment is offered: a previous allocation does not need anything in stock (the page narrows the list to what is in stock for a normal allocation)
+        $equipment = $this->equipment();
         $serials = $equipment->filter(fn ($e) => $e->is_serialized)->mapWithKeys(fn ($e) => [$e->id => $this->svc()->serialInfo($e)]);
 
         return view('inventory.allocations.create', ['equipment' => $equipment, 'serials' => $serials, 'people' => $this->people(), 'departments' => $this->departments()]);
@@ -79,7 +80,7 @@ class AllocationController extends InvController
     public function store(Request $r)
     {
         $d = $r->validate(['to_type' => 'required|in:EMPLOYEE,DEPARTMENT', 'user_id' => 'required_if:to_type,EMPLOYEE|nullable|exists:users,id',
-            'department_id' => 'required_if:to_type,DEPARTMENT|nullable|exists:departments,id', 'date' => 'required|date|before_or_equal:today', 'reference_no' => 'nullable|string|max:255',
+            'department_id' => 'required_if:to_type,DEPARTMENT|nullable|exists:departments,id', 'date' => 'required|date|before_or_equal:today', 'reference_no' => 'nullable|string|max:255', 'previous' => 'nullable|boolean',
             'lines' => 'required|array|min:1', 'lines.*.equipment_id' => 'required|exists:inv_equipment,id', 'lines.*.qty' => 'nullable|numeric|gt:0', 'lines.*.purpose' => 'nullable|string|max:500', 'lines.*.device_serial_no' => 'nullable|string|max:120']);
         $lines = array_values($d['lines']);
         $this->assertSelectable($lines);
@@ -90,9 +91,65 @@ class AllocationController extends InvController
             if (! $e->is_serialized && empty($l['qty'])) throw ValidationException::withMessages(["lines.$i.qty" => "Enter a quantity for {$e->name}."]);
         }
 
+        // Previous allocation: the item was already with them before this system. It is added to stock with the original date and handed out
+        // on the same date, so stock stays unchanged and the holder shows in "Who has what" (and can return it later through Receives).
+        if ($r->boolean('previous')) {
+            foreach ($lines as $i => $l) {
+                if (Equipment::find($l['equipment_id'])->is_serialized) $lines[$i]['qty'] = 1;   // serialisable equipment is one unit per line
+            }
+            $this->svc()->receivePrevious($d, $lines, ['type' => $d['to_type'], 'user_id' => $d['user_id'] ?? null, 'department_id' => $d['department_id'] ?? null]);
+            $entry = $this->svc()->lastAllocEntry;
+
+            return redirect()->route('inv.allocations.entries')->with('ok', "Previous allocation recorded as {$entry}.");
+        }
+
         $entry = $this->svc()->allocate(['type' => $d['to_type'], 'user_id' => $d['user_id'] ?? null, 'department_id' => $d['department_id'] ?? null], $d, $lines);
 
         return redirect()->route('inv.allocations.entries')->with('ok', "Allocated and recorded as {$entry}.");
+    }
+
+    /**
+     * How much of each allocation line has been returned, keyed by movement id. A serialisable unit is returned when a later return of
+     * the same asset ID by the same holder exists; other equipment: the holder's returns are applied to their allocations oldest first.
+     *
+     * @param \Illuminate\Support\Collection $lines ALLOCATE movements
+     * @return array<int,float>
+     */
+    /** Return entries (RC-…) that brought each allocation line back, keyed by movement id; filled by returnedByLine(). */
+    protected array $returnEntries = [];
+
+    protected function returnedByLine($lines): array
+    {
+        $out = [];
+        $this->returnEntries = [];
+        $same = fn ($q, $m) => $q->where('equipment_id', $m->equipment_id)->where('holder_type', $m->holder_type)
+            ->where('holder_user_id', $m->holder_user_id)->where('holder_department_id', $m->holder_department_id);
+        foreach ($lines->whereNotNull('serial_no') as $m) {
+            $r = $same(Movement::where('type', 'RETURN')->where('serial_no', $m->serial_no)->where('id', '>', $m->id), $m)->orderBy('id')->first();
+            $out[$m->id] = $r ? abs((float) $m->qty) : 0.0;
+            if ($r && $r->entry_no) $this->returnEntries[$m->id] = [$r->entry_no];
+        }
+        foreach ($lines->whereNull('serial_no')->groupBy(fn ($m) => implode('|', [$m->equipment_id, $m->holder_type, $m->holder_user_id, $m->holder_department_id])) as $g) {
+            $first = $g->first();
+            $rets = $same(Movement::where('type', 'RETURN')->whereNull('serial_no'), $first)->orderBy('id')->get()->map(fn ($x) => ['entry' => $x->entry_no, 'left' => (float) $x->qty])->all();
+            foreach ($same(Movement::where('type', 'ALLOCATE')->whereNull('serial_no'), $first)->orderBy('id')->get() as $a) {
+                $need = abs((float) $a->qty);
+                $out[$a->id] = 0.0;
+                foreach ($rets as &$x) {
+                    if ($need <= 0) break;
+                    $take = min($x['left'], $need);
+                    if ($take <= 0) continue;
+                    $x['left'] = round($x['left'] - $take, 2);
+                    $need = round($need - $take, 2);
+                    $out[$a->id] = round($out[$a->id] + $take, 2);
+                    if ($x['entry']) $this->returnEntries[$a->id][] = $x['entry'];
+                }
+                unset($x);
+                if (isset($this->returnEntries[$a->id])) $this->returnEntries[$a->id] = array_values(array_unique($this->returnEntries[$a->id]));
+            }
+        }
+
+        return $out;
     }
 
     /** Allocation records: one row per entry (one save = one entry holding all its equipment). */
@@ -116,7 +173,9 @@ class AllocationController extends InvController
         $entries = (clone $base)->select('entry_no')->selectRaw('MAX(id) as last_id')->groupBy('entry_no')->orderByDesc('last_id')->paginate(40)->withQueryString();
         $lines = Movement::with($with)->where('type', 'ALLOCATE')->whereIn('entry_no', $entries->pluck('entry_no'))->orderBy('id')->get()->groupBy('entry_no');
 
-        return view('inventory.allocations.entries', ['entries' => $entries, 'lines' => $lines, 'equipment' => $this->equipment()]);
+        $returned = $this->returnedByLine($lines->collapse());
+
+        return view('inventory.allocations.entries', ['entries' => $entries, 'lines' => $lines, 'returned' => $returned, 'equipment' => $this->equipment()]);
     }
 
     /** All lines of one allocation entry; 404 when there is none, 403 unless the user may see it (inventory view, or it was handed to them / their department). */
@@ -144,7 +203,7 @@ class AllocationController extends InvController
             ->selectRaw('equipment_id, serial_no, -SUM(qty) as held')->groupBy('equipment_id', 'serial_no')->get()
             ->mapWithKeys(fn ($x) => [$x->equipment_id.'|'.($x->serial_no ?? '') => (float) $x->held]);
 
-        return view('inventory.allocations.show', ['entry' => $entry, 'lines' => $lines, 'first' => $f, 'held' => $held]);
+        return view('inventory.allocations.show', ['entry' => $entry, 'lines' => $lines, 'first' => $f, 'held' => $held, 'returned' => $this->returnedByLine($lines), 'returnEntries' => $this->returnEntries]);
     }
 
     /** PDF handover form of one allocation entry: every equipment handed over in it. */
@@ -154,6 +213,49 @@ class AllocationController extends InvController
 
         return Pdf::loadView('inventory.allocation-pdf', ['entry' => $entry, 'lines' => $lines, 'first' => $lines->first(), 'generatedAt' => now(), 'generatedBy' => auth()->user()->name])
             ->setPaper('a4', 'portrait')->download('Allocation_'.$entry.'.pdf');
+    }
+
+    /**
+     * Bangla PDF handover form. DomPDF cannot join Bangla letters (conjuncts, vowel signs), so this one is made with mPDF
+     * (composer require mpdf/mpdf) and the Kalpurush font in resources/fonts (Noto Sans Bengali breaks mPDF's font reader).
+     */
+    public function pdfBn(string $entry)
+    {
+        if (! class_exists(\Mpdf\Mpdf::class)) {
+            return redirect()->back()->with('error', 'The Bangla PDF needs the mPDF package. Run: composer require mpdf/mpdf');
+        }
+        $lines = $this->entryLines($entry);
+        $html = view('inventory.allocation-pdf-bn', ['entry' => $entry, 'lines' => $lines, 'first' => $lines->first()])->render();
+
+        $tmp = storage_path('app/mpdf');
+        if (! is_dir($tmp)) @mkdir($tmp, 0775, true);
+
+        // mPDF's font reader raises PHP notices / warnings (e.g. "Undefined array key" on glyphs without a Unicode value) that
+        // Laravel turns into exceptions. They are harmless to the output, so inside mPDF's own files they are ignored here.
+        $previous = null;
+        $previous = set_error_handler(function ($no, $str, $file, $line) use (&$previous) {
+            if (str_contains(str_replace('\\', '/', (string) $file), '/mpdf/mpdf/')) return true;
+
+            return $previous ? $previous($no, $str, $file, $line) : false;
+        });
+        try {
+            $fonts = (new \Mpdf\Config\FontVariables())->getDefaults()['fontdata'];
+            $mpdf = new \Mpdf\Mpdf([
+                'mode' => 'utf-8', 'format' => 'A4', 'tempDir' => $tmp,
+                'margin_left' => 12, 'margin_right' => 12, 'margin_top' => 8, 'margin_bottom' => 12, 'margin_footer' => 5,
+                'fontDir' => array_merge((new \Mpdf\Config\ConfigVariables())->getDefaults()['fontDir'], [resource_path('fonts')]),
+                'fontdata' => $fonts + ['kalpurush' => ['R' => 'kalpurush.ttf', 'useOTL' => 0xFF]],
+                'default_font' => 'kalpurush',
+                'useSubstitutions' => true, 'backupSubsFont' => ['dejavusans'],   // Latin names / symbols the Bangla font lacks
+            ]);
+            $mpdf->SetHTMLFooter('<div style="text-align:center;font-size:8pt;color:#6a7389">'.e($entry).' · Generated: '.now()->format('d/m/Y H:i').'</div>');
+            $mpdf->WriteHTML($html);
+            $pdf = $mpdf->Output('', 'S');
+        } finally {
+            restore_error_handler();
+        }
+
+        return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="Allocation_'.$entry.'_bn.pdf"']);
     }
 
     /** System Administrator only: delete a whole allocation entry; its stock effect is reversed (refused when that would break the records). */

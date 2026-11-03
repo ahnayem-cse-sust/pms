@@ -15,7 +15,7 @@
     <div class="col-12 col-xl filter-btns"><div class="fb-main"><button class="btn btn-primary"><x-icon name="search" :size="15"/> Filter</button><a href="{{ url()->current() }}" class="btn btn-outline-secondary">Reset @if($activeFilters)<span class="filter-count">{{ $activeFilters }}</span>@endif</a></div><div class="fb-side"><a href="{{ route('inv.allocations.entries', request()->query() + ['format' => 'csv']) }}" class="btn btn-outline-secondary"><x-icon name="download" :size="15"/> CSV</a>@can('inv.create')<a href="{{ route('inv.allocations.create') }}" class="btn btn-success">+ Allocate equipment</a>@endcan</div></div>
 </div></div></form>
 
-<div class="table-card"><div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Entry</th><th>Date</th><th>Allocated to</th><th class="text-end">Total items</th><th>Reference / by</th><th></th></tr></thead><tbody>
+<div class="table-card"><div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Entry</th><th>Date</th><th>Allocated to</th><th class="text-end">Items</th><th>Reference / by</th><th></th></tr></thead><tbody>
 @forelse($entries as $en)
 @php
     $ls = $lines[$en->entry_no];
@@ -25,7 +25,8 @@
     <td class="text-nowrap"><div class="d-flex align-items-center gap-2"><span class="type-ico ti-primary"><x-icon name="arrow-up-right" :size="15"/></span><div><a href="{{ route('inv.allocations.show', $en->entry_no) }}" class="ticket-link">{{ $en->entry_no }}</a><div class="inv-sub">{{ $ls->count() }} {{ \Illuminate\Support\Str::plural('equipment', $ls->count()) }}</div></div></div></td>
     <td class="text-nowrap">{{ $f->moved_on->format('d M Y') }}</td>
     <td><div class="inv-holder">@if($f->holder_type === 'EMPLOYEE')<x-avatar :name="$f->holder_name" :user="$f->holderUser"/>@else<span class="dept-ico"><x-icon name="building" :size="14"/></span>@endif<div><div class="inv-name">{{ $f->holder_name }}</div>@if($f->holderUser)<div class="inv-sub">{{ $f->holderUser->department->name ?? '' }}</div>@endif</div></div></td>
-    <td class="text-end"><span class="inv-q">{{ \App\Support\Inv::qty($ls->sum(fn ($m) => abs($m->qty))) }}</span></td>
+    @php $ret = $ls->sum(fn ($m) => $returned[$m->id] ?? 0); @endphp
+    <td class="text-end text-nowrap"><span class="inv-q">{{ \App\Support\Inv::qty($ls->sum(fn ($m) => abs($m->qty))) }}</span><div class="inv-sub {{ $ret > 0 ? 'text-success' : '' }}">{{ \App\Support\Inv::qty($ret) }} {{ $ret == 1 ? 'return' : 'returns' }}</div></td>
     <td>{{ $f->reference_no ?: '—' }}<div class="inv-sub">{{ $f->user->name ?? '' }}</div></td>
     <td class="text-end"><div class="inv-actions-cell"><a class="btn btn-sm btn-outline-primary" href="{{ route('inv.allocations.show', $en->entry_no) }}"><x-icon name="eye" :size="14"/> View</a></div></td>
 </tr>

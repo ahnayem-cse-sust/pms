@@ -11,6 +11,8 @@ cd "$TARGET"
 
 # PDF export of the attendance report
 composer require barryvdh/laravel-dompdf
+# Bangla PDFs (DomPDF cannot shape Bangla text); the font is in resources/fonts
+composer require mpdf/mpdf
 
 # Overlay our code (overwrites a few Laravel defaults on purpose: User model,
 # Controller base, AppServiceProvider, DatabaseSeeder, routes, bootstrap/app.php)

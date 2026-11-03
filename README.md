@@ -213,3 +213,6 @@ To get real desktop pop-ups on the office PCs without HTTPS, allow the site in t
 
 ## File Management
 Tracks physical department files: file title, file number (unique), shelf no and section. Menu: File Management (`menu.files`). Permissions: `file.view`, `file.create`, `file.update`, `file.delete`. By default the System Administrator has all four and IT Admin has view/add/edit; delete is System Administrator only. Any role or single user can be given access on the Roles / Users screens. The list can be downloaded as a PDF (same search and section filter as the screen). Changes are written to the audit log.
+
+
+**Bangla handover PDF.** Allocation details has a *বাংলা PDF* button. It is made with mPDF (`composer require mpdf/mpdf`, done by `install.sh` for new installs; on an existing install run it once) and the free Kalpurush font in `resources/fonts` (Noto Sans Bengali is not used: mPDF cannot read it). DomPDF is still used for every other PDF.

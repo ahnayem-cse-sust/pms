@@ -105,17 +105,18 @@ class DashboardController extends Controller
             'primary' => $t->assignee?->name,
         ];
         $backlog = fn ($t) => $t->status->code === 'BACKLOG';   // Backlog requests have a column of their own
+        $onHold = fn ($t) => $t->status->code === 'ON_HOLD';    // so do On Hold requests (last column)
         $columns = [[
             'id' => null, 'key' => 'backlog', 'name' => 'Backlog',
             'tickets' => $openTickets->filter($backlog)->map($card)->values()->all(),
         ], [
             'id' => null, 'key' => 'unassigned', 'name' => 'Unassigned',
-            'tickets' => $openTickets->filter(fn ($t) => $t->assigned_to === null && ! $backlog($t))->map($card)->values()->all(),
+            'tickets' => $openTickets->filter(fn ($t) => $t->assigned_to === null && ! $backlog($t) && ! $onHold($t))->map($card)->values()->all(),
         ]];
         foreach ($memberList as $m) {
-            $primary = $openTickets->where('assigned_to', $m->id)->reject($backlog)->map($card)->values()->all();
+            $primary = $openTickets->where('assigned_to', $m->id)->reject(fn ($t) => $backlog($t) || $onHold($t))->map($card)->values()->all();
             // Requests where this employee is a supporting (not primary) team member
-            $support = $openTickets->filter(fn ($t) => ! $backlog($t) && (int) $t->assigned_to !== (int) $m->id
+            $support = $openTickets->filter(fn ($t) => ! $backlog($t) && ! $onHold($t) && (int) $t->assigned_to !== (int) $m->id
                     && $t->team->contains(fn ($x) => (int) $x->employee_id === (int) $m->id && $x->role === 'SUPPORT'))
                 ->map(fn ($t) => array_merge($card($t), ['role' => 'support']))->values()->all();
             $columns[] = [
@@ -124,6 +125,10 @@ class DashboardController extends Controller
                 'tickets' => array_merge($primary, $support),
             ];
         }
+        $columns[] = [
+            'id' => null, 'key' => 'onhold', 'name' => 'On Hold',
+            'tickets' => $openTickets->filter($onHold)->map($card)->values()->all(),
+        ];
         $board = [
             'columns' => $columns,
             'canAssign' => auth()->user()->can('ticket.assign'),

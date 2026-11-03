@@ -3,14 +3,14 @@
 @section('content')
 <div class="d-flex flex-wrap gap-2 mb-3">
     @can('inv.view')<a href="{{ route('inv.allocations.entries') }}" class="btn btn-outline-secondary inv-back"><x-icon name="arrow-left" :size="15"/> Allocation records</a>@endcan
-    <a href="{{ route('inv.allocations.pdf', $entry) }}" class="btn btn-primary ms-md-auto inv-back"><x-icon name="download" :size="15"/> Download PDF</a>
-    @can('inv.delete')<form method="POST" action="{{ route('inv.allocations.destroy', $entry) }}" onsubmit="return confirm('Delete {{ $entry }}? Its stock effect is reversed and the records are removed permanently.');">@csrf @method('DELETE')<button class="btn btn-outline-danger inv-back"><x-icon name="trash" :size="15"/> Delete</button></form>@endcan
+    @can('inv.delete')<form class="ms-md-auto" method="POST" action="{{ route('inv.allocations.destroy', $entry) }}" onsubmit="return confirm('Delete {{ $entry }}? Its stock effect is reversed and the records are removed permanently.');">@csrf @method('DELETE')<button class="btn btn-outline-danger inv-back"><x-icon name="trash" :size="15"/> Delete</button></form>@endcan
 </div>
 <div class="card">
     <div class="inv-hero">
         <span class="type-ico ti-primary"><x-icon name="arrow-up-right" :size="20"/></span>
         <div><div class="inv-hero-title">{{ $entry }}</div><div class="inv-sub">{{ $first->moved_on->format('d M Y') }} · {{ $lines->count() }} {{ \Illuminate\Support\Str::plural('line', $lines->count()) }}</div></div>
-        <div class="ms-auto">{{ \App\Support\Inv::pill($first->type) }}</div>
+        <div class="ms-auto d-flex align-items-center gap-2">{{ \App\Support\Inv::pill($first->type) }}
+            <a href="{{ route('inv.allocations.pdf.bn', $entry) }}" class="btn btn-sm btn-primary"><x-icon name="download" :size="14"/> Allocation form download</a></div>
     </div>
     @php
         $pairs = collect([
@@ -40,19 +40,21 @@
 @foreach($lines as $m)
 @php
     $e = $m->equipment;
+    $ret = $returned[$m->id] ?? 0; $qtyA = abs((float) $m->qty); $fully = $ret >= $qtyA; $partly = $ret > 0 && ! $fully;
     $left = $held[$m->equipment_id.'|'.($m->serial_no ?? '')] ?? 0;
     $returnUrl = route('inv.receive', ['from' => ($first->holder_type === 'EMPLOYEE' ? 'E:'.$first->holder_user_id : 'D:'.$first->holder_department_id), 'equipment_id' => $m->equipment_id, 'serial' => $m->serial_no]);
 @endphp
-<tr>
+<tr @class(['table-light text-muted' => $fully])>
     <td class="text-nowrap"><span class="inv-code">{{ $e->code }}</span></td>
     <td style="min-width:180px">@can('inv.view')<a href="{{ route('inv.equipment.show', $e) }}" class="inv-name">{{ $e->name }}</a>@else<span class="inv-name">{{ $e->name }}</span>@endcan</td>
     <td>@if($m->serial_no)<strong class="inv-sn text-body">{{ $m->serial_no }}</strong>@else—@endif</td>
     <td>{{ $m->device_serial_no ?: '—' }}</td>
-    <td class="text-end text-nowrap"><span class="inv-q">{{ \App\Support\Inv::qty(abs($m->qty)) }}</span> <span class="text-muted">{{ $e->unit }}</span></td>
+    <td class="text-end text-nowrap"><span class="inv-q">{{ \App\Support\Inv::qty(abs($m->qty)) }}</span> <span class="text-muted">{{ $e->unit }}</span>@if($partly)<div class="inv-sub">{{ \App\Support\Inv::qty($ret) }} returned</div>@endif @if($fully)<div><span class="pill pill-success">Returned</span></div>@elseif($partly)<div><span class="pill pill-warning">Partly returned</span></div>@endif</td>
     <td>{{ $m->remarks ?: '—' }}</td>
     <td class="text-end text-nowrap">
-        @if($left > 0)@can('inv.create')<a class="btn btn-sm btn-outline-primary" href="{{ $returnUrl }}"><x-icon name="corner-up-left" :size="14"/> Return</a>@endcan @endif
-        @can('inv.view')<a class="btn btn-sm btn-outline-secondary" href="{{ route('inv.records.show', $m) }}">Record {{ $m->ref }}</a>@endcan
+        @if(! $fully && $left > 0)@can('inv.create')<a class="btn btn-sm btn-outline-primary" href="{{ $returnUrl }}"><x-icon name="corner-up-left" :size="14"/> Return</a>@endcan @endif
+        @can('inv.view')@foreach($returnEntries[$m->id] ?? [] as $rn)<a class="btn btn-sm btn-outline-success" href="{{ route('inv.receives.show', $rn) }}"><x-icon name="corner-up-left" :size="14"/> Return record {{ $rn }}</a> @endforeach
+        <a class="btn btn-sm btn-outline-secondary" href="{{ route('inv.records.show', $m) }}">Record {{ $m->ref }}</a>@endcan
     </td>
 </tr>
 @endforeach

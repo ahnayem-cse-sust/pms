@@ -123,11 +123,15 @@ class InventoryService
      * @param array<int,array{equipment_id:int,qty:float}> $lines
      * @param ?array{type:string,user_id?:?int,department_id?:?int} $heldBy null = in store
      */
+    /** Entry no. (AL-…) of the allocation made by the last receivePrevious() call, null when the items were put in store. */
+    public ?string $lastAllocEntry = null;
+
     public function receivePrevious(array $head, array $lines, ?array $heldBy): string
     {
         return DB::transaction(function () use ($head, $lines, $heldBy) {
             $entry = $this->entryNo('RC');
             $allocEntry = $heldBy ? $this->entryNo('AL') : null;   // the hand-out of previous items is an allocation entry of its own
+            $this->lastAllocEntry = $allocEntry;
             $common = ['moved_on' => $head['date'], 'reference_no' => $head['reference_no'] ?? null, 'entry_no' => $entry];
             foreach ($lines as $l) {
                 $e = Equipment::with('category')->findOrFail($l['equipment_id']);
@@ -135,9 +139,9 @@ class InventoryService
                 if ($heldBy && $e->is_serialized && fmod($qty, 1.0) != 0.0) $this->fail('qty', "{$e->name} is serialisable, so the quantity must be a whole number.");
                 $this->move('OPENING', $e, $qty, $common + ['party' => $head['supplier'] ?? null, 'remarks' => $head['remarks'] ?? null]);
                 if ($heldBy) {
-                    $d = ['entry_no' => $allocEntry] + $this->holder($heldBy) + $common + ['remarks' => trim('Previous item already in use. '.($head['remarks'] ?? ''))];
+                    $d = ['entry_no' => $allocEntry] + $this->holder($heldBy) + $common + ['remarks' => trim((string) ($l['purpose'] ?? $head['remarks'] ?? '')) ?: null];
                     if ($e->is_serialized) {
-                        for ($i = 0; $i < (int) $qty; $i++) $this->allocateUnit($e, $d, false);   // each unit gets its own new serial
+                        for ($i = 0; $i < (int) $qty; $i++) $this->allocateUnit($e, $d, false, $l['device_serial_no'] ?? null);   // each unit gets its own new serial
                     } else {
                         $this->move('ALLOCATE', $e, -$qty, $d);
                     }
