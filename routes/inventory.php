@@ -44,6 +44,15 @@ Route::middleware('auth')->prefix('inventory')->name('inv.')->group(function () 
     Route::get('allocations/{entry}', [I\AllocationController::class, 'show'])->where('entry', '[A-Z]{2,3}-[0-9]+')->name('allocations.show');
     Route::get('my-items', [I\AllocationController::class, 'mine'])->name('mine');
 
+    // Reports menu (hub), then the reports themselves
+    Route::get('reports', [I\StockReportController::class, 'hub'])->middleware('can:inv.view')->name('reports');
+
+    // Stock report: what is in store now and what is out with people (screen, PDF, CSV)
+    Route::get('stock-report', [I\StockReportController::class, 'index'])->middleware('can:inv.view')->name('stock');
+
+    // Month-wise stock report (screen, PDF, CSV)
+    Route::get('monthly-report', [I\MonthlyReportController::class, 'index'])->middleware('can:inv.view')->name('monthly');
+
     // Records
     Route::get('records', [I\RecordController::class, 'index'])->middleware('can:inv.view')->name('records');
     Route::get('records/{movement}', [I\RecordController::class, 'show'])->middleware('can:inv.view')->whereNumber('movement')->name('records.show');

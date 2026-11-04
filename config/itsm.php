@@ -29,6 +29,7 @@ $sidebarMenus = [
         'menu.inv_allocations' => ['Allocations', ['inv.view']],
         'menu.inv_receives'    => ['Receives', ['inv.view']],
         'menu.inv_records'     => ['Records', ['inv.view']],
+        'menu.inv_reports'     => ['Reports', ['inv.view']],
         'menu.inv_setup'       => ['Types & Categories', ['inv.view']],
     ],
     'File Management' => [

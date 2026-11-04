@@ -155,7 +155,8 @@ class InventoryService
 
     protected function holder(array $to): array
     {
-        return ['holder_type' => $to['type'], 'holder_user_id' => $to['type'] === 'EMPLOYEE' ? $to['user_id'] : null, 'holder_department_id' => $to['type'] === 'DEPARTMENT' ? $to['department_id'] : null];
+        return ['holder_type' => $to['type'], 'holder_user_id' => $to['type'] === 'EMPLOYEE' ? $to['user_id'] : null, 'holder_department_id' => $to['type'] === 'DEPARTMENT' ? $to['department_id'] : null,
+            'location_id' => $to['type'] === 'DEPARTMENT' ? ($to['location_id'] ?? null) : null];   // Depot / Section of a department allocation
     }
 
     /** Serial number for the next unit of a serialisable item: equipment code + 4-digit running number, no separator (LAPT00010001). */

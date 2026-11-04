@@ -292,23 +292,22 @@ class InventoryTest extends TestCase
         $this->actingAs($this->person())->get(route('inv.receives'))->assertRedirect()->assertSessionHas('denied');
     }
 
-    public function test_previous_items_can_be_added_with_a_past_date_in_store_or_with_a_holder(): void
+    public function test_previous_items_can_be_added_with_a_past_date_in_store_or_as_a_previous_allocation(): void
     {
         $past = today()->subYear()->toDateString();
-        $post = fn ($extra) => $this->actingAs($this->officer())->post(route('inv.receive.store'), ['source' => 'PREVIOUS', 'date' => $past, 'reference_no' => 'OLD-7',
-            'lines' => [['equipment_id' => $this->toner->id, 'qty' => 5]]] + $extra);
-
-        $post(['held_type' => 'NONE'])->assertSessionHasNoErrors();                          // already in the store
+        // Receives: a previous item always goes into the store
+        $this->actingAs($this->officer())->post(route('inv.receive.store'), ['source' => 'PREVIOUS', 'date' => $past, 'reference_no' => 'OLD-7',
+            'lines' => [['equipment_id' => $this->toner->id, 'qty' => 5]]])->assertSessionHasNoErrors();
         $this->assertSame(5.0, $this->stock());
         $m = Movement::where('type', 'OPENING')->firstOrFail();
         $this->assertSame($past, $m->moved_on->toDateString());
 
-        $post(['held_type' => 'EMPLOYEE'])->assertSessionHasErrors('held_user_id');          // holder is required when chosen
+        // Allocations: a previous allocation (already with the employee) is added and handed out on the past date; stock stays as it was
+        $this->postAs('inv.allocations.store', ['to_type' => 'EMPLOYEE', 'user_id' => $this->person()->id, 'date' => $past, 'previous' => 1,
+            'lines' => [['equipment_id' => $this->toner->id, 'qty' => 5]]])->assertSessionHasNoErrors();
         $this->assertSame(5.0, $this->stock());
-
-        $post(['held_type' => 'EMPLOYEE', 'held_user_id' => $this->person()->id])->assertSessionHasNoErrors();   // 5 more, already with the employee
-        $this->assertSame(5.0, $this->stock());                                                // stock unchanged: added and handed out
         $this->assertSame(5.0, $this->svcHeld());
+        $this->assertSame($past, Movement::where('type', 'ALLOCATE')->firstOrFail()->moved_on->toDateString());
 
         $this->actingAs($this->officer())->post(route('inv.receive.store'), ['source' => 'EMPLOYEE', 'user_id' => $this->person()->id, 'date' => today()->toDateString(),
             'lines' => [['equipment_id' => $this->toner->id, 'qty' => 2]]])->assertSessionHasNoErrors();   // …and can be returned later
@@ -389,15 +388,29 @@ class InventoryTest extends TestCase
         $this->assertSame('Printer', $m->remarks);
     }
 
-    public function test_previous_serialisable_items_with_a_holder_get_one_serial_per_unit(): void
+    public function test_previous_serialisable_allocations_get_one_serial_per_unit(): void
     {
         $lap = $this->serialEquipment();
-        $post = fn ($qty) => $this->postAs('inv.receive.store', ['source' => 'PREVIOUS', 'date' => today()->subYear()->toDateString(), 'held_type' => 'EMPLOYEE', 'held_user_id' => $this->person()->id,
-            'lines' => [['equipment_id' => $lap->id, 'qty' => $qty]]]);
-        $post(1.5)->assertSessionHasErrors('qty');
-        $post(2)->assertSessionHasNoErrors();
+        $this->postAs('inv.allocations.store', ['to_type' => 'EMPLOYEE', 'user_id' => $this->person()->id, 'date' => today()->subYear()->toDateString(), 'previous' => 1,
+            'lines' => [['equipment_id' => $lap->id], ['equipment_id' => $lap->id]]])->assertSessionHasNoErrors();
         $this->assertSame(0.0, (float) $lap->fresh()->stock_qty);
         $this->assertSame(['LAPT00010001', 'LAPT00010002'], Movement::where('type', 'ALLOCATE')->orderBy('id')->pluck('serial_no')->all());
+    }
+
+    public function test_allocating_to_a_department_needs_a_depot_or_section(): void
+    {
+        $this->receive(10);
+        $dept = \App\Models\Department::firstOrFail();
+        $loc = \App\Models\Location::create(['name' => 'Depot A']);
+        $post = fn ($extra) => $this->postAs('inv.allocations.store', ['to_type' => 'DEPARTMENT', 'department_id' => $dept->id, 'date' => today()->toDateString(),
+            'lines' => [['equipment_id' => $this->toner->id, 'qty' => 2]]] + $extra);
+
+        $post([])->assertSessionHasErrors('location_id');
+        $this->assertSame(10.0, $this->stock());
+        $post(['location_id' => $loc->id])->assertSessionHasNoErrors();
+        $this->assertSame(8.0, $this->stock());
+        $this->assertSame($loc->id, (int) Movement::where('type', 'ALLOCATE')->firstOrFail()->location_id);
+        $this->actingAs($this->officer())->get(route('inv.allocations.show', 'AL-000001'))->assertOk()->assertSee('Depot/Section')->assertSee('Depot A');
     }
 
     public function test_allocation_form_knows_the_serials_it_will_show(): void
@@ -462,7 +475,7 @@ class InventoryTest extends TestCase
         $this->actingAs($this->person())->get(route('inv.receives.show', 'RC-000001'))->assertRedirect()->assertSessionHas('denied');
 
         // allocation entry: officers, and the person it was handed to
-        $this->actingAs($this->officer())->get(route('inv.allocations.show', 'AL-000001'))->assertOk()->assertSee('REQ-2')->assertSee('Field work')->assertSee('LAPT00010001')->assertSee('Download PDF');
+        $this->actingAs($this->officer())->get(route('inv.allocations.show', 'AL-000001'))->assertOk()->assertSee('REQ-2')->assertSee('Field work')->assertSee('LAPT00010001')->assertSee('Allocation form download');
         $this->actingAs($this->person())->get(route('inv.allocations.show', 'AL-000001'))->assertOk()->assertSee('Printer');
         $this->actingAs($this->officer())->get(route('inv.allocations.show', 'AL-999999'))->assertNotFound();
     }

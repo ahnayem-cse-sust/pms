@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
 use App\Models\DepartmentFile;
+use App\Support\BanglaPdf;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -21,10 +22,21 @@ class FileController extends Controller
     {
         $files = $this->filtered($r)->get();
 
-        return Pdf::loadView('files.pdf', [
+        $data = [
             'files' => $files, 'section' => $r->section, 'q' => $r->q,
             'generatedBy' => auth()->user()->name, 'generatedAt' => now(),
-        ])->setPaper('a4', 'portrait')->download('Department-Files_'.now()->format('Y-m-d').'.pdf');
+        ];
+        $name = 'Department-Files_'.now()->format('Y-m-d').'.pdf';
+
+        // File titles are often Bangla, which DomPDF cannot shape: use mPDF when it is installed (composer require mpdf/mpdf)
+        if (BanglaPdf::available()) {
+            $html = view('files.pdf', $data + ['mpdf' => true])->render();
+            $foot = '<div style="text-align:center;font-size:8pt;color:#6a7389">Generated '.$data['generatedAt']->format('d M Y h:i A').' (GMT+6) by '.e($data['generatedBy']).'</div>';
+
+            return response(BanglaPdf::render($html, $foot), 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="'.$name.'"']);
+        }
+
+        return Pdf::loadView('files.pdf', $data + ['mpdf' => false])->setPaper('a4', 'portrait')->download($name);
     }
 
     protected function filtered(Request $r)

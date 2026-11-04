@@ -15,6 +15,7 @@ class Movement extends Model
     public function user() { return $this->belongsTo(\App\Models\User::class, 'created_by'); }
     public function holderUser() { return $this->belongsTo(\App\Models\User::class, 'holder_user_id'); }
     public function holderDepartment() { return $this->belongsTo(\App\Models\Department::class, 'holder_department_id'); }
+    public function location() { return $this->belongsTo(\App\Models\Location::class, 'location_id'); }
     public function getHolderNameAttribute(): string
     {
         return match ($this->holder_type) { 'EMPLOYEE' => $this->holderUser?->name ?? '—', 'DEPARTMENT' => ($this->holderDepartment?->name ?? '—').' (dept)', default => '' };

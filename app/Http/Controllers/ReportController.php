@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Ticket;
+use App\Support\BanglaPdf;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -12,7 +13,7 @@ class ReportController extends Controller
 {
     protected function scope(Request $r)
     {
-        $month = $r->input('month', now()->format('Y-m'));
+        $month = $r->input('month') ?: now()->format('Y-m');   // an empty month box means the current month
         $from = Carbon::createFromFormat('Y-m-d', $month . '-01')->startOfDay();
         $to = $from->copy()->endOfMonth();
         $q = Ticket::visibleTo(auth()->user())->whereBetween('tickets.created_at', [$from, $to]);
@@ -20,6 +21,29 @@ class ReportController extends Controller
     }
 
     public function index(Request $r)
+    {
+        return view('reports.index', $this->data($r));
+    }
+
+    /** Month-wise report as a PDF (summary, department / category counts, IT team table and the request list). */
+    public function pdf(Request $r)
+    {
+        $d = $this->data($r) + ['generatedBy' => auth()->user()->name, 'generatedAt' => now()];
+        $d['monthLabel'] = Carbon::createFromFormat('Y-m-d', $d['month'].'-01')->format('F Y');
+        $name = "joplc-it-report-{$d['month']}.pdf";
+
+        // Request subjects are often Bangla, which DomPDF cannot shape: use mPDF when it is installed (composer require mpdf/mpdf)
+        if (BanglaPdf::available()) {
+            $html = view('reports.pdf', $d + ['mpdf' => true])->render();
+            $foot = '<div style="text-align:center;font-size:8pt;color:#6a7389">Generated '.$d['generatedAt']->format('d M Y h:i A').' (GMT+6) by '.e($d['generatedBy']).' &middot; Page {PAGENO} of {nbpg}</div>';
+
+            return response(BanglaPdf::render($html, $foot), 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="'.$name.'"']);
+        }
+
+        return \Barryvdh\DomPDF\Facade\Pdf::loadView('reports.pdf', $d + ['mpdf' => false])->setPaper('a4', 'portrait')->download($name);
+    }
+
+    protected function data(Request $r): array
     {
         $r->validate(['month' => 'nullable|date_format:Y-m']);
         [$month, $q] = $this->scope($r);
@@ -55,7 +79,7 @@ class ReportController extends Controller
             ];
         });
 
-        return view('reports.index', compact('month', 'summary', 'byDept', 'byCat', 'perMember'));
+        return compact('month', 'summary', 'byDept', 'byCat', 'perMember', 'tickets');
     }
 
     public function csv(Request $r)

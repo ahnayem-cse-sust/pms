@@ -36,7 +36,7 @@
 <table class="meta" style="margin-top:28px">
 <tr><td class="k">Subject</td><td><strong>IT Equipment Handover</strong></td><td class="k">Allocation ID</td><td>{{ $entry }}</td></tr>
 <tr><td class="k">Handed over to</td><td>{{ $first->holder_name }}@if($first->holderUser) – {{ $first->holderUser->employee_id }}@endif</td><td class="k">Date</td><td>{{ $first->moved_on->format('d M Y') }}</td></tr>
-<tr><td class="k">Department</td><td>{{ $first->holderUser->department->name ?? ($first->holderDepartment->name ?? '—') }}</td><td class="k">Location</td><td>{{ $first->holderUser->location->name ?? '—' }}</td></tr>
+<tr><td class="k">Department</td><td>{{ $first->holderUser->department->name ?? ($first->holderDepartment->name ?? '—') }}</td><td class="k">{{ $first->location ? 'Depot/Section' : 'Location' }}</td><td>{{ $first->location->name ?? $first->holderUser->location->name ?? '—' }}</td></tr>
 <tr><td class="k">Reference</td><td>{{ $first->reference_no ?: '—' }}</td><td class="k">Items</td><td>{{ $lines->count() }}</td></tr>
 </table>
 <table class="items"><thead><tr><th style="width:5%">#</th><th style="width:34%">Equipment</th><th style="width:17%">Asset ID / Qty</th><th style="width:17%">Serial number</th><th>Purpose</th></tr></thead><tbody>

@@ -11,6 +11,7 @@
             <div class="col-12 col-sm filter-btns">
                 <button class="btn btn-primary"><x-icon name="search" :size="15"/> Show report</button>
                 <a class="btn btn-outline-success ms-sm-auto" href="{{ route('reports.csv', ['month' => $month]) }}"><x-icon name="download" :size="15"/> Export CSV</a>
+                <a class="btn btn-outline-primary" href="{{ route('reports.pdf', ['month' => $month]) }}"><x-icon name="download" :size="15"/> Download PDF</a>
             </div>
         </div>
     </div>

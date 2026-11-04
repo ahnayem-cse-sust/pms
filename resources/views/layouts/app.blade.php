@@ -107,7 +107,7 @@
             @endcanany
 
             {{-- IT Inventory --}}
-            @canany(['menu.inv_dashboard', 'menu.inv_equipment', 'menu.inv_allocations', 'menu.inv_receives', 'menu.inv_records', 'menu.inv_setup'])
+            @canany(['menu.inv_dashboard', 'menu.inv_equipment', 'menu.inv_allocations', 'menu.inv_receives', 'menu.inv_records', 'menu.inv_reports', 'menu.inv_setup'])
                 <x-nav-group id="inv" icon="box" label="IT Inventory" :open="$invOpen">
                     @can('menu.inv_dashboard')
                         <li><a class="nav-link {{ request()->routeIs('inv.dashboard') ? 'active' : '' }}" href="{{ route('inv.dashboard') }}"><x-icon name="home"/> Dashboard</a></li>
@@ -123,6 +123,9 @@
                     @endcan
                     @can('menu.inv_records')
                         <li><a class="nav-link {{ request()->routeIs('inv.records') ? 'active' : '' }}" href="{{ route('inv.records') }}"><x-icon name="clipboard"/> Records</a></li>
+                    @endcan
+                    @can('menu.inv_reports')
+                        <li><a class="nav-link {{ request()->routeIs('inv.reports', 'inv.stock', 'inv.monthly') ? 'active' : '' }}" href="{{ route('inv.reports') }}"><x-icon name="download"/> Reports</a></li>
                     @endcan
                     @can('menu.inv_setup')
                         <li><a class="nav-link {{ request()->routeIs('inv.setup*') ? 'active' : '' }}" href="{{ route('inv.setup') }}"><x-icon name="folder"/> Types &amp; Categories</a></li>

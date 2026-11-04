@@ -166,7 +166,6 @@ class DashboardController extends Controller
                 ->where(fn ($w) => $w->whereNull('tickets.assigned_to')->orWhere('tickets.assigned_to', '!=', $u->id))
                 ->whereHas('assignees', fn ($t) => $t->where('employee_id', $u->id)->where('role', 'SUPPORT'))
                 ->count(),
-            'Overdue' => Ticket::involving($u)->open()->whereNotNull('due_date')->whereDate('due_date', '<', today())->count(),
             'Resolved' => ($counts['RESOLVED'] ?? 0) + ($counts['USER_CONFIRMATION'] ?? 0) + ($counts['CLOSED'] ?? 0),
             // Resolved / confirmed / closed requests where this employee was a supporting team member
             'Support resolved' => Ticket::whereHas('status', fn ($x) => $x->whereIn('code', ['RESOLVED', 'USER_CONFIRMATION', 'CLOSED']))

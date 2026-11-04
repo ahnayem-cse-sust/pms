@@ -86,6 +86,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware('can:report.view')->group(function () {
         Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
         Route::get('/reports/csv', [ReportController::class, 'csv'])->name('reports.csv');
+        Route::get('/reports/pdf', [ReportController::class, 'pdf'])->name('reports.pdf');
     });
 
     // Administration

@@ -216,3 +216,7 @@ Tracks physical department files: file title, file number (unique), shelf no and
 
 
 **Bangla handover PDF.** Allocation details has a *বাংলা PDF* button. It is made with mPDF (`composer require mpdf/mpdf`, done by `install.sh` for new installs; on an existing install run it once) and the free Kalpurush font in `resources/fonts` (Noto Sans Bengali is not used: mPDF cannot read it). DomPDF is still used for every other PDF.
+
+**Inventory reports.** *IT Inventory → Reports* lists the Stock report and the Monthly report (view, PDF, CSV). Run `php artisan migrate` once: it adds the `menu.inv_reports` permission and gives it to everyone who can already view the inventory.
+
+**Depot/Section.** Allocating to a department now needs a Depot/Section (a location). Run `php artisan migrate` (adds `location_id` to `inv_movements`).

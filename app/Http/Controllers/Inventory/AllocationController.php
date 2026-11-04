@@ -74,13 +74,13 @@ class AllocationController extends InvController
         $equipment = $this->equipment();
         $serials = $equipment->filter(fn ($e) => $e->is_serialized)->mapWithKeys(fn ($e) => [$e->id => $this->svc()->serialInfo($e)]);
 
-        return view('inventory.allocations.create', ['equipment' => $equipment, 'serials' => $serials, 'people' => $this->people(), 'departments' => $this->departments()]);
+        return view('inventory.allocations.create', ['equipment' => $equipment, 'serials' => $serials, 'people' => $this->people(), 'departments' => $this->departments(), 'locations' => \App\Models\Location::where('is_active', true)->orderBy('name')->get(['id', 'name'])]);
     }
 
     public function store(Request $r)
     {
         $d = $r->validate(['to_type' => 'required|in:EMPLOYEE,DEPARTMENT', 'user_id' => 'required_if:to_type,EMPLOYEE|nullable|exists:users,id',
-            'department_id' => 'required_if:to_type,DEPARTMENT|nullable|exists:departments,id', 'date' => 'required|date|before_or_equal:today', 'reference_no' => 'nullable|string|max:255', 'previous' => 'nullable|boolean',
+            'department_id' => 'required_if:to_type,DEPARTMENT|nullable|exists:departments,id', 'location_id' => 'required_if:to_type,DEPARTMENT|nullable|exists:locations,id', 'date' => 'required|date|before_or_equal:today', 'reference_no' => 'nullable|string|max:255', 'previous' => 'nullable|boolean',
             'lines' => 'required|array|min:1', 'lines.*.equipment_id' => 'required|exists:inv_equipment,id', 'lines.*.qty' => 'nullable|numeric|gt:0', 'lines.*.purpose' => 'nullable|string|max:500', 'lines.*.device_serial_no' => 'nullable|string|max:120']);
         $lines = array_values($d['lines']);
         $this->assertSelectable($lines);
@@ -97,13 +97,13 @@ class AllocationController extends InvController
             foreach ($lines as $i => $l) {
                 if (Equipment::find($l['equipment_id'])->is_serialized) $lines[$i]['qty'] = 1;   // serialisable equipment is one unit per line
             }
-            $this->svc()->receivePrevious($d, $lines, ['type' => $d['to_type'], 'user_id' => $d['user_id'] ?? null, 'department_id' => $d['department_id'] ?? null]);
+            $this->svc()->receivePrevious($d, $lines, ['type' => $d['to_type'], 'user_id' => $d['user_id'] ?? null, 'department_id' => $d['department_id'] ?? null, 'location_id' => $d['location_id'] ?? null]);
             $entry = $this->svc()->lastAllocEntry;
 
             return redirect()->route('inv.allocations.entries')->with('ok', "Previous allocation recorded as {$entry}.");
         }
 
-        $entry = $this->svc()->allocate(['type' => $d['to_type'], 'user_id' => $d['user_id'] ?? null, 'department_id' => $d['department_id'] ?? null], $d, $lines);
+        $entry = $this->svc()->allocate(['type' => $d['to_type'], 'user_id' => $d['user_id'] ?? null, 'department_id' => $d['department_id'] ?? null, 'location_id' => $d['location_id'] ?? null], $d, $lines);
 
         return redirect()->route('inv.allocations.entries')->with('ok', "Allocated and recorded as {$entry}.");
     }
@@ -221,39 +221,12 @@ class AllocationController extends InvController
      */
     public function pdfBn(string $entry)
     {
-        if (! class_exists(\Mpdf\Mpdf::class)) {
+        if (! \App\Support\BanglaPdf::available()) {
             return redirect()->back()->with('error', 'The Bangla PDF needs the mPDF package. Run: composer require mpdf/mpdf');
         }
         $lines = $this->entryLines($entry);
         $html = view('inventory.allocation-pdf-bn', ['entry' => $entry, 'lines' => $lines, 'first' => $lines->first()])->render();
-
-        $tmp = storage_path('app/mpdf');
-        if (! is_dir($tmp)) @mkdir($tmp, 0775, true);
-
-        // mPDF's font reader raises PHP notices / warnings (e.g. "Undefined array key" on glyphs without a Unicode value) that
-        // Laravel turns into exceptions. They are harmless to the output, so inside mPDF's own files they are ignored here.
-        $previous = null;
-        $previous = set_error_handler(function ($no, $str, $file, $line) use (&$previous) {
-            if (str_contains(str_replace('\\', '/', (string) $file), '/mpdf/mpdf/')) return true;
-
-            return $previous ? $previous($no, $str, $file, $line) : false;
-        });
-        try {
-            $fonts = (new \Mpdf\Config\FontVariables())->getDefaults()['fontdata'];
-            $mpdf = new \Mpdf\Mpdf([
-                'mode' => 'utf-8', 'format' => 'A4', 'tempDir' => $tmp,
-                'margin_left' => 12, 'margin_right' => 12, 'margin_top' => 8, 'margin_bottom' => 12, 'margin_footer' => 5,
-                'fontDir' => array_merge((new \Mpdf\Config\ConfigVariables())->getDefaults()['fontDir'], [resource_path('fonts')]),
-                'fontdata' => $fonts + ['kalpurush' => ['R' => 'kalpurush.ttf', 'useOTL' => 0xFF]],
-                'default_font' => 'kalpurush',
-                'useSubstitutions' => true, 'backupSubsFont' => ['dejavusans'],   // Latin names / symbols the Bangla font lacks
-            ]);
-            $mpdf->SetHTMLFooter('<div style="text-align:center;font-size:8pt;color:#6a7389">'.e($entry).' · Generated: '.now()->format('d/m/Y H:i').'</div>');
-            $mpdf->WriteHTML($html);
-            $pdf = $mpdf->Output('', 'S');
-        } finally {
-            restore_error_handler();
-        }
+        $pdf = \App\Support\BanglaPdf::render($html, '<div style="text-align:center;font-size:8pt;color:#6a7389">'.e($entry).' · Generated: '.now()->format('d/m/Y H:i').'</div>');
 
         return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="Allocation_'.$entry.'_bn.pdf"']);
     }

@@ -9,6 +9,7 @@
         <div class="col-md-3"><label class="form-label">Allocate to *</label><select name="to_type" id="tt" class="form-select" onchange="sw()"><option value="EMPLOYEE" @selected(old('to_type') == 'EMPLOYEE')>Employee</option><option value="DEPARTMENT" @selected(old('to_type') == 'DEPARTMENT')>Department</option></select></div>
         <div class="col-md-4 t t-EMPLOYEE"><label class="form-label">Employee</label><select name="user_id" class="form-select"><option value="">Select…</option>@foreach($people as $p)<option value="{{ $p->id }}" @selected(old('user_id') == $p->id)>{{ $p->name }} ({{ $p->employee_id }})</option>@endforeach</select></div>
         <div class="col-md-4 t t-DEPARTMENT" style="display:none"><label class="form-label">Department</label><select name="department_id" class="form-select"><option value="">Select…</option>@foreach($departments as $d)<option value="{{ $d->id }}" @selected(old('department_id') == $d->id)>{{ $d->name }}</option>@endforeach</select></div>
+        <div class="col-md-3 t t-DEPARTMENT" style="display:none"><label class="form-label">Depot/Section *</label><select name="location_id" class="form-select" required><option value="">Select…</option>@foreach($locations as $l)<option value="{{ $l->id }}" @selected(old('location_id') == $l->id)>{{ $l->name }}</option>@endforeach</select></div>
         <div class="col-md-2"><label class="form-label">Date *</label><input type="date" name="date" value="{{ old('date', today()->format('Y-m-d')) }}" max="{{ today()->format('Y-m-d') }}" class="form-control" required></div>
         <div class="col-md-3"><label class="form-label">Reference (request no., voucher)</label><input name="reference_no" value="{{ old('reference_no') }}" class="form-control"></div>
         <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" name="previous" value="1" id="prev" onchange="prevMode()" @checked(old('previous'))>
@@ -52,6 +53,7 @@ sw();
 // searchable employee / department pickers (type to filter by name or employee ID)
 searchableSelect(document.querySelector('select[name=user_id]'), 'Select…');
 searchableSelect(document.querySelector('select[name=department_id]'), 'Select…');
+searchableSelect(document.querySelector('select[name=location_id]'), 'Select…');
 function pick(sel) {
     var row = sel.closest('.row'), q = row.querySelector('input[type=number]'), sn = row.querySelector('.snum'), lb = row.querySelector('.lbl-q'), x = E.find(function (e) { return String(e.id) === sel.value; }),
         hint = sel.closest('.inv-line').querySelector('.inv-hint');

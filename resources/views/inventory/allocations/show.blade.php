@@ -15,6 +15,7 @@
     @php
         $pairs = collect([
             ['Allocated to', $first->holder_name.($first->holderUser ? ' ('.$first->holderUser->employee_id.', '.($first->holderUser->department->name ?? '').')' : '')],
+            ...($first->location ? [['Depot/Section', $first->location->name]] : []),
             ['Date', $first->moved_on->format('d M Y')],
             ['Reference', $first->reference_no ?: '—'],
             ['Issued by', $first->user->name ?? '—'],
