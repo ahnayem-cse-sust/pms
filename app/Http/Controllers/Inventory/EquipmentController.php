@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Inventory;
 
-use App\Models\Inventory\{Category, Equipment};
+use App\Models\Inventory\{Category, Equipment, Movement};
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -50,15 +50,26 @@ class EquipmentController extends InvController
     public function show(Request $request, Equipment $equipment)
     {
         $equipment->load($this->with);
-        $base = fn () => $equipment->movements()->with('user', 'holderUser.department', 'holderDepartment', 'holderSection');
+        // Both histories list whole entries (AL-… / RC-…): one row per entry showing every item in it, not just this equipment's line.
         // Allocations and returns go out to / come back from people; receives (and previous-item openings) bring stock in.
-        // Old "Correction" rows follow the direction of the quantity.
-        $allocations = $base()->where(fn ($q) => $q->whereIn('type', ['ALLOCATE', 'RETURN'])->orWhere(fn ($w) => $w->where('type', 'ADJUST')->where('qty', '<', 0)))
-            ->paginate(15, ['*'], 'alloc_page')->withQueryString()->appends(['tab' => 'allocation']);
-        $receives = $base()->where(fn ($q) => $q->whereIn('type', ['RECEIVE', 'OPENING'])->orWhere(fn ($w) => $w->where('type', 'ADJUST')->where('qty', '>=', 0)))
-            ->paginate(15, ['*'], 'recv_page')->withQueryString()->appends(['tab' => 'receive']);
+        // Old "Correction" rows (no entry number) follow the direction of the quantity and stand alone.
+        $with = ['equipment', 'user', 'holderUser.department', 'holderDepartment', 'holderSection.department'];
+        $key = 'COALESCE(entry_no, ref)';
+        $history = function (array $types, \Closure $scope, string $page, string $tab) use ($equipment, $with, $key) {
+            $entries = Movement::where('equipment_id', $equipment->id)->where($scope)
+                ->selectRaw("$key as ekey, MAX(id) as last_id")->groupByRaw($key)->orderByDesc('last_id')
+                ->paginate(15, ['*'], $page)->withQueryString()->appends(['tab' => $tab]);
+            $keys = $entries->pluck('ekey')->all();
+            $lines = Movement::with($with)->whereIn('type', $types)
+                ->where(fn ($q) => $q->whereIn('entry_no', $keys)->orWhere(fn ($w) => $w->whereNull('entry_no')->whereIn('ref', $keys)))
+                ->orderBy('id')->get()->groupBy(fn ($m) => $m->entry_no ?? $m->ref);
 
-        return view('inventory.equipment.show', ['e' => $equipment, 'allocations' => $allocations, 'receives' => $receives, 'tab' => $request->input('tab') === 'receive' ? 'receive' : 'allocation']);
+            return [$entries, $lines];
+        };
+        [$allocations, $allocLines] = $history(['ALLOCATE', 'RETURN', 'ADJUST'], fn ($q) => $q->whereIn('type', ['ALLOCATE', 'RETURN'])->orWhere(fn ($w) => $w->where('type', 'ADJUST')->where('qty', '<', 0)), 'alloc_page', 'allocation');
+        [$receives, $recvLines] = $history(['RECEIVE', 'OPENING', 'ADJUST'], fn ($q) => $q->whereIn('type', ['RECEIVE', 'OPENING'])->orWhere(fn ($w) => $w->where('type', 'ADJUST')->where('qty', '>=', 0)), 'recv_page', 'receive');
+
+        return view('inventory.equipment.show', ['e' => $equipment, 'allocations' => $allocations, 'allocLines' => $allocLines, 'receives' => $receives, 'recvLines' => $recvLines, 'tab' => $request->input('tab') === 'receive' ? 'receive' : 'allocation']);
     }
 
     protected function rules(?Equipment $e = null): array

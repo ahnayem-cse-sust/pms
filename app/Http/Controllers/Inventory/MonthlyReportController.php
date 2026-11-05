@@ -28,8 +28,8 @@ class MonthlyReportController extends InvController
         $from = Carbon::createFromFormat('Y-m-d', $month.'-01')->startOfDay();
         $to = $from->copy()->endOfMonth();
 
-        $opening = Movement::where('moved_on', '<', $from->toDateString())->selectRaw('equipment_id, SUM(qty) as q')->groupBy('equipment_id')->pluck('q', 'equipment_id');
-        $in = Movement::whereBetween('moved_on', [$from->toDateString(), $to->toDateString()])->selectRaw('equipment_id, type, SUM(qty) as q')->groupBy('equipment_id', 'type')->get()->groupBy('equipment_id');
+        $opening = Movement::where('no_stock', false)->where('moved_on', '<', $from->toDateString())->selectRaw('equipment_id, SUM(qty) as q')->groupBy('equipment_id')->pluck('q', 'equipment_id');
+        $in = Movement::where('no_stock', false)->whereBetween('moved_on', [$from->toDateString(), $to->toDateString()])->selectRaw('equipment_id, type, SUM(qty) as q')->groupBy('equipment_id', 'type')->get()->groupBy('equipment_id');
 
         $rows = Equipment::with(['assetType', 'category'])->get()->map(function ($e) use ($opening, $in) {
             $m = ($in[$e->id] ?? collect())->pluck('q', 'type');

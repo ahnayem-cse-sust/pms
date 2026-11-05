@@ -229,7 +229,7 @@ class AllocationController extends InvController
             ->mapWithKeys(fn ($x) => [$x->equipment_id.'|'.($x->serial_no ?? '') => (float) $x->held]);
 
         return view('inventory.allocations.show', ['entry' => $entry, 'lines' => $lines, 'first' => $f, 'held' => $held, 'returned' => $this->returnedByLine($lines), 'returnEntries' => $this->returnEntries,
-            'isPrevious' => Movement::where('entry_no', $entry)->where('type', 'PRIOR')->exists()]);
+            'isPrevious' => Movement::where('entry_no', $entry)->where('no_stock', true)->exists()]);
     }
 
     /** PDF handover form of one allocation entry: every equipment handed over in it. */
@@ -268,7 +268,7 @@ class AllocationController extends InvController
         if ($first->holder_department_id && ! $departments->contains('id', $first->holder_department_id)) $departments = $departments->push($first->holderDepartment)->sortBy('name')->values();
 
         return view('inventory.allocations.edit', ['entry' => $entry, 'lines' => $lines, 'first' => $first, 'returned' => $this->returnedByLine($lines), 'people' => $people, 'departments' => $departments, 'offices' => $this->offices($first->holder_section_id),
-            'isPrevious' => Movement::where('entry_no', $entry)->where('type', 'PRIOR')->exists()]);
+            'isPrevious' => Movement::where('entry_no', $entry)->where('no_stock', true)->exists()]);
     }
 
     public function update(Request $r, string $entry)

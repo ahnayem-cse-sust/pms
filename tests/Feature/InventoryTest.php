@@ -319,7 +319,8 @@ class InventoryTest extends TestCase
         $this->assertSame(5.0, $this->svcHeld());
         $this->assertSame($past, Movement::where('type', 'ALLOCATE')->firstOrFail()->moved_on->toDateString());
         $this->assertSame(1, Movement::where('type', 'OPENING')->count());                       // a previous allocation makes no receive record…
-        $this->assertSame(Movement::where('type', 'ALLOCATE')->value('entry_no'), Movement::where('type', 'PRIOR')->value('entry_no'));   // …only its allocation entry
+        $this->assertSame(0, Movement::where('type', 'PRIOR')->count());                         // …no hidden stock-in line either: only its allocation entry
+        $this->assertTrue((bool) Movement::where('type', 'ALLOCATE')->value('no_stock'));
         $this->actingAs($this->officer())->get(route('inv.receives', ['source' => 'PREVIOUS']))->assertOk()->assertDontSee('AL-000001');
 
         $this->actingAs($this->officer())->post(route('inv.receive.store'), ['source' => 'EMPLOYEE', 'user_id' => $this->person()->id, 'date' => today()->toDateString(),
@@ -766,8 +767,7 @@ class InventoryTest extends TestCase
         $this->actingAs($this->sysadmin())->put(route('inv.allocations.update', 'AL-000001'), ['to_type' => 'EMPLOYEE', 'user_id' => $this->person()->id, 'date' => $past, 'lines' => [$id => ['qty' => 8]]])->assertSessionHasNoErrors();
         $this->assertSame(0.0, $this->stock());
         $this->assertSame(8.0, $this->svcHeld());
-        $this->assertSame(8.0, (float) Movement::where('type', 'PRIOR')->value('qty'));            // the hidden stock-in line moves with it
-        $this->assertSame(8.0, (float) Movement::where('type', 'PRIOR')->value('balance_after'));
+        $this->assertSame(0, Movement::where('type', 'PRIOR')->count());                           // no hidden stock-in line exists
         $this->assertSame(0.0, (float) Movement::where('type', 'ALLOCATE')->value('balance_after'));
     }
 

@@ -50,11 +50,11 @@
 <div class="card mt-3">
     <div class="inv-history-head" style="border-top:0">Allocation history <span class="inv-count">{{ $allocations->total() }}</span></div>
     <div class="table-responsive inv-lines">
-    <table class="table table-hover align-middle"><thead><tr><th>Record</th><th>Type</th><th class="text-end">Qty / balance</th><th>Person / reference</th><th></th></tr></thead><tbody>
-    @forelse($allocations as $m)
-    @include('inventory.equipment._history_row', ['m' => $m])
+    <table class="table table-hover align-middle"><thead><tr><th>Entry</th><th>Date</th><th>From / to</th><th>Items in this entry</th><th>Reference / by</th><th></th></tr></thead><tbody>
+    @forelse($allocations as $en)
+    @include('inventory.equipment._history_entry', ['ls' => $allocLines[$en->ekey] ?? collect(), 'equipmentId' => $e->id])
     @empty
-    <tr><td colspan="5">@include('inventory._empty', ['icon' => 'clipboard', 'msg' => 'No allocations yet', 'hint' => 'Allocations and returns of this equipment are listed here.'])</td></tr>
+    <tr><td colspan="6">@include('inventory._empty', ['icon' => 'clipboard', 'msg' => 'No allocations yet', 'hint' => 'Allocations and returns of this equipment are listed here.'])</td></tr>
     @endforelse
     </tbody></table>
     </div>
@@ -66,11 +66,11 @@
 <div class="card mt-3">
     <div class="inv-history-head" style="border-top:0">Receive history <span class="inv-count">{{ $receives->total() }}</span></div>
     <div class="table-responsive inv-lines">
-    <table class="table table-hover align-middle"><thead><tr><th>Record</th><th>Type</th><th class="text-end">Qty / balance</th><th>Person / reference</th><th></th></tr></thead><tbody>
-    @forelse($receives as $m)
-    @include('inventory.equipment._history_row', ['m' => $m])
+    <table class="table table-hover align-middle"><thead><tr><th>Entry</th><th>Date</th><th>From / to</th><th>Items in this entry</th><th>Reference / by</th><th></th></tr></thead><tbody>
+    @forelse($receives as $en)
+    @include('inventory.equipment._history_entry', ['ls' => $recvLines[$en->ekey] ?? collect(), 'equipmentId' => $e->id])
     @empty
-    <tr><td colspan="5">@include('inventory._empty', ['icon' => 'clipboard', 'msg' => 'No receives yet', 'hint' => 'Stock received for this equipment is listed here.'])</td></tr>
+    <tr><td colspan="6">@include('inventory._empty', ['icon' => 'clipboard', 'msg' => 'No receives yet', 'hint' => 'Stock received for this equipment is listed here.'])</td></tr>
     @endforelse
     </tbody></table>
     </div>

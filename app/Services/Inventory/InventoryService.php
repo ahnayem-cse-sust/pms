@@ -91,9 +91,10 @@ class InventoryService
     {
         return DB::transaction(function () use ($type, $e, $delta, $d) {
             $row = Equipment::whereKey($e->id)->lockForUpdate()->firstOrFail();
-            $new = round((float) $row->stock_qty + $delta, 2);
+            // a previous allocation (item already with someone before this system) is recorded but never moves stock
+            $new = ! empty($d['no_stock']) ? round((float) $row->stock_qty, 2) : round((float) $row->stock_qty + $delta, 2);
             if ($new < 0) $this->fail('qty', "Not enough {$row->name} in stock (available: ".Inv::qty($row->stock_qty).').');
-            $row->update(['stock_qty' => $new]);
+            if (empty($d['no_stock'])) $row->update(['stock_qty' => $new]);
 
             return Movement::create($d + ['ref' => $this->ref(), 'moved_on' => today(), 'type' => $type, 'equipment_id' => $row->id, 'qty' => $delta,
                 'balance_after' => $new, 'created_by' => auth()->id()]);
@@ -129,8 +130,8 @@ class InventoryService
     public function receivePrevious(array $head, array $lines, ?array $heldBy): string
     {
         return DB::transaction(function () use ($head, $lines, $heldBy) {
-            // Already with someone (a previous allocation): only an allocation entry (AL-…) is made, no receive entry. The stock-in line that
-            // balances it is the hidden PRIOR type under the same AL entry: it shows in no Receives or Records list, and goes with the entry if deleted.
+            // Already with someone (a previous allocation): only an allocation entry (AL-…) is made, no receive entry and no stock-in line.
+            // Its lines are flagged no_stock, so they are recorded and held by the person but never change the stock.
             $allocEntry = $heldBy ? $this->entryNo('AL') : null;
             $entry = $heldBy ? $allocEntry : $this->entryNo('RC');
             $this->lastAllocEntry = $allocEntry;
@@ -139,9 +140,9 @@ class InventoryService
                 $e = Equipment::with('category')->findOrFail($l['equipment_id']);
                 $qty = (float) $l['qty'];
                 if ($heldBy && $e->is_serialized && fmod($qty, 1.0) != 0.0) $this->fail('qty', "{$e->name} is serialisable, so the quantity must be a whole number.");
-                $this->move($heldBy ? 'PRIOR' : 'OPENING', $e, $qty, $common + ['party' => $head['supplier'] ?? null, 'remarks' => $head['remarks'] ?? null]);
+                if (! $heldBy) $this->move('OPENING', $e, $qty, $common + ['party' => $head['supplier'] ?? null, 'remarks' => $head['remarks'] ?? null]);
                 if ($heldBy) {
-                    $d = ['entry_no' => $allocEntry] + $this->holder($heldBy) + $common + ['remarks' => trim((string) ($l['purpose'] ?? $head['remarks'] ?? '')) ?: null];
+                    $d = ['entry_no' => $allocEntry, 'no_stock' => true] + $this->holder($heldBy) + $common + ['remarks' => trim((string) ($l['purpose'] ?? $head['remarks'] ?? '')) ?: null];
                     if ($e->is_serialized) {
                         for ($i = 0; $i < (int) $qty; $i++) $this->allocateUnit($e, $d, false, $l['device_serial_no'] ?? null);   // each unit gets its own new serial
                     } else {
@@ -273,7 +274,7 @@ class InventoryService
             $touched = [];
             foreach ($lines->groupBy('equipment_id') as $equipmentId => $g) {
                 $e = Equipment::whereKey($equipmentId)->lockForUpdate()->firstOrFail();
-                $new = round((float) $e->stock_qty - (float) $g->sum('qty'), 2);
+                $new = round((float) $e->stock_qty - (float) $g->reject(fn ($l) => $l->no_stock)->sum('qty'), 2);   // previous allocations never touched the stock
                 if ($new < -0.001) {
                     $this->fail('delete', "{$e->name}: deleting {$entry} would make the stock negative (in stock: ".Inv::qty($e->stock_qty).'). Delete the later allocations first.');
                 }
@@ -304,10 +305,10 @@ class InventoryService
     {
         $bad = null;
         foreach (Equipment::whereIn('id', collect($equipmentIds)->unique())->get() as $e) {
-            $rows = Movement::where('equipment_id', $e->id)->orderBy('id')->get(['id', 'ref', 'equipment_id', 'qty', 'balance_after']);
-            $run = round((float) $e->stock_qty - (float) $rows->sum('qty'), 2);
+            $rows = Movement::where('equipment_id', $e->id)->orderBy('id')->get(['id', 'ref', 'equipment_id', 'qty', 'balance_after', 'no_stock']);
+            $run = round((float) $e->stock_qty - (float) $rows->reject(fn ($m) => $m->no_stock)->sum('qty'), 2);
             foreach ($rows as $m) {
-                $run = round($run + (float) $m->qty, 2);
+                if (! $m->no_stock) $run = round($run + (float) $m->qty, 2);   // a previous allocation leaves the running balance as it was
                 if ($m->id < $fromId) continue;
                 if ($run < -0.001 && ! $bad) $bad = $m;
                 if (abs((float) $m->balance_after - $run) > 0.001) Movement::whereKey($m->id)->update(['balance_after' => $run]);
@@ -372,8 +373,6 @@ class InventoryService
             $delta = [];          // equipment id => change of the stock quantity
             $drops = [];          // allocated quantity a holder loses (must not exceed what they still hold)
             $adds = [];           // quantity a holder returns on top of before (must not exceed what they still hold)
-            $priorOf = $all->where('type', 'PRIOR')->groupBy('equipment_id')->map(fn ($g) => $g->values()->all())->all();   // equipment id => its PRIOR lines in record order
-            $seen = [];
             $qtyEquip = [];       // equipment whose record quantities change (their running balances are rebuilt)
             foreach ($all as $m) {
                 $in = $lines[$m->id] ?? [];
@@ -394,17 +393,7 @@ class InventoryService
                 if (abs($newQty - (float) $m->qty) > 0.001) {
                     $upd['qty'] = $newQty;
                     $qtyEquip[$m->equipment_id] = true;
-                    $delta[$m->equipment_id] = ($delta[$m->equipment_id] ?? 0) + ($newQty - (float) $m->qty);
-                    if ($m->type === 'ALLOCATE') {
-                        // a previous allocation keeps a hidden stock-in line (PRIOR) in the same entry that balances it: it moves with the allocation
-                        $k = $seen[$m->equipment_id] = ($seen[$m->equipment_id] ?? -1) + 1;
-                        if ($p = ($priorOf[$m->equipment_id][$k] ?? null)) {
-                            $set[$p->id] = ($set[$p->id] ?? []) + ['qty' => abs($newQty)];
-                            $delta[$m->equipment_id] += abs($newQty) - (float) $p->qty;
-                        }
-                    }
-                } elseif ($m->type === 'ALLOCATE') {
-                    $seen[$m->equipment_id] = ($seen[$m->equipment_id] ?? -1) + 1;
+                    if (! $m->no_stock) $delta[$m->equipment_id] = ($delta[$m->equipment_id] ?? 0) + ($newQty - (float) $m->qty);   // a previous allocation never moves stock
                 }
                 if ($m->type === 'RETURN' && $newQty > (float) $m->qty + 0.001) $adds[$holderKey($m)] = ['m' => $m, 'qty' => ($adds[$holderKey($m)]['qty'] ?? 0) + ($newQty - (float) $m->qty)];
                 if ($m->type === 'ALLOCATE') {
