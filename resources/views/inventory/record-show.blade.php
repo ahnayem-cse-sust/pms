@@ -23,7 +23,7 @@
                 [$kind.' ID', e($m->entry_no ?: '—')],
                 ['Quantity', e(($m->qty > 0 ? '+' : '').\App\Support\Inv::qty($m->qty).' '.$e->unit)],
                 ['Stock after', e(\App\Support\Inv::qty($m->balance_after))],
-                ['Person / department', e($m->holder_name ?: '—').($m->holderUser ? ' <span class="text-muted fw-normal">('.e($m->holderUser->employee_id).', '.e($m->holderUser->department->name ?? '').')</span>' : '')],
+                ['Person / department / office', e($m->holder_name ?: '—').($m->holderUser ? ' <span class="text-muted fw-normal">('.e($m->holderUser->employee_id).', '.e($m->holderUser->department->name ?? '').')</span>' : '')],
                 ['Reference', e($m->reference_no ?: '—')],
                 ['Supplier', e($m->party ?: '—')],
                 [$m->type === 'ALLOCATE' ? 'Purpose' : 'Remarks', e($m->remarks ?: '—')],

@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\Department;
 use App\Models\Designation;
 use App\Models\Location;
+use App\Models\Section;
 use App\Models\TicketCategory;
 use App\Models\TicketPriority;
 use App\Models\TicketSubcategory;
@@ -22,6 +23,10 @@ class LookupController extends Controller
         return [
             'departments' => ['model' => Department::class, 'label' => 'Departments', 'fields' => [
                 'name' => ['text', 'required|string|max:150'], 'code' => ['text', 'required|string|max:20'],
+            ]],
+            'sections' => ['model' => Section::class, 'label' => 'Offices', 'with' => 'department', 'scope' => ['name' => 'department_id'], 'fields' => [
+                'department_id' => ['select:departments', 'required|exists:departments,id'],
+                'name' => ['text', 'required|string|max:150'],
             ]],
             'designations' => ['model' => Designation::class, 'label' => 'Designations', 'fields' => [
                 'name' => ['text', 'required|string|max:150'],
@@ -58,6 +63,9 @@ class LookupController extends Controller
             if (in_array($name, $def['unique'] ?? [], true)) {
                 $rule[] = Rule::unique($table, $name)->ignore($ignore);
             }
+            if ($by = ($def['scope'][$name] ?? null)) {   // unique within the parent (a section name once per department)
+                $rule[] = Rule::unique($table, $name)->where($by, request($by))->ignore($ignore);
+            }
 
             return $rule;
         })->all();
@@ -74,7 +82,7 @@ class LookupController extends Controller
     {
         $def = $this->def($type);
         $rows = $def['model']::query()->when($def['with'] ?? null, fn ($q, $w) => $q->with($w))->orderBy('id')->paginate(25)->withQueryString();
-        $selects = ['categories' => TicketCategory::orderBy('name')->pluck('name', 'id')];
+        $selects = ['categories' => TicketCategory::orderBy('name')->pluck('name', 'id'), 'departments' => Department::orderBy('name')->pluck('name', 'id')];
         $tabs = collect($this->defs())->filter(fn ($d) => ! ($d['admin'] ?? false) || auth()->user()->can('settings.view'))->map->label;
         $u = auth()->user();
         $writable = ! ($def['admin'] ?? false) || $u->can('settings.update');

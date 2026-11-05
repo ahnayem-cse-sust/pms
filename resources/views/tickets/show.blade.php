@@ -58,7 +58,7 @@
                         <th>Department</th><td>{{ $ticket->department->name ?? '—' }}</td>
                     </tr>
                     <tr>
-                        <th>Location</th><td>{{ $ticket->location->name ?? '—' }}</td>
+                        <th>Station</th><td>{{ $ticket->location->name ?? '—' }}</td>
                         <th>WhatsApp</th><td>@if($phone)<a href="tel:{{ preg_replace('/[^\d+]/', '', $phone) }}" class="text-decoration-none">{{ $phone }}</a>@else — @endif</td>
                     </tr>
                     <tr>

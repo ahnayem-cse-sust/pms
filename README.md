@@ -33,6 +33,21 @@ Audit log, Login history and System Settings are restricted to the System Admini
 
 Upgrading an existing install: run `php artisan migrate` (renames the user phone column to `whatsapp` and refreshes role names/permissions), then `php artisan optimize:clear`.
 
+## IT Inventory: previous allocations and editing
+
+- **Previous allocations are marked on the entry page only** (grey "Previous allocation" badge); the Allocation records list does not show a mark. A previous allocation is an entry made with the *Previous allocation* tick (equipment already with the person before this system).
+- **System Administrator can edit receives and allocations** (new permission `inv.edit`, System Administrator only, run `php artisan migrate` for migration `000042`; it can be given to another role from Roles & Permissions). **Edit** is on the entry page and on every row of both lists.
+  - Allocation entry: who it is for (employee, department or office), date, reference, and per line the quantity (ordinary equipment), purpose and manufacturer serial number (serialisable equipment).
+  - Receive entry: date, supplier (not for a return), reference, remarks and per line the quantity (ordinary equipment). A return keeps its holder.
+  - The entry number, record numbers and Asset IDs never change. Stock and the running balances of later records are corrected to match, and the change is written to the audit log (`inventory.entry_edited`, with the entry before and after).
+  - An edit is refused, and nothing is saved, when it would make stock (or a later record's running balance) negative, or when the holder has already returned what the edit takes away (for example moving an allocation to someone else after part of it was returned). The equipment of a line cannot be swapped and lines cannot be added or removed: delete the entry and enter it again for that.
+  - A previous allocation can be edited like any other; its stock stays unchanged.
+
+## Configuration: Locations and Offices
+
+- The Configuration tab is named **Locations** (*Configuration → Locations*). The screens that pick one (user form and details, request screens and PDF, allocation form, entry page and handover PDFs) still label the field **Station**. Data, URLs and permissions are unchanged.
+- New **Offices** list (*Configuration → Offices*; named Sections in the code, database and URL): each office belongs to one department; an office name can be used once per department; rows can be set inactive. Run `php artisan migrate` (migration `000043` creates the `sections` table). It uses the same permissions as the other configuration lists (`lookup.view/create/update`).
+
 ## IT Inventory: deleting
 
 - **Receives and allocations** can be deleted only by the System Administrator (permission `inv.delete`), from the list or the entry page. The entry's stock effect is reversed and its records are removed. A delete is refused, with a red alert, when it would break the records: stock would go below zero, a returned unit or quantity depends on it, or a serial unit has later records.
@@ -219,4 +234,6 @@ Tracks physical department files: file title, file number (unique), shelf no and
 
 **Inventory reports.** *IT Inventory → Reports* lists the Stock report and the Monthly report (view, PDF, CSV). Run `php artisan migrate` once: it adds the `menu.inv_reports` permission and gives it to everyone who can already view the inventory.
 
-**Depot/Section.** Allocating to a department now needs a Depot/Section (a location). Run `php artisan migrate` (adds `location_id` to `inv_movements`).
+**Location.** The allocation form no longer asks for a Location (it briefly required one for department allocations, as Depot/Section, then Station). Entries that already have one keep it and show it on the entry page and the handover PDF.
+
+**Allocate to an office.** *Allocate to* on the allocation form now offers **Employee**, **Department** and **Office** (the active offices from *Configuration → Offices*, shown with their department). An office is a holder like an employee or department: it appears in *Who has what*, has its own holder page, can return items on *Receive Item* (*Office (return)*), and can be filtered in the allocation records and receives. Run `php artisan migrate` (migration `000044` adds `holder_section_id` to `inv_movements`).

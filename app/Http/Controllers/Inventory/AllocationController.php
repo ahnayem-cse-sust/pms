@@ -3,29 +3,39 @@
 namespace App\Http\Controllers\Inventory;
 
 use App\Models\Department;
+use App\Models\Section;
 use App\Models\Inventory\{Equipment, Movement};
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
-/** Who has what: allocate equipment to people / departments and see current holdings (returns are entered on Receive Item). */
+/** Who has what: allocate equipment to people / departments / offices and see current holdings (returns are entered on Receive Item). */
 class AllocationController extends InvController
 {
     /** Current holdings: allocated minus returned, per holder and equipment. */
     public function holdings(?callable $scope = null)
     {
         $rows = Movement::whereIn('type', ['ALLOCATE', 'RETURN'])->when($scope, fn ($q) => $scope($q))
-            ->selectRaw('equipment_id, serial_no, holder_type, holder_user_id, holder_department_id, -SUM(qty) as held, MIN(CASE WHEN type = \'ALLOCATE\' THEN moved_on END) as since, MAX(device_serial_no) as device_sn')
-            ->groupBy('equipment_id', 'serial_no', 'holder_type', 'holder_user_id', 'holder_department_id')->havingRaw('-SUM(qty) > 0')->get();
+            ->selectRaw('equipment_id, serial_no, holder_type, holder_user_id, holder_department_id, holder_section_id, -SUM(qty) as held, MIN(CASE WHEN type = \'ALLOCATE\' THEN moved_on END) as since, MAX(device_serial_no) as device_sn')
+            ->groupBy('equipment_id', 'serial_no', 'holder_type', 'holder_user_id', 'holder_department_id', 'holder_section_id')->havingRaw('-SUM(qty) > 0')->get();
         $eq = Equipment::with(['assetType', 'category', 'subcategory'])->whereIn('id', $rows->pluck('equipment_id'))->get()->keyBy('id');
         $users = User::with('department')->whereIn('id', $rows->pluck('holder_user_id')->filter())->get()->keyBy('id');
         $depts = Department::whereIn('id', $rows->pluck('holder_department_id')->filter())->get()->keyBy('id');
+        $offices = Section::with('department')->whereIn('id', $rows->pluck('holder_section_id')->filter())->get()->keyBy('id');
 
-        return $rows->map(function ($x) use ($eq, $users, $depts) {
+        return $rows->map(function ($x) use ($eq, $users, $depts, $offices) {
             $x->equipment = $eq[$x->equipment_id];
-            $x->holder = $x->holder_type === 'EMPLOYEE' ? ($users[$x->holder_user_id]->name ?? '—') : (($depts[$x->holder_department_id]->name ?? '—').' (dept)');
-            $x->dept = $x->holder_type === 'EMPLOYEE' ? ($users[$x->holder_user_id]->department->name ?? '') : '';
+            $x->holder = match ($x->holder_type) {
+                'EMPLOYEE' => $users[$x->holder_user_id]->name ?? '—',
+                'OFFICE' => ($offices[$x->holder_section_id]->name ?? '—').' (office)',
+                default => ($depts[$x->holder_department_id]->name ?? '—').' (dept)',
+            };
+            $x->dept = match ($x->holder_type) {
+                'EMPLOYEE' => $users[$x->holder_user_id]->department->name ?? '',
+                'OFFICE' => $offices[$x->holder_section_id]->department->name ?? '',
+                default => '',
+            };
             return $x;
         })->sortBy('holder')->values();
     }
@@ -46,15 +56,21 @@ class AllocationController extends InvController
         return view('inventory.allocations.index', ['rows' => $rows, 'equipment' => $this->equipment(), 'people' => $this->people(), 'departments' => $this->departments()]);
     }
 
-    /** One holder (employee or department) with everything they currently hold; equipment is shown here and returned from here. */
+    /** One holder (employee, department or office) with everything they currently hold; equipment is shown here and returned from here. */
     public function holder(string $holder)
     {
-        [$kind, $id] = explode('-', $holder);
+        [$kind, $id] = array_pad(explode('-', $holder, 2), 2, null);
+        abort_unless(in_array($kind, ['E', 'D', 'O'], true) && ctype_digit((string) $id), 404);
         $isEmp = $kind === 'E';
-        $who = $isEmp ? User::with('department')->findOrFail($id) : Department::findOrFail($id);
-        $rows = $this->holdings(fn ($q) => $isEmp ? $q->where('holder_type', 'EMPLOYEE')->where('holder_user_id', $id) : $q->where('holder_type', 'DEPARTMENT')->where('holder_department_id', $id));
+        $isOffice = $kind === 'O';
+        $who = match ($kind) { 'E' => User::with('department')->findOrFail($id), 'O' => Section::with('department')->findOrFail($id), default => Department::findOrFail($id) };
+        $rows = $this->holdings(fn ($q) => match ($kind) {
+            'E' => $q->where('holder_type', 'EMPLOYEE')->where('holder_user_id', $id),
+            'O' => $q->where('holder_type', 'OFFICE')->where('holder_section_id', $id),
+            default => $q->where('holder_type', 'DEPARTMENT')->where('holder_department_id', $id),
+        });
 
-        return view('inventory.allocations.holder', ['who' => $who, 'isEmp' => $isEmp, 'rows' => $rows, 'holderId' => $holder]);
+        return view('inventory.allocations.holder', ['who' => $who, 'isEmp' => $isEmp, 'isOffice' => $isOffice, 'rows' => $rows, 'holderId' => $holder]);
     }
 
     /** "My Items": what is currently allocated to me or my department. */
@@ -74,13 +90,21 @@ class AllocationController extends InvController
         $equipment = $this->equipment();
         $serials = $equipment->filter(fn ($e) => $e->is_serialized)->mapWithKeys(fn ($e) => [$e->id => $this->svc()->serialInfo($e)]);
 
-        return view('inventory.allocations.create', ['equipment' => $equipment, 'serials' => $serials, 'people' => $this->people(), 'departments' => $this->departments(), 'locations' => \App\Models\Location::where('is_active', true)->orderBy('name')->get(['id', 'name'])]);
+        return view('inventory.allocations.create', ['equipment' => $equipment, 'serials' => $serials, 'people' => $this->people(), 'departments' => $this->departments(), 'offices' => $this->offices()]);
+    }
+
+    /** Active offices (Configuration > Offices) with their department, for the pickers. */
+    protected function offices($also = null)
+    {
+        return Section::with('department:id,name')->where(fn ($q) => $q->where('is_active', true)->when($also, fn ($w, $id) => $w->orWhere('id', $id)))
+            ->orderBy('name')->get(['id', 'department_id', 'name']);
     }
 
     public function store(Request $r)
     {
-        $d = $r->validate(['to_type' => 'required|in:EMPLOYEE,DEPARTMENT', 'user_id' => 'required_if:to_type,EMPLOYEE|nullable|exists:users,id',
-            'department_id' => 'required_if:to_type,DEPARTMENT|nullable|exists:departments,id', 'location_id' => 'required_if:to_type,DEPARTMENT|nullable|exists:locations,id', 'date' => 'required|date|before_or_equal:today', 'reference_no' => 'nullable|string|max:255', 'previous' => 'nullable|boolean',
+        $d = $r->validate(['to_type' => 'required|in:EMPLOYEE,DEPARTMENT,OFFICE', 'user_id' => 'required_if:to_type,EMPLOYEE|nullable|exists:users,id',
+            'department_id' => 'required_if:to_type,DEPARTMENT|nullable|exists:departments,id', 'section_id' => 'required_if:to_type,OFFICE|nullable|exists:sections,id',
+            'date' => 'required|date|before_or_equal:today', 'reference_no' => 'nullable|string|max:255', 'previous' => 'nullable|boolean',
             'lines' => 'required|array|min:1', 'lines.*.equipment_id' => 'required|exists:inv_equipment,id', 'lines.*.qty' => 'nullable|numeric|gt:0', 'lines.*.purpose' => 'nullable|string|max:500', 'lines.*.device_serial_no' => 'nullable|string|max:120']);
         $lines = array_values($d['lines']);
         $this->assertSelectable($lines);
@@ -97,13 +121,13 @@ class AllocationController extends InvController
             foreach ($lines as $i => $l) {
                 if (Equipment::find($l['equipment_id'])->is_serialized) $lines[$i]['qty'] = 1;   // serialisable equipment is one unit per line
             }
-            $this->svc()->receivePrevious($d, $lines, ['type' => $d['to_type'], 'user_id' => $d['user_id'] ?? null, 'department_id' => $d['department_id'] ?? null, 'location_id' => $d['location_id'] ?? null]);
+            $this->svc()->receivePrevious($d, $lines, ['type' => $d['to_type'], 'user_id' => $d['user_id'] ?? null, 'department_id' => $d['department_id'] ?? null, 'section_id' => $d['section_id'] ?? null]);
             $entry = $this->svc()->lastAllocEntry;
 
             return redirect()->route('inv.allocations.entries')->with('ok', "Previous allocation recorded as {$entry}.");
         }
 
-        $entry = $this->svc()->allocate(['type' => $d['to_type'], 'user_id' => $d['user_id'] ?? null, 'department_id' => $d['department_id'] ?? null, 'location_id' => $d['location_id'] ?? null], $d, $lines);
+        $entry = $this->svc()->allocate(['type' => $d['to_type'], 'user_id' => $d['user_id'] ?? null, 'department_id' => $d['department_id'] ?? null, 'section_id' => $d['section_id'] ?? null], $d, $lines);
 
         return redirect()->route('inv.allocations.entries')->with('ok', "Allocated and recorded as {$entry}.");
     }
@@ -123,13 +147,13 @@ class AllocationController extends InvController
         $out = [];
         $this->returnEntries = [];
         $same = fn ($q, $m) => $q->where('equipment_id', $m->equipment_id)->where('holder_type', $m->holder_type)
-            ->where('holder_user_id', $m->holder_user_id)->where('holder_department_id', $m->holder_department_id);
+            ->where('holder_user_id', $m->holder_user_id)->where('holder_department_id', $m->holder_department_id)->where('holder_section_id', $m->holder_section_id);
         foreach ($lines->whereNotNull('serial_no') as $m) {
             $r = $same(Movement::where('type', 'RETURN')->where('serial_no', $m->serial_no)->where('id', '>', $m->id), $m)->orderBy('id')->first();
             $out[$m->id] = $r ? abs((float) $m->qty) : 0.0;
             if ($r && $r->entry_no) $this->returnEntries[$m->id] = [$r->entry_no];
         }
-        foreach ($lines->whereNull('serial_no')->groupBy(fn ($m) => implode('|', [$m->equipment_id, $m->holder_type, $m->holder_user_id, $m->holder_department_id])) as $g) {
+        foreach ($lines->whereNull('serial_no')->groupBy(fn ($m) => implode('|', [$m->equipment_id, $m->holder_type, $m->holder_user_id, $m->holder_department_id, $m->holder_section_id])) as $g) {
             $first = $g->first();
             $rets = $same(Movement::where('type', 'RETURN')->whereNull('serial_no'), $first)->orderBy('id')->get()->map(fn ($x) => ['entry' => $x->entry_no, 'left' => (float) $x->qty])->all();
             foreach ($same(Movement::where('type', 'ALLOCATE')->whereNull('serial_no'), $first)->orderBy('id')->get() as $a) {
@@ -161,12 +185,12 @@ class AllocationController extends InvController
             ->when($r->from, fn ($x, $v) => $x->whereDate('moved_on', '>=', $v))->when($r->to, fn ($x, $v) => $x->whereDate('moved_on', '<=', $v))
             ->when($r->q, fn ($x, $s) => $x->where(fn ($w) => $w->where('entry_no', 'like', "%$s%")->orWhere('ref', 'like', "%$s%")->orWhere('reference_no', 'like', "%$s%")->orWhere('remarks', 'like', "%$s%")->orWhere('serial_no', 'like', "%$s%")->orWhere('device_serial_no', 'like', "%$s%")
                 ->orWhereHas('equipment', fn ($e) => $e->where('name', 'like', "%$s%")->orWhere('code', 'like', "%$s%"))
-                ->orWhereHas('holderUser', fn ($u) => $u->where('name', 'like', "%$s%"))->orWhereHas('holderDepartment', fn ($d) => $d->where('name', 'like', "%$s%"))));
-        $with = ['equipment.assetType', 'equipment.category', 'equipment.subcategory', 'user', 'holderUser.department', 'holderDepartment'];
+                ->orWhereHas('holderUser', fn ($u) => $u->where('name', 'like', "%$s%"))->orWhereHas('holderDepartment', fn ($d) => $d->where('name', 'like', "%$s%"))->orWhereHas('holderSection', fn ($d) => $d->where('name', 'like', "%$s%"))));
+        $with = ['equipment.assetType', 'equipment.category', 'equipment.subcategory', 'user', 'holderUser.department', 'holderDepartment', 'holderSection.department'];
 
         if ($r->input('format') === 'csv') {
             return $this->csv('allocation_records', ['Entry', 'Date', 'Allocated to', 'Department', 'Code', 'Equipment', 'Asset ID', 'Serial number', 'Quantity', 'Purpose', 'Reference', 'By'],
-                (clone $base)->with($with)->latest('moved_on')->latest('id')->get()->map(fn ($m) => [$m->entry_no, $m->moved_on->format('Y-m-d'), $m->holder_name, $m->holderUser?->department?->name ?? '', $m->equipment->code, $m->equipment->name,
+                (clone $base)->with($with)->latest('moved_on')->latest('id')->get()->map(fn ($m) => [$m->entry_no, $m->moved_on->format('Y-m-d'), $m->holder_name, $m->holderUser?->department?->name ?? $m->holderSection?->department?->name ?? '', $m->equipment->code, $m->equipment->name,
                     $m->serial_no, $m->device_serial_no, \App\Support\Inv::qty(abs($m->qty)), $m->remarks, $m->reference_no, $m->user->name ?? '']));
         }
 
@@ -181,7 +205,7 @@ class AllocationController extends InvController
     /** All lines of one allocation entry; 404 when there is none, 403 unless the user may see it (inventory view, or it was handed to them / their department). */
     protected function entryLines(string $entry)
     {
-        $lines = Movement::with(['equipment.assetType', 'equipment.category', 'equipment.subcategory', 'user', 'holderUser.department', 'holderDepartment'])
+        $lines = Movement::with(['equipment.assetType', 'equipment.category', 'equipment.subcategory', 'user', 'holderUser.department', 'holderDepartment', 'holderSection.department'])
             ->where('entry_no', $entry)->where('type', 'ALLOCATE')->orderBy('id')->get();
         abort_if($lines->isEmpty(), 404);
         $f = $lines->first();
@@ -199,11 +223,13 @@ class AllocationController extends InvController
         $f = $lines->first();
         // What the holder still has of each equipment / asset in this entry (allocated minus returned, across all entries).
         $held = Movement::whereIn('type', ['ALLOCATE', 'RETURN'])->whereIn('equipment_id', $lines->pluck('equipment_id'))->where('holder_type', $f->holder_type)
-            ->when($f->holder_type === 'EMPLOYEE', fn ($q) => $q->where('holder_user_id', $f->holder_user_id), fn ($q) => $q->where('holder_department_id', $f->holder_department_id))
+            ->when($f->holder_type === 'EMPLOYEE', fn ($q) => $q->where('holder_user_id', $f->holder_user_id),
+                fn ($q) => $f->holder_type === 'OFFICE' ? $q->where('holder_section_id', $f->holder_section_id) : $q->where('holder_department_id', $f->holder_department_id))
             ->selectRaw('equipment_id, serial_no, -SUM(qty) as held')->groupBy('equipment_id', 'serial_no')->get()
             ->mapWithKeys(fn ($x) => [$x->equipment_id.'|'.($x->serial_no ?? '') => (float) $x->held]);
 
-        return view('inventory.allocations.show', ['entry' => $entry, 'lines' => $lines, 'first' => $f, 'held' => $held, 'returned' => $this->returnedByLine($lines), 'returnEntries' => $this->returnEntries]);
+        return view('inventory.allocations.show', ['entry' => $entry, 'lines' => $lines, 'first' => $f, 'held' => $held, 'returned' => $this->returnedByLine($lines), 'returnEntries' => $this->returnEntries,
+            'isPrevious' => Movement::where('entry_no', $entry)->where('type', 'PRIOR')->exists()]);
     }
 
     /** PDF handover form of one allocation entry: every equipment handed over in it. */
@@ -231,11 +257,43 @@ class AllocationController extends InvController
         return response($pdf, 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="Allocation_'.$entry.'_bn.pdf"']);
     }
 
+    /** System Administrator only: edit one allocation entry (who has it, date, reference, quantities, purposes, manufacturer serial numbers). */
+    public function edit(string $entry)
+    {
+        $lines = $this->entryLines($entry);
+        $first = $lines->first();
+        $people = $this->people();
+        if ($first->holder_user_id && ! $people->contains('id', $first->holder_user_id)) $people = $people->push($first->holderUser)->sortBy('name')->values();   // a holder who is no longer active stays selectable
+        $departments = $this->departments();
+        if ($first->holder_department_id && ! $departments->contains('id', $first->holder_department_id)) $departments = $departments->push($first->holderDepartment)->sortBy('name')->values();
+
+        return view('inventory.allocations.edit', ['entry' => $entry, 'lines' => $lines, 'first' => $first, 'returned' => $this->returnedByLine($lines), 'people' => $people, 'departments' => $departments, 'offices' => $this->offices($first->holder_section_id),
+            'isPrevious' => Movement::where('entry_no', $entry)->where('type', 'PRIOR')->exists()]);
+    }
+
+    public function update(Request $r, string $entry)
+    {
+        $lines = $this->entryLines($entry);
+        $d = $r->validate(['to_type' => 'required|in:EMPLOYEE,DEPARTMENT,OFFICE', 'user_id' => 'required_if:to_type,EMPLOYEE|nullable|exists:users,id',
+            'department_id' => 'required_if:to_type,DEPARTMENT|nullable|exists:departments,id', 'section_id' => 'required_if:to_type,OFFICE|nullable|exists:sections,id',
+            'date' => 'required|date|before_or_equal:today', 'reference_no' => 'nullable|string|max:255',
+            'lines' => 'required|array', 'lines.*.qty' => 'nullable|numeric|gt:0', 'lines.*.purpose' => 'nullable|string|max:500', 'lines.*.device_serial_no' => 'nullable|string|max:120']);
+
+        try {
+            $res = $this->svc()->updateEntry($entry, ['ALLOCATE', 'PRIOR'], $d, collect($d['lines'])->only($lines->pluck('id')->all())->all(),
+                ['type' => $d['to_type'], 'user_id' => $d['user_id'] ?? null, 'department_id' => $d['department_id'] ?? null, 'section_id' => $d['section_id'] ?? null]);
+        } catch (ValidationException $e) {
+            return redirect()->back()->withInput()->withErrors($e->errors());
+        }
+
+        return redirect()->route('inv.allocations.show', $entry)->with('ok', $res['changed'] ? "{$entry} was updated and the stock was adjusted." : 'No changes were made.');
+    }
+
     /** System Administrator only: delete a whole allocation entry; its stock effect is reversed (refused when that would break the records). */
     public function destroy(string $entry)
     {
         try {
-            $this->svc()->deleteEntry($entry, ['ALLOCATE']);
+            $this->svc()->deleteEntry($entry, ['ALLOCATE', 'PRIOR']);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return redirect()->back()->with('error', collect($e->errors())->flatten()->first());
         }

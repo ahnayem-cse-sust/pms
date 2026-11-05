@@ -26,6 +26,8 @@ Route::middleware('auth')->prefix('inventory')->name('inv.')->group(function () 
 
     // Receive Item (new stock from a supplier, or items returned by an employee / department)
     Route::get('receives', [I\ReceiveController::class, 'index'])->middleware('can:inv.view')->name('receives');
+    Route::get('receives/{entry}/edit', [I\ReceiveController::class, 'edit'])->middleware('can:inv.edit')->where('entry', '[A-Z]{2,3}-[0-9]+')->name('receives.edit');
+    Route::put('receives/{entry}', [I\ReceiveController::class, 'update'])->middleware('can:inv.edit')->where('entry', '[A-Z]{2,3}-[0-9]+')->name('receives.update');
     Route::get('receives/{entry}/pdf', [I\ReceiveController::class, 'pdf'])->middleware('can:inv.view')->name('receives.pdf');
     Route::get('receives/{entry}', [I\ReceiveController::class, 'show'])->middleware('can:inv.view')->where('entry', '[A-Z]{2,3}-[0-9]+')->name('receives.show');
     Route::delete('receives/{entry}', [I\ReceiveController::class, 'destroy'])->middleware('can:inv.delete')->where('entry', '[A-Z]{2,3}-[0-9]+')->name('receives.destroy');
@@ -37,8 +39,10 @@ Route::middleware('auth')->prefix('inventory')->name('inv.')->group(function () 
     Route::get('allocations/create', [I\AllocationController::class, 'create'])->middleware('can:inv.create')->name('allocations.create');
     Route::post('allocations', [I\AllocationController::class, 'store'])->middleware('can:inv.create')->name('allocations.store');
     Route::get('allocations/records', [I\AllocationController::class, 'entries'])->middleware('can:inv.view')->name('allocations.entries');
-    Route::get('allocations/holder/{holder}', [I\AllocationController::class, 'holder'])->middleware('can:inv.view')->where('holder', '[ED]-[0-9]+')->name('allocations.holder');
+    Route::get('allocations/holder/{holder}', [I\AllocationController::class, 'holder'])->middleware('can:inv.view')->where('holder', '[EDO]-[0-9]+')->name('allocations.holder');
     Route::delete('allocations/{entry}', [I\AllocationController::class, 'destroy'])->middleware('can:inv.delete')->where('entry', '[A-Z]{2,3}-[0-9]+')->name('allocations.destroy');
+    Route::get('allocations/{entry}/edit', [I\AllocationController::class, 'edit'])->middleware('can:inv.edit')->where('entry', '[A-Z]{2,3}-[0-9]+')->name('allocations.edit');
+    Route::put('allocations/{entry}', [I\AllocationController::class, 'update'])->middleware('can:inv.edit')->where('entry', '[A-Z]{2,3}-[0-9]+')->name('allocations.update');
     Route::get('allocations/{entry}/pdf', [I\AllocationController::class, 'pdf'])->name('allocations.pdf');
     Route::get('allocations/{entry}/pdf-bn', [I\AllocationController::class, 'pdfBn'])->name('allocations.pdf.bn');
     Route::get('allocations/{entry}', [I\AllocationController::class, 'show'])->where('entry', '[A-Z]{2,3}-[0-9]+')->name('allocations.show');

@@ -3,20 +3,22 @@
 @section('content')
 <div class="d-flex flex-wrap gap-2 mb-3">
     @can('inv.view')<a href="{{ route('inv.allocations.entries') }}" class="btn btn-outline-secondary inv-back"><x-icon name="arrow-left" :size="15"/> Allocation records</a>@endcan
-    @can('inv.delete')<form class="ms-md-auto" method="POST" action="{{ route('inv.allocations.destroy', $entry) }}" onsubmit="return confirm('Delete {{ $entry }}? Its stock effect is reversed and the records are removed permanently.');">@csrf @method('DELETE')<button class="btn btn-outline-danger inv-back"><x-icon name="trash" :size="15"/> Delete</button></form>@endcan
+    @can('inv.edit')<a href="{{ route('inv.allocations.edit', $entry) }}" class="btn btn-outline-primary inv-back ms-md-auto"><x-icon name="edit" :size="15"/> Edit</a>@endcan
+    @can('inv.delete')<form @class(['ms-md-auto' => ! auth()->user()->can('inv.edit')]) method="POST" action="{{ route('inv.allocations.destroy', $entry) }}" onsubmit="return confirm('Delete {{ $entry }}? Its stock effect is reversed and the records are removed permanently.');">@csrf @method('DELETE')<button class="btn btn-outline-danger inv-back"><x-icon name="trash" :size="15"/> Delete</button></form>@endcan
 </div>
 <div class="card">
     <div class="inv-hero">
         <span class="type-ico ti-primary"><x-icon name="arrow-up-right" :size="20"/></span>
         <div><div class="inv-hero-title">{{ $entry }}</div><div class="inv-sub">{{ $first->moved_on->format('d M Y') }} · {{ $lines->count() }} {{ \Illuminate\Support\Str::plural('line', $lines->count()) }}</div></div>
-        <div class="ms-auto d-flex align-items-center gap-2">{{ \App\Support\Inv::pill($first->type) }}
+        <div class="ms-auto d-flex align-items-center gap-2">{{ \App\Support\Inv::pill($first->type) }}@if($isPrevious){{ \App\Support\Inv::pill('PRIOR') }}@endif
             <a href="{{ route('inv.allocations.pdf.bn', $entry) }}" class="btn btn-sm btn-primary"><x-icon name="download" :size="14"/> Allocation form download</a></div>
     </div>
     @php
         $pairs = collect([
-            ['Allocated to', $first->holder_name.($first->holderUser ? ' ('.$first->holderUser->employee_id.', '.($first->holderUser->department->name ?? '').')' : '')],
-            ...($first->location ? [['Depot/Section', $first->location->name]] : []),
-            ['Date', $first->moved_on->format('d M Y')],
+            ['Allocated to', $first->holder_name.($first->holderUser ? ' ('.$first->holderUser->employee_id.', '.($first->holderUser->department->name ?? '').')' : ($first->holderSection?->department ? ' ('.$first->holderSection->department->name.')' : ''))],
+            ...($first->location ? [['Location', $first->location->name]] : []),
+            ['Allocation date', $first->moved_on->format('d M Y')],
+            ['Record date', $first->created_at?->format('d M Y, H:i') ?? '—'],
             ['Reference', $first->reference_no ?: '—'],
             ['Issued by', $first->user->name ?? '—'],
             ['Entry', $entry],
@@ -43,7 +45,7 @@
     $e = $m->equipment;
     $ret = $returned[$m->id] ?? 0; $qtyA = abs((float) $m->qty); $fully = $ret >= $qtyA; $partly = $ret > 0 && ! $fully;
     $left = $held[$m->equipment_id.'|'.($m->serial_no ?? '')] ?? 0;
-    $returnUrl = route('inv.receive', ['from' => ($first->holder_type === 'EMPLOYEE' ? 'E:'.$first->holder_user_id : 'D:'.$first->holder_department_id), 'equipment_id' => $m->equipment_id, 'serial' => $m->serial_no]);
+    $returnUrl = route('inv.receive', ['from' => $first->holder_key, 'equipment_id' => $m->equipment_id, 'serial' => $m->serial_no]);
 @endphp
 <tr @class(['table-light text-muted' => $fully])>
     <td class="text-nowrap"><span class="inv-code">{{ $e->code }}</span></td>

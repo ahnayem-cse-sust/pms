@@ -44,7 +44,7 @@
                 </select>@error('designation_id')<div class="invalid-feedback">{{ $message }}</div>@enderror</td>
             </tr>
             <tr>
-                <th>Location {!! $rqa !!}</th>
+                <th>Station {!! $rqa !!}</th>
                 <td><select name="location_id" class="form-select @error('location_id') is-invalid @enderror" {{ $r_ }}><option value="">Select…</option>
                     @foreach($locations as $l)<option value="{{ $l->id }}" @selected(old('location_id', $user->location_id) == $l->id)>{{ $l->name }}</option>@endforeach
                 </select>@error('location_id')<div class="invalid-feedback">{{ $message }}</div>@enderror</td>

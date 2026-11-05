@@ -69,6 +69,17 @@
 </section>
 
 <section class="dash-section">
+<div class="section-head">
+    <div>
+        <h5 class="section-title"><span class="title-bar"></span>Assignment board</h5>
+        <div class="section-sub">Open requests by employee, oldest first.@if($board['canAssign']) Drag an employee's name to reorder the columns.@endif</div>
+    </div>
+    <a href="{{ route('board.index') }}" class="btn btn-sm btn-outline-secondary ms-auto">Open full board</a>
+</div>
+@include('dashboard._board', ['board' => $board, 'full' => false])
+</section>
+
+<section class="dash-section">
 <div class="section-head"><h5 class="section-title"><span class="title-bar violet"></span>Insights</h5><div class="section-sub">Request volume and where requests come from.</div></div>
 <div class="row g-4">
     <div class="col-lg-4"><div class="card h-100"><div class="card-header">Monthly trend <small class="text-muted fw-normal">&middot; last 6 months</small></div><div class="card-body"><canvas id="trend"></canvas></div></div></div>

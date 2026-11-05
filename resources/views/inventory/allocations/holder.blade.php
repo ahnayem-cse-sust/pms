@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', $isEmp ? $who->name : $who->name.' (dept)')
+@section('title', $isEmp ? $who->name : $who->name.($isOffice ? ' (office)' : ' (dept)'))
 @section('content')
 <div class="d-flex flex-wrap gap-2 mb-3">
     <a href="{{ route('inv.allocations.index') }}" class="btn btn-outline-secondary inv-back"><x-icon name="arrow-left" :size="15"/> Who has what</a>
@@ -7,15 +7,15 @@
 <div class="card">
     <div class="inv-hero">
         @if($isEmp)<x-avatar :name="$who->name"/>@else<span class="type-ico ti-primary"><x-icon name="building" :size="20"/></span>@endif
-        <div><div class="inv-hero-title">{{ $who->name }}@unless($isEmp) <span class="text-muted fw-normal">(dept)</span>@endunless</div><div class="inv-sub">{{ $isEmp ? 'Employee' : 'Department' }}</div></div>
+        <div><div class="inv-hero-title">{{ $who->name }}@unless($isEmp) <span class="text-muted fw-normal">({{ $isOffice ? 'office' : 'dept' }})</span>@endunless</div><div class="inv-sub">{{ $isEmp ? 'Employee' : ($isOffice ? 'Office' : 'Department') }}</div></div>
         <div class="ms-auto"><span class="inv-q fs-5">{{ \App\Support\Inv::qty($rows->sum('held')) }} <span class="text-muted fs-6 fw-normal">items held</span></span></div>
     </div>
     @php
         $pairs = collect([
             ['Assigned to', $who->name],
-            ['Type', $isEmp ? 'Employee' : 'Department'],
+            ['Type', $isEmp ? 'Employee' : ($isOffice ? 'Office' : 'Department')],
             ['Employee ID', $isEmp ? ($who->employee_id ?: '—') : '—'],
-            ['Department', $isEmp ? ($who->department->name ?? '—') : $who->name],
+            ['Department', $isEmp || $isOffice ? ($who->department->name ?? '—') : $who->name],
             ['Total items', \App\Support\Inv::qty($rows->sum('held'))],
             ['Equipment lines', $rows->count()],
         ]);
@@ -45,7 +45,7 @@
         <td>@if($x->serial_no)<strong class="inv-sn text-body">{{ $x->serial_no }}</strong>@else—@endif @if($x->device_sn)<div class="inv-sub">Serial {{ $x->device_sn }}</div>@endif</td>
         <td class="text-end text-nowrap"><span class="inv-q">{{ \App\Support\Inv::qty($x->held) }}</span> <span class="text-muted">{{ $x->equipment->unit }}</span></td>
         <td class="text-nowrap">{{ $x->since ? \Illuminate\Support\Carbon::parse($x->since)->format('d M Y') : '—' }}</td>
-        <td class="text-end">@can('inv.create')<a class="btn btn-sm btn-outline-primary" href="{{ route('inv.receive', ['from' => ($x->holder_type === 'EMPLOYEE' ? 'E:'.$x->holder_user_id : 'D:'.$x->holder_department_id), 'equipment_id' => $x->equipment_id, 'serial' => $x->serial_no]) }}"><x-icon name="corner-up-left" :size="14"/> Return</a>@endcan</td>
+        <td class="text-end">@can('inv.create')<a class="btn btn-sm btn-outline-primary" href="{{ route('inv.receive', ['from' => $x->holder_key, 'equipment_id' => $x->equipment_id, 'serial' => $x->serial_no]) }}"><x-icon name="corner-up-left" :size="14"/> Return</a>@endcan</td>
     </tr>
     @empty
     <tr><td colspan="6">@include('inventory._empty', ['icon' => 'users', 'msg' => 'Nothing is held', 'hint' => 'Everything allocated here has been returned.'])</td></tr>

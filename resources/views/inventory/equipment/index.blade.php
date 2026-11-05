@@ -3,7 +3,7 @@
 @section('content')
 @include('inventory._errors')
 @php
-    $activeFilters = collect(request()->only(['q', 'asset_type_id', 'category_id', 'subcategory_id', 'low']))->filter(fn ($v) => $v !== null && $v !== '')->count() + ($tab !== 'active' ? 1 : 0);
+    $activeFilters = collect(request()->only(['q', 'asset_type_id', 'category_id', 'subcategory_id', 'low']))->filter(fn ($v) => $v !== null && $v !== '')->count() + ($tab !== 'instock' ? 1 : 0);
 @endphp
 <form class="card filter-card mb-3" method="GET"><input type="hidden" name="tab" value="{{ $tab }}"><div class="filter-body"><div class="row g-2 align-items-end">
     <div class="col-12 col-md-4 col-xl-3"><label class="form-label">Search</label><div class="input-icon"><x-icon name="search" :size="15"/><input name="q" value="{{ request('q') }}" class="form-control" placeholder="Equipment ID, name, brand, model" autofocus></div></div>
@@ -21,6 +21,7 @@
     <a href="{{ $tabUrl('all') }}" class="inv-chip {{ $cur === 'all' ? 'active' : '' }}">All <strong>{{ $tabs['all'] }}</strong></a>
     <a href="{{ $tabUrl('active') }}" class="inv-chip {{ $cur === 'active' ? 'active' : '' }}">Active <strong>{{ $tabs['active'] }}</strong></a>
     <a href="{{ $tabUrl('inactive') }}" class="inv-chip {{ $cur === 'inactive' ? 'active' : '' }}">Inactive <strong>{{ $tabs['inactive'] }}</strong></a>
+    <a href="{{ $tabUrl('instock') }}" class="inv-chip {{ $cur === 'instock' ? 'active' : '' }}">In stock <strong>{{ $tabs['instock'] }}</strong></a>
     <a href="{{ $tabUrl('low') }}" class="inv-chip warn {{ $cur === 'low' ? 'active' : '' }}">Low stock <strong>{{ $tabs['low'] }}</strong></a>
     <a href="{{ $tabUrl('out') }}" class="inv-chip bad {{ $cur === 'out' ? 'active' : '' }}">Out of stock <strong>{{ $tabs['out'] }}</strong></a>
     <span class="ms-auto">Showing <strong class="text-body">{{ $rows->total() }}</strong> {{ \Illuminate\Support\Str::plural('item', $rows->total()) }}</span>

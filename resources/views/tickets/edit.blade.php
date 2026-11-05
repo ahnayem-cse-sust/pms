@@ -12,7 +12,7 @@
                 <div class="col-md-6"><label class="form-label">Name</label><input class="form-control" value="{{ $ticket->requester_name }}" disabled></div>
                 <div class="col-md-6"><label class="form-label">Employee ID</label><input class="form-control" value="{{ $ticket->requester_employee_id }}" disabled></div>
                 <div class="col-md-6"><label class="form-label">WhatsApp number</label><input name="phone" value="{{ old('phone', $ticket->requester_phone) }}" class="form-control" maxlength="30" inputmode="tel"></div>
-                <div class="col-md-6"><label class="form-label">Location</label>
+                <div class="col-md-6"><label class="form-label">Station</label>
                     <select name="location_id" class="form-select"><option value="">—</option>@foreach($locations as $l)<option value="{{ $l->id }}" @selected(old('location_id', $ticket->location_id) == $l->id)>{{ $l->name }}</option>@endforeach</select></div>
             </div>
         </div>

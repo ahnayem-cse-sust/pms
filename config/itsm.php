@@ -28,7 +28,6 @@ $sidebarMenus = [
         'menu.inv_equipment'   => ['Equipment & Stock', ['inv.view']],
         'menu.inv_allocations' => ['Allocations', ['inv.view']],
         'menu.inv_receives'    => ['Receives', ['inv.view']],
-        'menu.inv_records'     => ['Records', ['inv.view']],
         'menu.inv_reports'     => ['Reports', ['inv.view']],
         'menu.inv_setup'       => ['Types & Categories', ['inv.view']],
     ],
@@ -116,7 +115,7 @@ return [
             'lookup.view', 'lookup.create', 'lookup.update',
             'settings.view', 'settings.update', 'audit.view',
             // IT Inventory
-            'inv.view', 'inv.view.own', 'inv.create', 'inv.update', 'inv.delete',
+            'inv.view', 'inv.view.own', 'inv.create', 'inv.update', 'inv.delete', 'inv.edit',
             // File Management
             'file.view', 'file.create', 'file.update', 'file.delete',
         ],
@@ -160,7 +159,7 @@ return [
     ]),
 
     // Permissions that only a System Administrator may hand out (to a user through a role).
-    'privileged_permissions' => ['role.view', 'role.create', 'role.update', 'role.delete', 'settings.view', 'settings.update', 'audit.view', 'inv.delete', 'file.delete', 'user.delete', 'menu.roles', 'menu.settings', 'menu.audit', 'menu.logins'],
+    'privileged_permissions' => ['role.view', 'role.create', 'role.update', 'role.delete', 'settings.view', 'settings.update', 'audit.view', 'inv.delete', 'inv.edit', 'file.delete', 'user.delete', 'menu.roles', 'menu.settings', 'menu.audit', 'menu.logins'],
 
     // Picking a permission automatically adds the ones it cannot work without (applied in the role form and on save).
     'sidebar_menus' => $sidebarMenus,
@@ -184,7 +183,7 @@ return [
         'role.create' => ['role.view'], 'role.update' => ['role.view'], 'role.delete' => ['role.view'],
         'lookup.create' => ['lookup.view'], 'lookup.update' => ['lookup.view'],
         'settings.update' => ['settings.view'],
-        'inv.create' => ['inv.view'], 'inv.update' => ['inv.view'], 'inv.delete' => ['inv.view'],
+        'inv.create' => ['inv.view'], 'inv.update' => ['inv.view'], 'inv.delete' => ['inv.view'], 'inv.edit' => ['inv.view'],
         'file.create' => ['file.view'], 'file.update' => ['file.view'], 'file.delete' => ['file.view'],
     ],
 
@@ -213,7 +212,7 @@ return [
             ['label' => 'Own attendance', 'read' => 'attendance.own', 'add' => null, 'update' => null, 'delete' => null],
         ],
         'IT Inventory' => [
-            ['label' => 'Equipment stock & allocations', 'note' => 'Add = receive item (new or returned), allocate; Update = equipment, asset types and categories; Delete = receives and allocations (System Administrator only)', 'read' => 'inv.view', 'add' => 'inv.create', 'update' => 'inv.update', 'delete' => 'inv.delete'],
+            ['label' => 'Equipment stock & allocations', 'note' => 'Add = receive item (new or returned), allocate; Update = equipment, asset types and categories; Delete = receives and allocations (System Administrator only); editing receives and allocations is the separate permission below the matrix (System Administrator only)', 'read' => 'inv.view', 'add' => 'inv.create', 'update' => 'inv.update', 'delete' => 'inv.delete'],
             ['label' => 'Own allocated equipment', 'read' => 'inv.view.own', 'add' => null, 'update' => null, 'delete' => null],
         ],
         'File Management' => [
@@ -222,7 +221,7 @@ return [
         'Administration' => [
             ['label' => 'Users', 'note' => 'Delete = System Administrator only; a user who already has records can only be disabled', 'read' => 'user.view', 'add' => 'user.create', 'update' => 'user.update', 'delete' => 'user.delete'],
             ['label' => 'Roles & permissions', 'note' => 'Update also covers users\' individual permissions', 'read' => 'role.view', 'add' => 'role.create', 'update' => 'role.update', 'delete' => 'role.delete'],
-            ['label' => 'Configuration lists', 'note' => 'Categories, departments, designations, locations ...', 'read' => 'lookup.view', 'add' => 'lookup.create', 'update' => 'lookup.update', 'delete' => null],
+            ['label' => 'Configuration lists', 'note' => 'Categories, departments, offices, designations, locations ...', 'read' => 'lookup.view', 'add' => 'lookup.create', 'update' => 'lookup.update', 'delete' => null],
             ['label' => 'System settings & SLA', 'read' => 'settings.view', 'add' => null, 'update' => 'settings.update', 'delete' => null],
             ['label' => 'Audit log & login history', 'read' => 'audit.view', 'add' => null, 'update' => null, 'delete' => null],
         ],
@@ -273,6 +272,7 @@ return [
             'inv.create' => 'Receive items (new or returned) and allocate items',
             'inv.update' => 'Manage equipment, asset types and categories',
             'inv.delete' => 'Delete receives and allocations (stock is adjusted back)',
+            'inv.edit' => 'Edit receives and allocations (stock is adjusted to match)',
         ],
         'File Management' => [
             'file.view' => 'View department files',

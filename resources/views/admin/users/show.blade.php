@@ -49,7 +49,7 @@
             <dl class="detail-list">
                 <div><dt>Department</dt><dd>{{ $user->department->name ?? '—' }}</dd></div>
                 <div><dt>Designation</dt><dd>{{ $user->designation->name ?? '—' }}</dd></div>
-                <div><dt>Location</dt><dd>{{ $user->location->name ?? '—' }}</dd></div>
+                <div><dt>Station</dt><dd>{{ $user->location->name ?? '—' }}</dd></div>
                 <div><dt>Department head</dt><dd>{!! $yesNo($user->is_department_head) !!}</dd></div>
             </dl>
         </section>

@@ -34,10 +34,10 @@ class MonthlyReportController extends InvController
         $rows = Equipment::with(['assetType', 'category'])->get()->map(function ($e) use ($opening, $in) {
             $m = ($in[$e->id] ?? collect())->pluck('q', 'type');
             $o = round((float) ($opening[$e->id] ?? 0), 2);
-            $recv = round((float) ($m['RECEIVE'] ?? 0) + (float) ($m['OPENING'] ?? 0), 2);   // new stock and previous items taken into store
+            $recv = round((float) ($m['RECEIVE'] ?? 0) + (float) ($m['OPENING'] ?? 0) + (float) ($m['PRIOR'] ?? 0), 2);   // new stock and previous items taken into store
             $ret = round((float) ($m['RETURN'] ?? 0), 2);
             $alloc = round(abs((float) ($m['ALLOCATE'] ?? 0)), 2);
-            $other = round(collect($m)->except(['RECEIVE', 'OPENING', 'RETURN', 'ALLOCATE'])->sum(), 2);   // old corrections, if any
+            $other = round(collect($m)->except(['RECEIVE', 'OPENING', 'PRIOR', 'RETURN', 'ALLOCATE'])->sum(), 2);   // old corrections, if any
 
             return (object) ['equipment' => $e, 'opening' => $o, 'received' => $recv, 'returned' => $ret, 'allocated' => $alloc, 'other' => $other,
                 'closing' => round($o + $recv + $ret - $alloc + $other, 2)];

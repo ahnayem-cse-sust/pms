@@ -14,8 +14,10 @@ class EquipmentController extends InvController
 
     public function index(Request $r)
     {
-        // one tab at a time; Active is the default. Low / Out of stock look at the active list only.
-        $tab = in_array($r->tab, ['all', 'active', 'inactive', 'low', 'out'], true) ? $r->tab : 'active';
+        // one tab at a time; In stock is the default (links from the dashboard that search by code or ask for low / out stock open the Active list,
+        // so equipment without stock is still found). In stock / Low / Out of stock look at the active list only.
+        $default = ($r->boolean('low') || filled($r->q)) ? 'active' : 'instock';
+        $tab = in_array($r->tab, ['all', 'active', 'inactive', 'instock', 'low', 'out'], true) ? $r->tab : $default;
         $lowSql = fn ($q) => $q->where('stock_qty', '>', 0)->where('min_stock', '>', 0)->whereColumn('stock_qty', '<=', 'min_stock');
 
         $query = Equipment::with($this->with)
@@ -23,10 +25,11 @@ class EquipmentController extends InvController
             ->when($r->asset_type_id, fn ($q, $v) => $q->where('asset_type_id', $v))->when($r->category_id, fn ($q, $v) => $q->where('category_id', $v))
             ->when($r->subcategory_id, fn ($q, $v) => $q->where('subcategory_id', $v))
             ->when($r->boolean('low'), fn ($q) => $q->where('min_stock', '>', 0)->whereColumn('stock_qty', '<=', 'min_stock'))   // dashboard link: low or out
+            ->when($tab === 'instock', fn ($q) => $q->where('stock_qty', '>', 0))
             ->when($tab === 'low', $lowSql)
             ->when($tab === 'out', fn ($q) => $q->where('stock_qty', '<=', 0))
             ->when($tab === 'inactive', fn ($q) => $q->notLive())
-            ->when(in_array($tab, ['active', 'low', 'out'], true), fn ($q) => $q->selectable())   // active = active item under active type, category and sub category
+            ->when(in_array($tab, ['active', 'instock', 'low', 'out'], true), fn ($q) => $q->selectable())   // active = active item under active type, category and sub category
             ->orderBy('name');
 
         if ($r->input('format') === 'csv') {
@@ -38,7 +41,7 @@ class EquipmentController extends InvController
 
         $live = fn () => Equipment::selectable();
         $tabs = ['all' => Equipment::count(), 'active' => $live()->count(), 'inactive' => Equipment::notLive()->count(),
-            'low' => $lowSql($live())->count(), 'out' => $live()->where('stock_qty', '<=', 0)->count()];
+            'instock' => $live()->where('stock_qty', '>', 0)->count(), 'low' => $lowSql($live())->count(), 'out' => $live()->where('stock_qty', '<=', 0)->count()];
 
         return view('inventory.equipment.index', ['rows' => $query->paginate(15)->withQueryString(), 'tabs' => $tabs, 'tab' => $tab,
             'types' => $this->types(), 'cats' => $this->categories(), 'subs' => $this->subcategories()]);
@@ -47,7 +50,7 @@ class EquipmentController extends InvController
     public function show(Request $request, Equipment $equipment)
     {
         $equipment->load($this->with);
-        $base = fn () => $equipment->movements()->with('user', 'holderUser.department', 'holderDepartment');
+        $base = fn () => $equipment->movements()->with('user', 'holderUser.department', 'holderDepartment', 'holderSection');
         // Allocations and returns go out to / come back from people; receives (and previous-item openings) bring stock in.
         // Old "Correction" rows follow the direction of the quantity.
         $allocations = $base()->where(fn ($q) => $q->whereIn('type', ['ALLOCATE', 'RETURN'])->orWhere(fn ($w) => $w->where('type', 'ADJUST')->where('qty', '<', 0)))

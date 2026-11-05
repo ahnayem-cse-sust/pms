@@ -44,7 +44,7 @@
     <tr><th>Category</th><td>{{ $ticket->category->name }}@if($ticket->subcategory) / {{ $ticket->subcategory->name }}@endif</td></tr>
     @if($ticket->priority)<tr><th>Priority</th><td>{{ $ticket->priority->name }}</td></tr>@endif
     <tr><th>Requester</th><td>{{ $ticket->requester_name }}@if($ticket->department) &middot; {{ $ticket->department->name }}@endif</td></tr>
-    @if($ticket->location)<tr><th>Location</th><td>{{ $ticket->location->name }}</td></tr>@endif
+    @if($ticket->location)<tr><th>Station</th><td>{{ $ticket->location->name }}</td></tr>@endif
     <tr><th>Submitted at</th><td>{{ $ticket->created_at->format('d M Y, h:i A') }}</td></tr>
     @if($ticket->resolved_at)<tr><th>Resolved at</th><td>{{ $ticket->resolved_at->format('d M Y, h:i A') }}</td></tr>@endif
     @if($ticket->closed_at)<tr><th>Closed at</th><td>{{ $ticket->closed_at->format('d M Y, h:i A') }}</td></tr>@endif

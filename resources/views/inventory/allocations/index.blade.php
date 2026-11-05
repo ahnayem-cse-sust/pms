@@ -5,10 +5,10 @@
 @include('inventory.allocations._tabs')
 @php
     $activeFilters = collect(request()->only(['q', 'equipment_id', 'user_id', 'department_id']))->filter(fn ($v) => $v !== null && $v !== '')->count();
-    $groups = $rows->groupBy(fn ($x) => $x->holder_type.'-'.($x->holder_type === 'EMPLOYEE' ? $x->holder_user_id : $x->holder_department_id));
+    $groups = $rows->groupBy(fn ($x) => $x->holder_key);
 @endphp
 <form class="card filter-card mb-3" method="GET"><div class="filter-body"><div class="row g-2 align-items-end">
-    <div class="col-12 col-md-6 col-xl-3"><label class="form-label">Search</label><div class="input-icon"><x-icon name="search" :size="15"/><input name="q" value="{{ request('q') }}" class="form-control" placeholder="Person, department, equipment, asset ID"></div></div>
+    <div class="col-12 col-md-6 col-xl-3"><label class="form-label">Search</label><div class="input-icon"><x-icon name="search" :size="15"/><input name="q" value="{{ request('q') }}" class="form-control" placeholder="Person, department, office, equipment, asset ID"></div></div>
     <div class="col-12 col-md-6 col-xl-3"><label class="form-label">Equipment</label><select name="equipment_id" class="form-select"><option value="">All</option>@foreach($equipment as $p)<option value="{{ $p->id }}" @selected(request('equipment_id') == $p->id)>{{ $p->name }} ({{ $p->code }})</option>@endforeach</select></div>
     <div class="col-6 col-xl-3"><label class="form-label">Employee</label><select name="user_id" class="form-select"><option value="">All</option>@foreach($people as $p)<option value="{{ $p->id }}" @selected(request('user_id') == $p->id)>{{ $p->name }}@if($p->employee_id) ({{ $p->employee_id }})@endif</option>@endforeach</select></div>
     <div class="col-6 col-xl-3"><label class="form-label">Department</label><select name="department_id" class="form-select"><option value="">All</option>@foreach($departments as $d)<option value="{{ $d->id }}" @selected(request('department_id') == $d->id)>{{ $d->name }}</option>@endforeach</select></div>
@@ -23,7 +23,7 @@
 
 <div class="table-card"><div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Assigned to</th><th class="text-end">Total items</th><th></th></tr></thead><tbody>
 @forelse($groups as $key => $g)
-@php $h = $g->first(); $url = route('inv.allocations.holder', ($h->holder_type === 'EMPLOYEE' ? 'E-'.$h->holder_user_id : 'D-'.$h->holder_department_id)); @endphp
+@php $h = $g->first(); $url = route('inv.allocations.holder', str_replace(':', '-', $h->holder_key)); @endphp
 <tr class="row-link" data-href="{{ $url }}">
     <td style="min-width:220px"><div class="inv-holder">@if($h->holder_type === 'EMPLOYEE')<x-avatar :name="$h->holder"/>@else<span class="dept-ico"><x-icon name="building" :size="14"/></span>@endif<div><a href="{{ $url }}" class="inv-name ticket-link">{{ $h->holder }}</a>@if($h->dept)<div class="inv-sub">{{ $h->dept }}</div>@endif</div></div></td>
     <td class="text-end"><span class="inv-q">{{ \App\Support\Inv::qty($g->sum('held')) }}</span></td>

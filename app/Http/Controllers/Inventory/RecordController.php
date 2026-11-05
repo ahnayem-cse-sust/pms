@@ -11,11 +11,12 @@ class RecordController extends InvController
 {
     public function index(Request $r)
     {
-        $q = Movement::with(['equipment.assetType', 'equipment.category', 'equipment.subcategory', 'user', 'holderUser', 'holderDepartment'])
+        $q = Movement::with(['equipment.assetType', 'equipment.category', 'equipment.subcategory', 'user', 'holderUser', 'holderDepartment', 'holderSection'])
+            ->where('type', '!=', 'PRIOR')   // the hidden stock-in line of a previous allocation is not a record of its own
             ->when($r->type, fn ($x, $v) => $x->where('type', $v))->when($r->equipment_id, fn ($x, $v) => $x->where('equipment_id', $v))
             ->when($r->from, fn ($x, $v) => $x->whereDate('moved_on', '>=', $v))->when($r->to, fn ($x, $v) => $x->whereDate('moved_on', '<=', $v))
             ->when($r->q, fn ($x, $s) => $x->where(fn ($w) => $w->where('ref', 'like', "%$s%")->orWhere('entry_no', 'like', "%$s%")->orWhere('reference_no', 'like', "%$s%")->orWhere('party', 'like', "%$s%")
-                ->orWhereHas('holderUser', fn ($u) => $u->where('name', 'like', "%$s%"))->orWhereHas('holderDepartment', fn ($d) => $d->where('name', 'like', "%$s%"))))
+                ->orWhereHas('holderUser', fn ($u) => $u->where('name', 'like', "%$s%"))->orWhereHas('holderDepartment', fn ($d) => $d->where('name', 'like', "%$s%"))->orWhereHas('holderSection', fn ($d) => $d->where('name', 'like', "%$s%"))))
             ->latest('id');
 
         if ($r->input('format') === 'csv') {
@@ -30,7 +31,7 @@ class RecordController extends InvController
     /** View one record line with all its details, and a link to the entry it belongs to. */
     public function show(Movement $movement)
     {
-        $movement->load(['equipment.assetType', 'equipment.category', 'equipment.subcategory', 'user', 'holderUser.department', 'holderDepartment']);
+        $movement->load(['equipment.assetType', 'equipment.category', 'equipment.subcategory', 'user', 'holderUser.department', 'holderDepartment', 'holderSection.department']);
         $entryRoute = match ($movement->type) { 'ALLOCATE' => 'inv.allocations.show', 'RECEIVE', 'OPENING', 'RETURN' => 'inv.receives.show', default => null };
         $entryCount = $entryRoute ? Movement::where('entry_no', $movement->entry_no)->count() : 0;
 

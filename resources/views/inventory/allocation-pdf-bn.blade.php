@@ -34,8 +34,8 @@
 <h1 style="margin:4px 0 8px">কম্পিউটার ও কম্পিউটার সামগ্রী গ্রহণ ফর্ম</h1>
 <table class="meta">
 <tr><td class="k">প্রাপক</td><td>{{ $first->holder_name }}@if($first->holderUser) – {{ $first->holderUser->employee_id }}@endif</td><td class="k">বরাদ্দ নাম্বার</td><td>{{ $entry }}</td></tr>
-<tr><td class="k">বিভাগ</td><td>{{ $first->holderUser->department->name ?? ($first->holderDepartment->name ?? '—') }}</td><td class="k">তারিখ</td><td>{{ $dt($first->moved_on) }}</td></tr>
-<tr><td class="k">{{ $first->location ? 'ডিপো/সেকশন' : 'অবস্থান' }}</td><td>{{ $first->location->name ?? $first->holderUser->location->name ?? '—' }}</td><td class="k">রেফারেন্স</td><td>{{ $first->reference_no ?: '—' }}</td></tr>
+<tr><td class="k">বিভাগ</td><td>{{ $first->holderUser->department->name ?? ($first->holderDepartment->name ?? ($first->holderSection->department->name ?? '—')) }}</td><td class="k">তারিখ</td><td>{{ $dt($first->moved_on) }}</td></tr>
+<tr><td class="k">লোকেশন</td><td>{{ $first->location->name ?? $first->holderUser->location->name ?? '—' }}</td><td class="k">রেফারেন্স</td><td>{{ $first->reference_no ?: '—' }}</td></tr>
 <tr><td class="k">আইটেম সংখ্যা</td><td>{{ $bn($lines->count()) }}</td><td></td><td></td></tr>
 </table>
 <table class="items" style="margin-top:10px"><thead><tr><th style="width:6%">ক্রম</th><th style="width:34%">ডিভাইস এর নাম</th><th style="width:17%">আইটেম আইডি/পরিমান</th><th style="width:17%">সিরিয়াল নম্বর</th><th>উদ্দেশ্য</th></tr></thead><tbody>

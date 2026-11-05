@@ -260,11 +260,11 @@ class InventoryTest extends TestCase
     public function test_equipment_under_an_inactive_level_leaves_the_active_list(): void
     {
         $this->actingAs($this->officer());
-        $this->get(route('inv.equipment.index'))->assertOk()->assertSee('HP Toner');
+        $this->get(route('inv.equipment.index', ['tab' => 'active']))->assertOk()->assertSee('HP Toner');
 
         foreach ([$this->type, $this->cat, $this->sub] as $level) {
             $level->update(['is_active' => false]);
-            $this->get(route('inv.equipment.index'))->assertOk()->assertDontSee('HP Toner');           // not on the active list
+            $this->get(route('inv.equipment.index', ['tab' => 'active']))->assertOk()->assertDontSee('HP Toner');           // not on the active list
             $this->get(route('inv.equipment.index', ['tab' => 'inactive']))->assertOk()->assertSee('HP Toner');   // still reachable on the Inactive tab
             $level->update(['is_active' => true]);
         }
@@ -277,6 +277,16 @@ class InventoryTest extends TestCase
         $this->get(route('inv.equipment.index', ['tab' => 'out']))->assertOk()->assertSee('HP Toner');   // no stock received yet
         $this->receive(10);
         $this->get(route('inv.equipment.index', ['tab' => 'out']))->assertOk()->assertDontSee('HP Toner');
+    }
+
+    public function test_equipment_list_opens_on_the_in_stock_tab(): void
+    {
+        $this->actingAs($this->officer());
+        $this->get(route('inv.equipment.index'))->assertOk()->assertSee('In stock')->assertDontSee('HP Toner');   // nothing received yet
+        $this->get(route('inv.equipment.index', ['q' => 'TONER']))->assertOk()->assertSee('HP Toner');             // a search link without a tab still finds it
+        $this->receive(10);
+        $this->get(route('inv.equipment.index'))->assertOk()->assertSee('HP Toner');
+        $this->get(route('inv.equipment.index', ['tab' => 'instock']))->assertOk()->assertSee('HP Toner');
     }
 
     public function test_receives_lists_supplier_receipts_and_returns(): void
@@ -308,6 +318,9 @@ class InventoryTest extends TestCase
         $this->assertSame(5.0, $this->stock());
         $this->assertSame(5.0, $this->svcHeld());
         $this->assertSame($past, Movement::where('type', 'ALLOCATE')->firstOrFail()->moved_on->toDateString());
+        $this->assertSame(1, Movement::where('type', 'OPENING')->count());                       // a previous allocation makes no receive record…
+        $this->assertSame(Movement::where('type', 'ALLOCATE')->value('entry_no'), Movement::where('type', 'PRIOR')->value('entry_no'));   // …only its allocation entry
+        $this->actingAs($this->officer())->get(route('inv.receives', ['source' => 'PREVIOUS']))->assertOk()->assertDontSee('AL-000001');
 
         $this->actingAs($this->officer())->post(route('inv.receive.store'), ['source' => 'EMPLOYEE', 'user_id' => $this->person()->id, 'date' => today()->toDateString(),
             'lines' => [['equipment_id' => $this->toner->id, 'qty' => 2]]])->assertSessionHasNoErrors();   // …and can be returned later
@@ -397,20 +410,55 @@ class InventoryTest extends TestCase
         $this->assertSame(['LAPT00010001', 'LAPT00010002'], Movement::where('type', 'ALLOCATE')->orderBy('id')->pluck('serial_no')->all());
     }
 
-    public function test_allocating_to_a_department_needs_a_depot_or_section(): void
+    public function test_allocating_to_a_department_needs_no_location(): void
     {
         $this->receive(10);
         $dept = \App\Models\Department::firstOrFail();
-        $loc = \App\Models\Location::create(['name' => 'Depot A']);
-        $post = fn ($extra) => $this->postAs('inv.allocations.store', ['to_type' => 'DEPARTMENT', 'department_id' => $dept->id, 'date' => today()->toDateString(),
+        $post = fn ($extra) => $this->postAs('inv.allocations.store', ['to_type' => 'DEPARTMENT', 'date' => today()->toDateString(),
             'lines' => [['equipment_id' => $this->toner->id, 'qty' => 2]]] + $extra);
 
-        $post([])->assertSessionHasErrors('location_id');
+        $post([])->assertSessionHasErrors('department_id');
         $this->assertSame(10.0, $this->stock());
-        $post(['location_id' => $loc->id])->assertSessionHasNoErrors();
+        $post(['department_id' => $dept->id])->assertSessionHasNoErrors();
         $this->assertSame(8.0, $this->stock());
-        $this->assertSame($loc->id, (int) Movement::where('type', 'ALLOCATE')->firstOrFail()->location_id);
-        $this->actingAs($this->officer())->get(route('inv.allocations.show', 'AL-000001'))->assertOk()->assertSee('Depot/Section')->assertSee('Depot A');
+        $this->assertNull(Movement::where('type', 'ALLOCATE')->firstOrFail()->location_id);
+        $this->actingAs($this->officer())->get(route('inv.allocations.show', 'AL-000001'))->assertOk()->assertSee($dept->name)->assertDontSee('Location')
+            ->assertSee('Record date')->assertSee(Movement::where('type', 'ALLOCATE')->firstOrFail()->created_at->format('d M Y, H:i'));
+        $this->actingAs($this->officer())->get(route('inv.allocations.create'))->assertOk()->assertDontSee('name="location_id"', false);
+    }
+
+    public function test_equipment_can_be_allocated_to_an_office_and_returned_by_it(): void
+    {
+        $this->receive(10);
+        $dept = \App\Models\Department::firstOrFail();
+        $office = \App\Models\Section::create(['department_id' => $dept->id, 'name' => 'Cash Office']);
+        $other = \App\Models\Section::create(['department_id' => $dept->id, 'name' => 'Records Office']);
+        $post = fn ($extra) => $this->postAs('inv.allocations.store', ['to_type' => 'OFFICE', 'date' => today()->toDateString(),
+            'lines' => [['equipment_id' => $this->toner->id, 'qty' => 4]]] + $extra);
+
+        $post([])->assertSessionHasErrors('section_id');
+        $this->assertSame(10.0, $this->stock());
+        $post(['section_id' => $office->id])->assertSessionHasNoErrors();
+        $this->assertSame(6.0, $this->stock());
+        $m = Movement::where('type', 'ALLOCATE')->firstOrFail();
+        $this->assertSame('OFFICE', $m->holder_type);
+        $this->assertSame($office->id, (int) $m->holder_section_id);
+        $this->assertSame('Cash Office (office)', $m->holder_name);
+
+        $this->actingAs($this->officer())->get(route('inv.allocations.show', $m->entry_no))->assertOk()->assertSee('Cash Office');
+        $this->actingAs($this->officer())->get(route('inv.allocations.index'))->assertOk()->assertSee('Cash Office')->assertSee(route('inv.allocations.holder', 'O-'.$office->id));
+        $this->actingAs($this->officer())->get(route('inv.allocations.holder', 'O-'.$office->id))->assertOk()->assertSee('Cash Office')->assertSee('Office');
+        $this->actingAs($this->officer())->get(route('inv.allocations.entries', ['to_type' => 'OFFICE']))->assertOk()->assertSee($m->entry_no);
+        $this->actingAs($this->officer())->get(route('inv.allocations.entries', ['to_type' => 'DEPARTMENT']))->assertOk()->assertDontSee($m->entry_no);
+
+        // another office of the same department holds nothing, so it cannot return the items
+        $ret = fn ($sectionId, $qty) => $this->postAs('inv.receive.store', ['source' => 'OFFICE', 'section_id' => $sectionId, 'date' => today()->toDateString(),
+            'lines' => [['equipment_id' => $this->toner->id, 'qty' => $qty]]]);
+        $ret($other->id, 1)->assertSessionHasErrors('qty');
+        $ret($office->id, 5)->assertSessionHasErrors('qty');
+        $ret($office->id, 3)->assertSessionHasNoErrors();
+        $this->assertSame(9.0, $this->stock());
+        $this->assertSame(1.0, (float) app(\App\Http\Controllers\Inventory\AllocationController::class)->holdings()->sum('held'));
     }
 
     public function test_allocation_form_knows_the_serials_it_will_show(): void
@@ -601,5 +649,151 @@ class InventoryTest extends TestCase
         // each category / sub category carries its parent and its path, which the page uses to fill in the levels above and to search
         $res->assertSee('data-p="'.$type2->id.'" data-path="Hardware"', false);
         $res->assertSee('data-p="'.$cat2->id.'" data-path="Hardware › Laptops"', false);
+    }
+
+    public function test_previous_allocations_are_marked_on_the_details_page_only(): void
+    {
+        $past = today()->subYear()->toDateString();
+        $this->postAs('inv.allocations.store', ['to_type' => 'EMPLOYEE', 'user_id' => $this->person()->id, 'date' => $past, 'previous' => 1,
+            'lines' => [['equipment_id' => $this->toner->id, 'qty' => 5]]])->assertSessionHasNoErrors();   // AL-000001: already with the person before the system
+        $this->receive(10);
+        $this->allocate(2);                                                                                 // AL-000002: a normal allocation
+
+        $this->actingAs($this->officer())->get(route('inv.allocations.entries'))->assertOk()->assertSee('AL-000001')->assertSee('AL-000002')->assertViewMissing('previous');
+        $this->actingAs($this->officer())->get(route('inv.allocations.show', 'AL-000001'))->assertOk()->assertViewHas('isPrevious', true);
+        $this->actingAs($this->officer())->get(route('inv.allocations.show', 'AL-000002'))->assertOk()->assertViewHas('isPrevious', false);
+    }
+
+    protected function recordId(string $entry, ?string $type = null): int
+    {
+        return (int) Movement::where('entry_no', $entry)->when($type, fn ($q, $t) => $q->where('type', $t))->orderBy('id')->value('id');
+    }
+
+    public function test_only_the_system_administrator_can_edit_a_receive_and_the_stock_follows(): void
+    {
+        $this->receive(10);
+        $id = $this->recordId('RC-000001');
+        $data = ['date' => today()->subDay()->toDateString(), 'supplier' => 'Globex', 'reference_no' => 'INV-9', 'remarks' => 'corrected', 'lines' => [$id => ['qty' => 7]]];
+
+        $this->actingAs($this->officer())->get(route('inv.receives.edit', 'RC-000001'))->assertRedirect()->assertSessionHas('denied');
+        $this->actingAs($this->officer())->put(route('inv.receives.update', 'RC-000001'), $data)->assertRedirect()->assertSessionHas('denied');
+        $this->assertSame(10.0, $this->stock());
+
+        $this->actingAs($this->sysadmin())->get(route('inv.receives.edit', 'RC-000001'))->assertOk()->assertSee('RC-000001');
+        $this->actingAs($this->sysadmin())->put(route('inv.receives.update', 'RC-000001'), $data)->assertSessionHasNoErrors()->assertRedirect(route('inv.receives.show', 'RC-000001'))->assertSessionHas('ok');
+        $m = Movement::findOrFail($id);
+        $this->assertSame(7.0, $this->stock());
+        $this->assertSame(7.0, (float) $m->qty);
+        $this->assertSame(7.0, (float) $m->balance_after);
+        $this->assertSame('Globex', $m->party);
+        $this->assertSame('INV-9', $m->reference_no);
+        $this->assertSame('corrected', $m->remarks);
+        $this->assertSame(today()->subDay()->toDateString(), $m->moved_on->toDateString());
+        $this->assertSame('RC-000001', $m->entry_no);   // the entry number does not change
+    }
+
+    public function test_a_receive_edit_that_would_break_the_records_is_refused(): void
+    {
+        $this->receive(10);
+        $this->allocate(4);   // stock 6
+        $id = $this->recordId('RC-000001');
+        $edit = fn ($qty) => $this->actingAs($this->sysadmin())->put(route('inv.receives.update', 'RC-000001'), ['date' => today()->toDateString(), 'reference_no' => 'INV-1', 'lines' => [$id => ['qty' => $qty]]]);
+
+        $edit(3)->assertSessionHasErrors('lines');    // stock would be -1
+        $this->assertSame(6.0, $this->stock());
+        $this->assertSame(10.0, (float) Movement::findOrFail($id)->qty);
+
+        $edit(5)->assertSessionHasNoErrors();          // stock 1: fine, and the later record's balance follows
+        $this->assertSame(1.0, $this->stock());
+        $this->assertSame(1.0, (float) Movement::where('entry_no', 'AL-000001')->value('balance_after'));
+    }
+
+    public function test_the_system_administrator_can_edit_an_allocation_and_the_stock_follows(): void
+    {
+        $this->receive(10);
+        $this->allocate(4);   // AL-000001 to the department user, stock 6
+        $id = $this->recordId('AL-000001');
+        $other = $this->officer();
+        $past = today()->subDays(3)->toDateString();
+        $data = ['to_type' => 'EMPLOYEE', 'user_id' => $other->id, 'date' => $past, 'reference_no' => 'REQ-5', 'lines' => [$id => ['qty' => 6, 'purpose' => 'Print room']]];
+
+        $this->actingAs($this->officer())->put(route('inv.allocations.update', 'AL-000001'), $data)->assertRedirect()->assertSessionHas('denied');
+        $this->assertSame(6.0, $this->stock());
+
+        $this->actingAs($this->sysadmin())->get(route('inv.allocations.edit', 'AL-000001'))->assertOk()->assertSee('AL-000001');
+        $this->actingAs($this->sysadmin())->put(route('inv.allocations.update', 'AL-000001'), $data)->assertSessionHasNoErrors()->assertRedirect(route('inv.allocations.show', 'AL-000001'))->assertSessionHas('ok');
+        $m = Movement::findOrFail($id);
+        $this->assertSame(4.0, $this->stock());        // 10 received - 6 allocated
+        $this->assertSame(-6.0, (float) $m->qty);
+        $this->assertSame(4.0, (float) $m->balance_after);
+        $this->assertEquals($other->id, $m->holder_user_id);
+        $this->assertSame($past, $m->moved_on->toDateString());
+        $this->assertSame('REQ-5', $m->reference_no);
+        $this->assertSame('Print room', $m->remarks);
+
+        // more than is in stock is refused
+        $data['lines'][$id]['qty'] = 50;
+        $this->actingAs($this->sysadmin())->put(route('inv.allocations.update', 'AL-000001'), $data)->assertSessionHasErrors('lines');
+        $this->assertSame(4.0, $this->stock());
+    }
+
+    public function test_an_allocation_edit_cannot_take_away_what_the_holder_already_returned(): void
+    {
+        $this->receive(10);
+        $this->allocate(4);   // stock 6
+        $this->actingAs($this->officer())->post(route('inv.receive.store'), ['source' => 'EMPLOYEE', 'user_id' => $this->person()->id, 'date' => today()->toDateString(), 'lines' => [['equipment_id' => $this->toner->id, 'qty' => 1]]]);   // holds 3, stock 7
+        $id = $this->recordId('AL-000001');
+        $edit = fn (array $over, $qty) => $this->actingAs($this->sysadmin())->put(route('inv.allocations.update', 'AL-000001'), $over + ['to_type' => 'EMPLOYEE', 'user_id' => $this->person()->id, 'date' => today()->toDateString(), 'lines' => [$id => ['qty' => $qty]]]);
+
+        $edit(['user_id' => $this->officer()->id], 4)->assertSessionHasErrors('lines');   // moving it to someone else would leave the first holder with -1
+        $edit([], 0.5)->assertSessionHasErrors('lines');                                   // 3.5 less, but only 3 are still held
+        $this->assertSame(7.0, $this->stock());
+        $this->assertSame(-4.0, (float) Movement::findOrFail($id)->qty);
+
+        $edit([], 1)->assertSessionHasNoErrors();                                          // 3 less: exactly what is still held
+        $this->assertSame(10.0, $this->stock());
+        $this->assertSame(0.0, $this->svcHeld());
+    }
+
+    public function test_editing_a_previous_allocation_keeps_the_stock_unchanged(): void
+    {
+        $past = today()->subYear()->toDateString();
+        $this->postAs('inv.allocations.store', ['to_type' => 'EMPLOYEE', 'user_id' => $this->person()->id, 'date' => $past, 'previous' => 1,
+            'lines' => [['equipment_id' => $this->toner->id, 'qty' => 5]]])->assertSessionHasNoErrors();
+        $this->assertSame(0.0, $this->stock());
+        $id = $this->recordId('AL-000001', 'ALLOCATE');
+
+        $this->actingAs($this->sysadmin())->put(route('inv.allocations.update', 'AL-000001'), ['to_type' => 'EMPLOYEE', 'user_id' => $this->person()->id, 'date' => $past, 'lines' => [$id => ['qty' => 8]]])->assertSessionHasNoErrors();
+        $this->assertSame(0.0, $this->stock());
+        $this->assertSame(8.0, $this->svcHeld());
+        $this->assertSame(8.0, (float) Movement::where('type', 'PRIOR')->value('qty'));            // the hidden stock-in line moves with it
+        $this->assertSame(8.0, (float) Movement::where('type', 'PRIOR')->value('balance_after'));
+        $this->assertSame(0.0, (float) Movement::where('type', 'ALLOCATE')->value('balance_after'));
+    }
+
+    public function test_a_serialisable_unit_keeps_its_asset_id_when_its_allocation_is_edited(): void
+    {
+        $lap = $this->serialEquipment();
+        $day = today()->toDateString();
+        $this->postAs('inv.receive.store', ['source' => 'SUPPLIER', 'date' => $day, 'lines' => [['equipment_id' => $lap->id, 'qty' => 2]]]);
+        $this->postAs('inv.allocations.store', ['to_type' => 'EMPLOYEE', 'user_id' => $this->person()->id, 'date' => $day, 'lines' => [['equipment_id' => $lap->id]]])->assertSessionHasNoErrors();
+        $id = $this->recordId('AL-000001');
+
+        // a posted quantity is ignored for a serialisable unit; the manufacturer serial number and the purpose can be edited
+        $this->actingAs($this->sysadmin())->put(route('inv.allocations.update', 'AL-000001'), ['to_type' => 'EMPLOYEE', 'user_id' => $this->person()->id, 'date' => $day,
+            'lines' => [$id => ['qty' => 5, 'device_serial_no' => 'SN-XYZ-9', 'purpose' => 'Field work']]])->assertSessionHasNoErrors();
+        $m = Movement::findOrFail($id);
+        $this->assertSame('LAPT00010001', $m->serial_no);
+        $this->assertSame('SN-XYZ-9', $m->device_serial_no);
+        $this->assertSame('Field work', $m->remarks);
+        $this->assertSame(-1.0, (float) $m->qty);
+        $this->assertSame(1.0, (float) $lap->fresh()->stock_qty);
+    }
+
+    public function test_the_edit_permission_belongs_to_the_system_administrator_only(): void
+    {
+        $this->assertTrue($this->sysadmin()->hasPermission('inv.edit'));
+        $this->assertFalse($this->officer()->hasPermission('inv.edit'));
+        $this->assertContains('inv.edit', config('itsm.privileged_permissions'));
     }
 }

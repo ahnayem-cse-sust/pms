@@ -17,7 +17,7 @@ class DashboardController extends InvController
                 'Low or out of stock' => $low->count() + $out->count()],
             'low' => $low->sortBy('stock_qty')->values(), 'out' => $out,
             'byType' => $items->groupBy(fn ($e) => $e->assetType->name ?? 'Unclassified')->map(fn ($g) => ['units' => (float) $g->sum('stock_qty'), 'items' => $g->count()])->sortByDesc('units'),
-            'recent' => Movement::with(['equipment', 'user', 'holderUser', 'holderDepartment'])->latest('id')->limit(10)->get(),
+            'recent' => Movement::with(['equipment', 'user', 'holderUser', 'holderDepartment', 'holderSection'])->latest('id')->limit(10)->get(),
         ]);
     }
 }
