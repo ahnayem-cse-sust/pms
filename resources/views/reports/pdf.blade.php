@@ -37,7 +37,7 @@
     table.data td { border-bottom: 1px solid #e2e5f0; padding: 6px 7px; vertical-align: top; font-size: 9pt; }
     table.data thead { display: table-header-group; }
     table.data tr { page-break-inside: avoid; }
-    .r { text-align: right; }
+    .r { text-align: right !important; }   /* beats the th { text-align: left } rule so a right-aligned amount column has a right-aligned header too */
     .card { border: 1px solid #d9dcea; padding: 9px 11px; }
     .card .n { font-size: 22pt; font-weight: bold; line-height: 1.1; }
     .card .l { font-size: 10pt; font-weight: bold; color: #1c2333; margin-top: 2px; }

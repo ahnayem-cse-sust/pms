@@ -13,7 +13,7 @@
     table.data td { border-bottom: 1px solid #e2e5f0; padding: 4px 6px; vertical-align: top; }
     table.data thead { display: table-header-group; }
     table.data tr { page-break-inside: avoid; }
-    .r { text-align: right; }
+    .r { text-align: right !important; }   /* beats the th { text-align: left } rule so a right-aligned amount column has a right-aligned header too */
     .item td { background: #eef0ff; border-top: 2px solid #4843a5; font-weight: bold; }
     .sub td { font-size: 8.5pt; color: #3a4258; }
     @unless($mpdf) .foot { position: fixed; bottom: -26px; left: 0; right: 0; font-size: 8pt; color: #6a7389; text-align: center; } @endunless

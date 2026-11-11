@@ -10,7 +10,7 @@
     table.data { width: 100%; border-collapse: collapse; }
     table.data th { background: #4843a5; color: #fff; text-align: left; padding: 5px 6px; font-size: 9.5px; }
     table.data td { border-bottom: 1px solid #e2e5f0; padding: 4px 6px; vertical-align: top; }
-    .r { text-align: right; }
+    .r { text-align: right !important; }   /* beats the th { text-align: left } rule so a right-aligned amount column has a right-aligned header too */
     @unless($mpdf) .foot { position: fixed; bottom: -22px; left: 0; right: 0; font-size: 8.5px; color: #6a7389; text-align: center; } @endunless
 </style></head><body>
 <table class="head"><tr>

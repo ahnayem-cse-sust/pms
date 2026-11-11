@@ -11,7 +11,7 @@
     .items { margin-top: 30px; }
     .items th { background: #060331; color: #fff; padding: 6px; text-align: left; font-size: 11.5px; }
     .items td { padding: 6px; border: 1px solid #b8bfcd; vertical-align: top; }
-    .r { text-align: right; }
+    .r { text-align: right !important; }   /* beats the th { text-align: left } rule so a right-aligned amount column has a right-aligned header too */
     .note { margin-top: 18px; font-size: 11.5px; color: #434b60; }
     .sig { width: 100%; margin-top: 64px; }
     .sig td { width: 33%; text-align: center; padding: 0 12px; }
