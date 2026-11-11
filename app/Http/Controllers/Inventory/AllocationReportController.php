@@ -9,7 +9,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 /**
- * Item wise Allocation report: for a date range, how much of each equipment was allocated, how much came back, and to whom
+ * Allocation report: for a date range, how much of each equipment was allocated, how much came back, and to whom
  * (screen, PDF with an optional detailed listing of every allocation, CSV). Previous allocations count on the date they were handed over.
  */
 class AllocationReportController extends InvController
@@ -20,7 +20,7 @@ class AllocationReportController extends InvController
         if ($r->input('format') === 'csv') return $this->csvOut($d);
         if ($r->input('format') === 'pdf') return $this->pdfOut($d);
 
-        return view('inventory.allocation-report', $d + ['cats' => $this->categories(), 'subs' => $this->subcategories(), 'items' => Equipment::orderBy('name')->get(['id', 'code', 'name', 'brand', 'model'])]);
+        return view('inventory.allocation-report', $d + ['cats' => $this->categories(), 'subs' => $this->subcategories(), 'items' => $this->equipment()]);
     }
 
     protected function date(?string $v, Carbon $default): Carbon

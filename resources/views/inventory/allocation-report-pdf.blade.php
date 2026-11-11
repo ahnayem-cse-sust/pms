@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><title>Item wise Allocation report</title>
+<html lang="en"><head><meta charset="utf-8"><title>Allocation report</title>
 @php $q = fn ($n) => \App\Support\Inv::qty($n); @endphp
 <style>
     @unless($mpdf) @page { margin: 14mm 12mm 16mm 12mm; } @endunless
@@ -20,7 +20,7 @@
 </style></head><body>
 <table class="head"><tr>
     @if(extension_loaded('gd'))<td style="width:56px"><img src="{{ public_path('images/joplc_logo.png') }}" style="height:46px"></td>@endif
-    <td><h1>IT Inventory – {{ $item ? 'Allocation Records: '.$item->name.' ('.$item->code.')' : 'Item wise Allocation Report'.($detail ? ' – detailed' : '') }}</h1><div class="muted">Jamuna Oil PLC. &middot; MIS &amp; IT Department</div></td>
+    <td><h1>IT Inventory – {{ $item ? 'Allocation Records: '.$item->name.' ('.$item->code.')' : 'Allocation Report'.($detail ? ' – detailed' : '') }}</h1><div class="muted">Jamuna Oil PLC. &middot; MIS &amp; IT Department</div></td>
     <td style="text-align:right"><div style="font-size:12pt;font-weight:bold;color:#4843a5">{{ $from->format('d M Y') }} – {{ $to->format('d M Y') }}</div><div class="muted">@if($item){{ $records->count() }} records &middot; {{ $q($records->sum('qty')) }} allocated @else{{ $rows->count() }} items &middot; {{ $q($totals['allocated']) }} allocated &middot; {{ $q($totals['returned']) }} returned &middot; {{ $totals['entries'] }} entries @endif</div></td>
 </tr></table>
 

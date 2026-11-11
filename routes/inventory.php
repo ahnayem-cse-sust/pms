@@ -54,7 +54,7 @@ Route::middleware('auth')->prefix('inventory')->name('inv.')->group(function () 
     // Stock report: what is in store now and what is out with people (screen, PDF, CSV)
     Route::get('stock-report', [I\StockReportController::class, 'index'])->middleware('can:inv.view')->name('stock');
 
-    // Item wise Allocation report for a date range (screen, PDF with optional details, CSV)
+    // Allocation report for a date range (screen, PDF with optional details, CSV)
     Route::get('allocation-report', [I\AllocationReportController::class, 'index'])->middleware('can:inv.view')->name('allocation_report');
 
     // Month-wise stock report (screen, PDF, CSV)

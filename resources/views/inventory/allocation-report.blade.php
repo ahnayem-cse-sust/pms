@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Item wise Allocation report')
+@section('title', 'Allocation report')
 @section('content')
 <div class="mb-3"><a href="{{ route('inv.reports') }}" class="btn btn-outline-secondary inv-back"><x-icon name="arrow-left" :size="15"/> Reports</a></div>
 @php $q = fn ($n) => \App\Support\Inv::qty($n); @endphp
