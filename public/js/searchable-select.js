@@ -31,6 +31,10 @@
         function render() {
             var q = box.value.trim().toLowerCase(), shown = 0;
             list.innerHTML = ''; hl = -1;
+            if (sel.dataset.ssClear && !q) {   // opt-in: a first entry that clears the choice (the select's empty option)
+                var c = document.createElement('div'); c.className = 'ss-item ss-clear' + (sel.value ? '' : ' active'); c.dataset.v = '';
+                var cs = document.createElement('span'); cs.textContent = emptyLabel; c.appendChild(cs); list.appendChild(c); shown++;
+            }
             Array.prototype.forEach.call(sel.options, function (o) {
                 if (!o.value) return;
                 var txt = o.textContent.trim();

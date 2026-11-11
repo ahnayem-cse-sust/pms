@@ -40,12 +40,22 @@ class AllocationController extends InvController
         })->sortBy('holder')->values();
     }
 
+    /** Numbers shown on the two tabs: holders with something now, and allocation entries ever made. */
+    protected function tabCounts($holdings = null): array
+    {
+        $holdings ??= $this->holdings();
+
+        return ['holders' => $holdings->groupBy(fn ($x) => $x->holder_key)->count(), 'entries' => Movement::where('type', 'ALLOCATE')->whereNotNull('entry_no')->distinct()->count('entry_no')];
+    }
+
     public function index(Request $r)
     {
-        $rows = $this->holdings()
+        $all = $this->holdings();
+        $rows = $all
             ->when($r->equipment_id, fn ($c, $v) => $c->filter(fn ($x) => $x->equipment_id == $v))
             ->when($r->user_id, fn ($c, $v) => $c->filter(fn ($x) => $x->holder_type === 'EMPLOYEE' && $x->holder_user_id == $v))
             ->when($r->department_id, fn ($c, $v) => $c->filter(fn ($x) => $x->holder_type === 'DEPARTMENT' && $x->holder_department_id == $v))
+            ->when($r->section_id, fn ($c, $v) => $c->filter(fn ($x) => $x->holder_type === 'OFFICE' && $x->holder_section_id == $v))
             ->when($r->q, fn ($c, $s) => $c->filter(fn ($x) => stripos($x->holder.' '.$x->dept.' '.$x->equipment->name.' '.$x->equipment->code.' '.$x->serial_no.' '.$x->device_sn, $s) !== false))->values();
 
         if ($r->input('format') === 'csv') {
@@ -53,7 +63,7 @@ class AllocationController extends InvController
                 $rows->map(fn ($x) => [$x->holder, $x->dept, $x->equipment->name, $x->serial_no, $x->device_sn, $x->equipment->assetType->name ?? '', $x->equipment->category->name ?? '', $x->equipment->subcategory->name ?? '', \App\Support\Inv::qty($x->held), $x->since]));
         }
 
-        return view('inventory.allocations.index', ['rows' => $rows, 'equipment' => $this->equipment(), 'people' => $this->people(), 'departments' => $this->departments()]);
+        return view('inventory.allocations.index', ['rows' => $rows, 'equipment' => $this->equipment(), 'people' => $this->people(), 'departments' => $this->departments(), 'offices' => $this->offices($r->section_id), 'tabCounts' => $this->tabCounts($all)]);
     }
 
     /** One holder (employee, department or office) with everything they currently hold; equipment is shown here and returned from here. */
@@ -199,7 +209,7 @@ class AllocationController extends InvController
 
         $returned = $this->returnedByLine($lines->collapse());
 
-        return view('inventory.allocations.entries', ['entries' => $entries, 'lines' => $lines, 'returned' => $returned, 'equipment' => $this->equipment()]);
+        return view('inventory.allocations.entries', ['tabCounts' => $this->tabCounts(), 'entries' => $entries, 'lines' => $lines, 'returned' => $returned, 'equipment' => $this->equipment()]);
     }
 
     /** All lines of one allocation entry; 404 when there is none, 403 unless the user may see it (inventory view, or it was handed to them / their department). */

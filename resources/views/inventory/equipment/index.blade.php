@@ -12,6 +12,7 @@
     <div class="col-6 col-md-4 col-xl-2"><label class="form-label">Sub category</label><select name="subcategory_id" id="fsub" class="form-select" onchange="this.form.submit()"><option value="">All</option>@foreach($subs as $c)<option value="{{ $c->id }}" data-p="{{ $c->parent_id }}" @selected(request('subcategory_id') == $c->id)>{{ $c->name }}</option>@endforeach</select></div>
     <div class="col-12 filter-btns"><div class="fb-main"><button class="btn btn-primary"><x-icon name="search" :size="15"/> Search</button><a href="{{ url()->current() }}" class="btn btn-outline-secondary">Reset @if($activeFilters)<span class="filter-count">{{ $activeFilters }}</span>@endif</a></div><div class="fb-side"><a href="{{ route('inv.equipment.index', request()->query() + ['format' => 'csv']) }}" class="btn btn-outline-secondary"><x-icon name="download" :size="15"/> CSV</a>@can('inv.update')<a href="{{ route('inv.equipment.create') }}" class="btn btn-success">+ New equipment</a>@endcan</div></div>
 </div></div></form>
+@include('inventory._intro', ['text' => 'Every item you keep in store, with how many are left.', 'tip' => 'Click an item to see its allocation and receive history. Stock only changes when you receive, allocate or return.'])
 
 @php
     $tabUrl = fn ($t) => route('inv.equipment.index', collect(request()->except(['page', 'tab', 'low']))->filter(fn ($v) => $v !== null && $v !== '')->all() + ['tab' => $t]);

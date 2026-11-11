@@ -110,22 +110,22 @@
             @canany(['menu.inv_dashboard', 'menu.inv_equipment', 'menu.inv_allocations', 'menu.inv_receives', 'menu.inv_reports', 'menu.inv_setup'])
                 <x-nav-group id="inv" icon="box" label="IT Inventory" :open="$invOpen">
                     @can('menu.inv_dashboard')
-                        <li><a class="nav-link {{ request()->routeIs('inv.dashboard') ? 'active' : '' }}" href="{{ route('inv.dashboard') }}"><x-icon name="home"/> Dashboard</a></li>
+                        <li><a class="nav-link {{ request()->routeIs('inv.dashboard') ? 'active' : '' }}" title="Overview and shortcuts" href="{{ route('inv.dashboard') }}"><x-icon name="home"/> Dashboard</a></li>
                     @endcan
                     @can('menu.inv_equipment')
-                        <li><a class="nav-link {{ request()->routeIs('inv.equipment.*') ? 'active' : '' }}" href="{{ route('inv.equipment.index') }}"><x-icon name="box"/> Equipment &amp; Stock</a></li>
+                        <li><a class="nav-link {{ request()->routeIs('inv.equipment.*') ? 'active' : '' }}" title="All items and how many are in stock" href="{{ route('inv.equipment.index') }}"><x-icon name="box"/> Equipment &amp; Stock</a></li>
                     @endcan
                     @can('menu.inv_allocations')
-                        <li><a class="nav-link {{ request()->routeIs('inv.allocations.*') ? 'active' : '' }}" href="{{ route('inv.allocations.entries') }}"><x-icon name="users"/> Allocations</a></li>
+                        <li><a class="nav-link {{ request()->routeIs('inv.allocations.*') ? 'active' : '' }}" title="Who holds what now, and the allocation records" href="{{ route('inv.allocations.index') }}"><x-icon name="users"/> Allocations</a></li>
                     @endcan
                     @can('menu.inv_receives')
-                        <li><a class="nav-link {{ request()->routeIs('inv.receive*') ? 'active' : '' }}" href="{{ route('inv.receives') }}"><x-icon name="inbox"/> Receives</a></li>
+                        <li><a class="nav-link {{ request()->routeIs('inv.receive*') ? 'active' : '' }}" title="Stock coming in: from suppliers or returned by people" href="{{ route('inv.receives') }}"><x-icon name="inbox"/> Receives</a></li>
                     @endcan
                     @can('menu.inv_reports')
-                        <li><a class="nav-link {{ request()->routeIs('inv.reports', 'inv.stock', 'inv.monthly') ? 'active' : '' }}" href="{{ route('inv.reports') }}"><x-icon name="download"/> Reports</a></li>
+                        <li><a class="nav-link {{ request()->routeIs('inv.reports', 'inv.stock', 'inv.monthly') ? 'active' : '' }}" title="Stock and monthly reports" href="{{ route('inv.reports') }}"><x-icon name="download"/> Reports</a></li>
                     @endcan
                     @can('menu.inv_setup')
-                        <li><a class="nav-link {{ request()->routeIs('inv.setup*') ? 'active' : '' }}" href="{{ route('inv.setup') }}"><x-icon name="folder"/> Types &amp; Categories</a></li>
+                        <li><a class="nav-link {{ request()->routeIs('inv.setup*') ? 'active' : '' }}" title="Asset types, categories and sub categories" href="{{ route('inv.setup') }}"><x-icon name="folder"/> Types &amp; Categories</a></li>
                     @endcan
                 </x-nav-group>
             @endcanany

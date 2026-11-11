@@ -23,7 +23,7 @@ class StockReportController extends InvController
         if ($r->input('format') === 'csv') return $this->csvOut($d);
         if ($r->input('format') === 'pdf') return $this->pdfOut($d);
 
-        return view('inventory.stock', $d + ['types' => $this->types(), 'cats' => $this->categories()]);
+        return view('inventory.stock', $d + ['types' => $this->types(), 'cats' => $this->categories(), 'subs' => $this->subcategories()]);
     }
 
     protected function data(Request $r): array
@@ -34,8 +34,8 @@ class StockReportController extends InvController
         $inUse = Movement::whereIn('type', ['ALLOCATE', 'RETURN'])->selectRaw('equipment_id, -SUM(qty) as q')->groupBy('equipment_id')->pluck('q', 'equipment_id');
 
         $rows = Equipment::with(['assetType', 'category', 'subcategory'])
-            ->when($r->q, fn ($q, $s) => $q->where(fn ($w) => $w->where('name', 'like', "%$s%")->orWhere('code', 'like', "%$s%")->orWhere('brand', 'like', "%$s%")->orWhere('model', 'like', "%$s%")))
-            ->when($r->asset_type_id, fn ($q, $v) => $q->where('asset_type_id', $v))->when($r->category_id, fn ($q, $v) => $q->where('category_id', $v))
+            ->when($r->q, fn ($q, $s) => $q->where(fn ($w) => $w->where('name', 'like', "%$s%")->orWhere('code', 'like', "%$s%")->orWhere('brand', 'like', "%$s%")->orWhere('model', 'like', "%$s%")->orWhereHas('subcategory', fn ($c) => $c->where('name', 'like', "%$s%"))))
+            ->when($r->asset_type_id, fn ($q, $v) => $q->where('asset_type_id', $v))->when($r->category_id, fn ($q, $v) => $q->where('category_id', $v))->when($r->subcategory_id, fn ($q, $v) => $q->where('subcategory_id', $v))
             ->get()
             ->map(function ($e) use ($inUse) {
                 $store = round((float) $e->stock_qty, 2);
@@ -48,7 +48,7 @@ class StockReportController extends InvController
             // live equipment always; inactive equipment only while it still has stock or is still out with someone
             ->filter(fn ($x) => $x->equipment->is_live || $x->store != 0 || $x->use != 0)
             ->when($status, fn ($c) => $c->where('status', $status))
-            ->sortBy(fn ($x) => ($x->equipment->assetType->name ?? '').'|'.($x->equipment->category->name ?? '').'|'.$x->equipment->name)->values();
+            ->sortBy(fn ($x) => ($x->equipment->assetType->name ?? '').'|'.($x->equipment->category->name ?? '').'|'.($x->equipment->subcategory->name ?? '').'|'.$x->equipment->name)->values();
 
         return ['rows' => $rows, 'asOf' => now(), 'status' => $status,
             'totals' => ['store' => $rows->sum('store'), 'use' => $rows->sum('use'), 'total' => $rows->sum('total')],
@@ -57,8 +57,8 @@ class StockReportController extends InvController
 
     protected function csvOut(array $d)
     {
-        return $this->csv('inventory_stock', ['Equipment ID', 'Equipment', 'Asset type', 'Category', 'Sub category', 'Brand', 'Model', 'In store', 'With employees / departments', 'Total', 'Unit', 'Minimum stock', 'Status'],
-            $d['rows']->map(fn ($x) => [$x->equipment->code, $x->equipment->name, $x->equipment->assetType->name ?? '', $x->equipment->category->name ?? '', $x->equipment->subcategory->name ?? '',
+        return $this->csv('inventory_stock', ['Equipment ID', 'Equipment', 'Category', 'Sub category', 'Brand', 'Model', 'In store', 'With employees / departments', 'Total', 'Unit', 'Minimum stock', 'Status'],
+            $d['rows']->map(fn ($x) => [$x->equipment->code, $x->equipment->name, $x->equipment->category->name ?? '', $x->equipment->subcategory->name ?? '',
                 $x->equipment->brand, $x->equipment->model, Inv::qty($x->store), Inv::qty($x->use), Inv::qty($x->total), $x->equipment->unit, $x->min > 0 ? Inv::qty($x->min) : '', ['ok' => 'In stock', 'low' => 'Low stock', 'out' => 'Out of stock'][$x->status]]));
     }
 

@@ -22,11 +22,11 @@
 
 <div class="inv-quick mb-3">
     @can('inv.create')
-        <a href="{{ route('inv.receive') }}" class="btn btn-success"><x-icon name="arrow-down-left" :size="15"/> Receive item</a>
-        <a href="{{ route('inv.allocations.create') }}" class="btn btn-primary"><x-icon name="arrow-up-right" :size="15"/> Allocate equipment</a>
+        <a href="{{ route('inv.receive') }}" class="btn btn-success" title="Add new stock, or take back equipment from people"><x-icon name="arrow-down-left" :size="15"/> Receive item</a>
+        <a href="{{ route('inv.allocations.create') }}" class="btn btn-primary" title="Give equipment to an employee, department or office"><x-icon name="arrow-up-right" :size="15"/> Allocate equipment</a>
     @endcan
-    <a href="{{ route('inv.allocations.index') }}" class="btn btn-outline-secondary"><x-icon name="users" :size="15"/> Who has what</a>
-    <a href="{{ route('inv.records') }}" class="btn btn-outline-secondary"><x-icon name="clipboard" :size="15"/> All records</a>
+    <a href="{{ route('inv.allocations.index') }}" class="btn btn-outline-secondary" title="See what each person, department or office currently holds"><x-icon name="users" :size="15"/> Who has what</a>
+    <a href="{{ route('inv.records') }}" class="btn btn-outline-secondary" title="Every stock movement, one line each"><x-icon name="clipboard" :size="15"/> All records</a>
 </div>
 
 <div class="row g-3 mb-3">

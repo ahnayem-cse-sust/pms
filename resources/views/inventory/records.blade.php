@@ -12,6 +12,7 @@
     <div class="col-6 col-md-3 col-xl-2"><label class="form-label">To</label><input type="date" name="to" value="{{ request('to') }}" class="form-control"></div>
     <div class="col-12 filter-btns"><div class="fb-main"><button class="btn btn-primary"><x-icon name="search" :size="15"/> Filter</button><a href="{{ url()->current() }}" class="btn btn-outline-secondary">Reset @if($activeFilters)<span class="filter-count">{{ $activeFilters }}</span>@endif</a></div><div class="fb-side"><a href="{{ route('inv.records', request()->query() + ['format' => 'csv']) }}" class="btn btn-outline-secondary"><x-icon name="download" :size="15"/> CSV</a></div></div>
 </div></div></form>
+@include('inventory._intro', ['text' => 'Every stock movement, one line each: items received, allocated or returned.', 'tip' => 'For a whole entry with all its items, use Receives or Allocations.'])
 
 <div class="table-card"><div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Record ID</th><th>Date</th><th>Receive / Allocation ID</th><th>Type</th><th>Equipment ID</th><th>Equipment</th><th class="text-end">Quantity</th><th></th></tr></thead><tbody>
 @forelse($rows as $m)

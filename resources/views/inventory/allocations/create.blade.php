@@ -1,6 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Allocate Equipment')
 @section('content')
+@include('inventory._intro', ['text' => 'Give equipment from the store to an employee, department or office.', 'tip' => 'Step 1: choose who gets it. Step 2: pick the equipment. Then Allocate.'])
 @include('inventory._errors')
 <form method="POST" action="{{ route('inv.allocations.store') }}">@csrf
 <div class="card inv-form-card mb-3">
@@ -14,7 +15,7 @@
         <div class="col-md-3"><label class="form-label">Reference (request no., voucher)</label><input name="reference_no" value="{{ old('reference_no') }}" class="form-control"></div>
         <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" name="previous" value="1" id="prev" onchange="prevMode()" @checked(old('previous'))>
             <label class="form-check-label" for="prev"><strong>Previous allocation</strong> – the equipment was already with them before this system</label></div>
-            <div class="form-text" id="prevhelp" style="display:none">Use the date it was originally handed over. Stock is not reduced: the item is added to stock and allocated on that date, so it shows in "Who has what" and can be returned later. Asset IDs are generated as usual.</div></div>
+            <div class="form-text" id="prevhelp" style="display:none">Use the date it was originally handed over. Stock does not change and no receive is created: the allocation is only recorded on that date, so it shows in "Who has what" and can be returned later. Asset IDs are generated as usual.</div></div>
     </div></div>
 </div>
 

@@ -1281,3 +1281,68 @@ a.inv-chip:hover{ border-color:var(--primary); color:var(--primary); }
 .board-col.onhold .tcard{ border-left-color:#e11d48; }
 
 .inv-form-card .t .ss-btn{ min-height:38px; font-size:1rem; }
+
+/* Inventory: plain-language page intro and quick filter chips */
+.inv-intro{ display:flex; align-items:flex-start; gap:.6rem; padding:.65rem .9rem; margin-bottom:1rem; border:1px solid var(--border,#e5e7eb); border-left:3px solid var(--primary,#4f46e5); border-radius:.5rem; background:var(--card-bg,#fff); font-size:.88rem; }
+.inv-intro svg{ flex:none; margin-top:.15rem; color:var(--primary,#4f46e5); }
+.inv-intro-tip{ display:block; color:var(--muted,#6b7280); font-size:.8rem; margin-top:.15rem; }
+.inv-chips{ display:flex; flex-wrap:wrap; gap:.4rem; }
+.inv-chip{ padding:.3rem .8rem; border:1px solid var(--border,#e5e7eb); border-radius:999px; font-size:.82rem; text-decoration:none; color:inherit; background:var(--card-bg,#fff); }
+.inv-chip:hover{ border-color:var(--primary,#4f46e5); }
+.inv-chip.active{ background:var(--primary,#4f46e5); border-color:var(--primary,#4f46e5); color:#fff; }
+
+/* Allocations: tabs, search and page message share one card */
+.filter-card .inv-tabs{ margin-bottom:0; }
+.filter-card .inv-intro{ margin:0; border:0; border-top:1px solid var(--border); border-radius:0; }
+
+/* Allocations: one card holding tabs, search, message and the list */
+.inv-panel{ overflow:hidden; padding:0; }
+.inv-panel .filter-card{ border-top:0; }
+.inv-panel .inv-summary{ padding:.6rem 1rem; margin:0; }
+.inv-panel .table-card{ border:0; border-radius:0; box-shadow:none; border-top:1px solid var(--border); }
+
+/* Allocations (Who has what / Allocation records): refreshed look */
+.inv-bar{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.75rem; padding:.8rem 1.1rem; background:linear-gradient(135deg,var(--primary-soft),var(--card)); border-bottom:1px solid var(--border); }
+.inv-seg{ display:inline-flex; padding:3px; gap:2px; background:var(--card); border:1px solid var(--border); border-radius:12px; }
+.inv-seg a{ display:inline-flex; align-items:center; gap:.45rem; padding:.45rem 1rem; border-radius:9px; font-weight:600; font-size:.86rem; color:var(--text); text-decoration:none; }
+.inv-seg a:hover{ color:var(--primary); background:var(--primary-soft); }
+.inv-seg a.active{ background:var(--primary); color:#fff; box-shadow:0 3px 10px rgba(79,70,229,.3); }
+.inv-bar-actions{ display:flex; flex-wrap:wrap; gap:.5rem; margin-left:auto; }
+.inv-bar-actions .btn{ height:38px; display:inline-flex; align-items:center; gap:.4rem; border-radius:10px; font-weight:600; font-size:.85rem; }
+.inv-panel .filter-card{ background:color-mix(in srgb,var(--card) 70%,var(--bg)); }
+.inv-panel .filter-card .filter-body{ padding:.9rem 1.1rem; }
+.inv-panel .inv-intro{ background:var(--primary-soft); border:0; border-top:1px solid var(--border); border-left:0; }
+.inv-panel .inv-summary{ display:flex; flex-wrap:wrap; gap:.5rem; padding:.7rem 1.1rem; border-bottom:1px solid var(--border); background:var(--card); }
+.inv-panel .inv-summary span{ padding:.25rem .8rem; border-radius:999px; background:var(--primary-soft); color:var(--muted); font-size:.8rem; }
+.inv-panel .inv-summary strong{ color:var(--primary) !important; }
+.inv-panel .table thead th{ background:var(--primary-soft); color:var(--primary); text-transform:uppercase; letter-spacing:.05em; font-size:.68rem; font-weight:700; padding:.7rem .9rem; border-bottom:1px solid var(--border); }
+.inv-panel .table tbody td{ padding:.8rem .9rem; border-color:var(--border); }
+.inv-panel .table tbody tr:hover{ box-shadow:inset 3px 0 0 var(--primary); }
+.inv-panel .pill-kind-EMPLOYEE{ background:#e0e7ff; color:#3730a3; } .inv-panel .pill-kind-DEPARTMENT{ background:#cffafe; color:#0e7490; } .inv-panel .pill-kind-OFFICE{ background:#fef3c7; color:#92400e; }
+[data-bs-theme=dark] .inv-panel .pill-kind-EMPLOYEE{ background:#2a2f63; color:#c7d2fe; } [data-bs-theme=dark] .inv-panel .pill-kind-DEPARTMENT{ background:#0f3f4a; color:#67e8f9; } [data-bs-theme=dark] .inv-panel .pill-kind-OFFICE{ background:#4a3a0f; color:#fde68a; }
+
+/* Allocations top bar: tabs look like the request details page (underlined, with counts); actions on the right */
+.inv-panel .inv-bar{ background:var(--card); padding:0 1.1rem 0 .4rem; gap:.5rem; align-items:center; flex-wrap:nowrap; }
+.inv-panel .inv-bar .nav-tabs{ border:0; gap:0; flex-wrap:nowrap; overflow-x:auto; width:auto; flex:1 1 auto; scrollbar-width:thin; }
+.inv-panel .inv-bar .nav-link{ border:0; border-radius:0; margin:0; padding:.85rem 1.1rem; border-bottom:3px solid transparent; color:var(--muted); font-weight:600; background:transparent; display:inline-flex; align-items:center; gap:.45rem; white-space:nowrap; }
+.inv-panel .inv-bar .nav-link:hover{ color:var(--text); }
+.inv-panel .inv-bar .nav-link.active{ color:var(--primary); border-bottom-color:var(--primary); background:transparent; }
+.inv-panel .inv-bar .count{ font-size:.7rem; background:var(--primary-soft); color:var(--primary); border-radius:999px; padding:.05rem .45rem; }
+.inv-panel .inv-bar-actions{ flex:none; padding:.4rem 0; }
+@media (max-width:767.98px){ .inv-panel .inv-bar{ flex-wrap:wrap; padding:0 .75rem; } .inv-panel .inv-bar-actions{ width:100%; justify-content:flex-end; } }
+
+/* Allocations top bar: taller and roomier */
+.inv-panel .inv-bar{ min-height:68px; padding:.5rem 1.4rem .5rem 1rem; }
+.inv-panel .inv-bar .nav-link{ padding:1.25rem 1.5rem; font-size:.98rem; gap:.55rem; border-bottom-width:4px; }
+.inv-panel .inv-bar .nav-link svg{ width:18px; height:18px; }
+.inv-panel .inv-bar .count{ font-size:.78rem; padding:.12rem .6rem; }
+.inv-panel .inv-bar-actions{ gap:.65rem; padding:.5rem 0; }
+.inv-panel .inv-bar-actions .btn{ height:44px; padding:0 1.2rem; font-size:.92rem; border-radius:12px; }
+@media (max-width:767.98px){ .inv-panel .inv-bar{ padding:.25rem .75rem .6rem; } .inv-panel .inv-bar .nav-link{ padding:1rem 1rem; } }
+
+.ss-item.ss-clear{ color:var(--muted); border-bottom:1px solid var(--border); }
+
+/* Item wise Allocation report: one card; the searchable pickers' dropdowns must not be clipped */
+.inv-panel.inv-panel-open, .inv-panel.inv-panel-open .filter-card{ overflow:visible; }
+.inv-panel.inv-panel-open .filter-card{ border-radius:var(--radius) var(--radius) 0 0; }
+.inv-panel.inv-panel-open .inv-summary:last-child{ border-bottom:0; }

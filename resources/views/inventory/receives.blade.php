@@ -14,6 +14,12 @@
     <div class="col-6 col-md-3 col-xl-2"><label class="form-label">To</label><input type="date" name="to" value="{{ request('to') }}" class="form-control"></div>
     <div class="col-12 col-xl filter-btns"><div class="fb-main"><button class="btn btn-primary"><x-icon name="search" :size="15"/> Filter</button><a href="{{ url()->current() }}" class="btn btn-outline-secondary">Reset @if($activeFilters)<span class="filter-count">{{ $activeFilters }}</span>@endif</a></div><div class="fb-side"><a href="{{ route('inv.receives', request()->query() + ['format' => 'csv']) }}" class="btn btn-outline-secondary"><x-icon name="download" :size="15"/> CSV</a>@can('inv.create')<a href="{{ route('inv.receive') }}" class="btn btn-success">+ Receive item</a>@endcan</div></div>
 </div></div></form>
+@include('inventory._intro', ['text' => 'Each row is one receive entry: new stock from a supplier, items returned by people, or items that existed before this system.', 'tip' => 'Use the buttons below to show only one kind.'])
+
+@php
+    $chips = ['' => 'All', 'SUPPLIER' => 'From supplier', 'EMPLOYEE' => 'Employee returns', 'DEPARTMENT' => 'Department returns', 'OFFICE' => 'Office returns', 'PREVIOUS' => 'Previous items'];
+@endphp
+<div class="inv-chips mb-3">@foreach($chips as $k => $label)<a href="{{ route('inv.receives', request()->except(['source', 'page']) + ($k !== '' ? ['source' => $k] : [])) }}" class="inv-chip {{ (string) request('source') === (string) $k ? 'active' : '' }}">{{ $label }}</a>@endforeach</div>
 
 <div class="table-card"><div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Entry</th><th>Date</th><th>Received from</th><th class="text-end">Total items</th><th>Reference / by</th><th></th></tr></thead><tbody>
 @forelse($entries as $en)

@@ -1,6 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Receive Item')
 @section('content')
+@include('inventory._intro', ['text' => 'Add items to the store: new stock from a supplier, or equipment coming back from an employee, department or office.', 'tip' => 'Step 1: say where it comes from. Step 2: pick the items and quantities. Then Save.'])
 @include('inventory._errors')
 @php
     // keep this as one block (do not mix with the one-line form in this file)
@@ -14,12 +15,12 @@
     <div class="card-body"><div class="row g-3">
         <div class="col-md-3"><label class="form-label">Received from *</label>
             <select name="source" id="src" class="form-select" onchange="sw()">
-                <option value="SUPPLIER" @selected($mode === 'SUPPLIER')>Supplier (new stock)</option>
-                <option value="PREVIOUS" @selected($mode === 'PREVIOUS')>Previous item (existing before this system)</option>
-                <option value="EMPLOYEE" @selected($mode === 'EMPLOYEE')>Employee (return)</option>
-                <option value="DEPARTMENT" @selected($mode === 'DEPARTMENT')>Department (return)</option>
-                <option value="OFFICE" @selected($mode === 'OFFICE')>Office (return)</option>
-            </select></div>
+                <option value="SUPPLIER" @selected($mode === 'SUPPLIER')>Supplier – new stock bought or delivered</option>
+                <option value="PREVIOUS" @selected($mode === 'PREVIOUS')>Previous item – already owned before this system</option>
+                <option value="EMPLOYEE" @selected($mode === 'EMPLOYEE')>Employee – returning equipment</option>
+                <option value="DEPARTMENT" @selected($mode === 'DEPARTMENT')>Department – returning equipment</option>
+                <option value="OFFICE" @selected($mode === 'OFFICE')>Office – returning equipment</option>
+            </select><div class="form-text" id="srchelp"></div></div>
         <div class="col-md-3"><label class="form-label">Date *</label><input type="date" name="date" value="{{ old('date', today()->format('Y-m-d')) }}" max="{{ today()->format('Y-m-d') }}" class="form-control" required></div>
         <div class="col-md-6 s s-SUPPLIER s-PREVIOUS"><label class="form-label">Supplier <span class="text-muted small" id="suplabel"></span></label><input name="supplier" value="{{ old('supplier') }}" class="form-control"></div>
         <div class="col-md-6 s s-EMPLOYEE" style="display:none"><label class="form-label">Employee returning *</label><select name="user_id" id="hu" class="form-select" onchange="holderChanged()"><option value="">Select…</option>@foreach($holders->filter(fn ($h) => str_starts_with($h['key'], 'E:')) as $h)<option value="{{ substr($h['key'], 2) }}" @selected($from === $h['key'])>{{ $h['label'] }}</option>@endforeach</select></div>
@@ -64,6 +65,8 @@ function sw() {
     document.getElementById('hint').textContent = m === 'SUPPLIER' ? 'Stock is added as soon as you save, and a record is written.'
         : (m === 'PREVIOUS' ? 'Use the date the item was originally received. It is added to the store. If it is already with an employee or department, record it from Allocate Equipment as a previous allocation.'
         : 'Returned items go back into stock as soon as you save. Only items the person / department holds can be returned, up to the quantity they hold.');
+    document.getElementById('srchelp').textContent = {SUPPLIER: 'Counts as new stock.', PREVIOUS: 'Old stock that was never entered. Counts as stock in the store.',
+        EMPLOYEE: 'Only items this employee holds can be returned.', DEPARTMENT: 'Only items this department holds can be returned.', OFFICE: 'Only items this office holds can be returned.'}[m] || '';
     rebuild();
 }
 function holderChanged() { rebuild(); }
